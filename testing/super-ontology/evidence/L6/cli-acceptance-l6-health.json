@@ -1,0 +1,72 @@
+{
+ "api_version": "1.0",
+ "components": {
+  "cas": {
+   "status": "ok"
+  },
+  "db": {
+   "latency_ms": 0,
+   "status": "ok"
+  },
+  "engine": {
+   "status": "ok"
+  },
+  "model": {
+   "status": "not_configured"
+  },
+  "parser": {
+   "detail": {
+    "formats": [
+     "md",
+     "txt",
+     "csv",
+     "xlsx",
+     "pdf",
+     "docx",
+     "pptx"
+    ],
+    "kind": "local+sidecar",
+    "sidecar_formats": [
+     "pdf",
+     "docx",
+     "pptx"
+    ]
+   },
+   "status": "ok"
+  }
+ },
+ "disk": {
+  "cas_sample": {
+   "checked": 0,
+   "corrupt": 0
+  },
+  "cas_used_bytes": 15,
+  "free_bytes": 63958077440,
+  "original_cache_bytes": 0
+ },
+ "engine_version": "0.1.0",
+ "events_head": 0,
+ "freshness": "up_to_date",
+ "protocol": "oo.docs-health/v1",
+ "queue": {
+  "blocked": 0,
+  "failed_manual": 0,
+  "quarantined": 0,
+  "queued": 0,
+  "running": 0,
+  "stuck": 0
+ },
+ "schema_versions": [
+  "docs-bootstrap/1",
+  "docs-sources-jobs/1",
+  "docs-index/1",
+  "docs-packs-shares/1",
+  "docs-llm/1",
+  "docs-consistency/1",
+  "docs-suggest/1",
+  "docs-share-consistency/1",
+  "docs-parse-media/1",
+  "docs-cloud-audit/1"
+ ],
+ "status": "ok"
+}

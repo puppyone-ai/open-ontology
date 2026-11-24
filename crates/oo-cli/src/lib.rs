@@ -15,6 +15,8 @@ pub(crate) const QUERY_TIMEOUT_MAX_MS: u32 = 120_000;
 
 mod args;
 pub mod check;
+#[cfg(feature = "docs")]
+mod docs;
 mod lifecycle;
 mod load;
 pub mod mcp_config;

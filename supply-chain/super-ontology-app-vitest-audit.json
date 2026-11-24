@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "vitest",
+    "version": "5.0.3",
+    "official_source": "https://registry.npmjs.org/vitest/5.0.3",
+    "repository": "https://github.com/vitest-dev/vitest",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-09-30T11:30:42.429Z",
+    "adoption_date": "2026-11-19T14:05:47Z",
+    "age_days_at_adoption": 50,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: node ^22.12.0 || ^24.0.0 || >=26.0.0 (the build uses Node 24).",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/vitest-5.0.3/LICENSE.md",
+        "sha256": "c8f14eea9df88b94c4710b4c476d8642e080832d7de0d861eba1337746494b4d"
+      }
+    ],
+    "digest": "sha256:558b046d008b1c1704c8e536e8adad59b73f108b3d6d3d980f144561f38dd07d",
+    "registry_integrity": "sha512-xMw97S3rjdtj5dkVat7jCsqWBpvchs3RlpQctUqwJD0KkERk40vz2fJ77lDwW/Vzh/pk18eItYAzkodhSes3jQ==",
+    "registry_shasum": "0d07cdc353bb0da4ff936e4471c1aa55f34c42ed",
+    "lockfile_integrity_matches_registry": true,
+    "features_enabled": [],
+    "native_build": false,
+    "install_script": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": false,
+    "dependency_kind": "devDependencies",
+    "role": "build, lint or test time only; absent from app.asar and the DMG",
+    "shipped_in_dmg": false,
+    "native_transitive": [],
+    "note": "build, lint or test time only; absent from app.asar and the DMG. LICENSE.md is the core MIT license followed by the licenses of code bundled into the tool itself (MIT, ISC, Apache-2.0, BSD-2-Clause or BSD-3-Clause); all build and test time, nothing of the tool is shipped."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json and pnpm audit --prod --json (pnpm 12.10.1, 2026-11-19, workspace lockfile; filtered to paths under apps/super-ontology-desktop)",
+    "evidence": "supply-chain/evidence/super-ontology-app-pnpm-audit-20261119.json (advisory ids GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c, GHSA-4w7w-5xrc-9h26, GHSA-2m5v-pch6-74hx, GHSA-qrxm-fqhp-jwvm, GHSA-9fm3-97px-rjf6, GHSA-55wc-3pg8-jfw6; dispositions in the same file)",
+    "disposition": "resolved-before-adoption",
+    "known_exploitable_high_severity": false,
+    "disposition_note": "Open advisories exist on transitive dependencies of this package; none is exploitable in the shipped artifact (see the dispositions in the evidence file). The disposition value is the closest allowed by the record shape: the advisories are NOT patched, they are judged not reachable. Flagged for owner review.",
+    "residual_advisories": [
+      {
+        "id": "GHSA-4qv8-2p9j-2685",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via unbounded memory in the EventSource parser"
+      },
+      {
+        "id": "GHSA-f72v-6w45-q472",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Subresource Integrity bypass via non-lowercase algorithm tokens"
+      },
+      {
+        "id": "GHSA-xjj6-f33q-929c",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via unhandled error on excessive content-encodings"
+      },
+      {
+        "id": "GHSA-4w7w-5xrc-9h26",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to cache poisoning and cross-user disclosure via cross-origin redirects"
+      },
+      {
+        "id": "GHSA-2m5v-pch6-74hx",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to TLS certificate validation bypass via dropped tls options in Agent"
+      },
+      {
+        "id": "GHSA-qrxm-fqhp-jwvm",
+        "severity": "high",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via TLS 1.2 certificate-changing renegotiation"
+      },
+      {
+        "id": "GHSA-9fm3-97px-rjf6",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici WebSocket client vulnerable to Denial of Service via unbounded automatic PONG buffering"
+      },
+      {
+        "id": "GHSA-55wc-3pg8-jfw6",
+        "severity": "moderate",
+        "module": "undici",
+        "vulnerable": ">=8.0.0 <8.12.2",
+        "patched": ">=8.12.2",
+        "found_versions": [
+          "8.11.2"
+        ],
+        "title": "undici vulnerable to Denial of Service via unhandled exception in the decompress interceptor"
+      }
+    ]
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

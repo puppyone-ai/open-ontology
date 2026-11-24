@@ -1,0 +1,202 @@
+{
+ "classes": {
+  "calls": {
+   "prefix": "calls/",
+   "properties": {
+    "contact": {
+     "labels": [
+      "对接人",
+      "Contact"
+     ],
+     "relation": "people/",
+     "type": "person"
+    },
+    "customer": {
+     "labels": [
+      "客户",
+      "Customer"
+     ],
+     "type": "organization"
+    },
+    "duration": {
+     "labels": [
+      "时长",
+      "Duration"
+     ],
+     "type": "text"
+    },
+    "outcome": {
+     "labels": [
+      "结果",
+      "Outcome"
+     ],
+     "type": "enum"
+    }
+   }
+  },
+  "expenses": {
+   "prefix": "finance/",
+   "properties": {
+    "amount": {
+     "labels": [
+      "金额",
+      "Amount"
+     ],
+     "type": "amount"
+    },
+    "approved": {
+     "labels": [
+      "已审批",
+      "Approved"
+     ],
+     "type": "enum"
+    },
+    "category": {
+     "labels": [
+      "类别",
+      "Category"
+     ],
+     "type": "enum"
+    },
+    "date": {
+     "labels": [
+      "日期",
+      "Date"
+     ],
+     "type": "date"
+    },
+    "employee": {
+     "labels": [
+      "员工",
+      "Employee"
+     ],
+     "relation": "people/",
+     "type": "person"
+    },
+    "receipt": {
+     "labels": [
+      "票据号",
+      "Receipt"
+     ],
+     "type": "id"
+    }
+   }
+  },
+  "incidents": {
+   "prefix": "incidents/",
+   "properties": {
+    "impact": {
+     "labels": [
+      "影响",
+      "Impact"
+     ],
+     "type": "text"
+    },
+    "reported": {
+     "labels": [
+      "reported",
+      "Reported"
+     ],
+     "type": "date"
+    },
+    "reporter": {
+     "labels": [
+      "reporter",
+      "Reporter"
+     ],
+     "relation": "people/",
+     "type": "person"
+    },
+    "root_cause": {
+     "labels": [
+      "根因",
+      "Root cause"
+     ],
+     "type": "text"
+    },
+    "service": {
+     "labels": [
+      "service",
+      "Service"
+     ],
+     "type": "enum"
+    },
+    "severity": {
+     "labels": [
+      "severity",
+      "Severity"
+     ],
+     "type": "enum"
+    }
+   }
+  },
+  "releases": {
+   "prefix": "releases/",
+   "properties": {
+    "features": {
+     "labels": [
+      "新功能",
+      "Features"
+     ],
+     "type": "text"
+    },
+    "fixes": {
+     "labels": [
+      "修复",
+      "Fixes"
+     ],
+     "type": "text"
+    },
+    "owner": {
+     "labels": [
+      "owner"
+     ],
+     "relation": "people/",
+     "type": "person"
+    },
+    "released": {
+     "labels": [
+      "released"
+     ],
+     "type": "date"
+    },
+    "version": {
+     "labels": [
+      "version"
+     ],
+     "type": "id"
+    }
+   }
+  },
+  "staff": {
+   "prefix": "people/",
+   "properties": {
+    "email": {
+     "labels": [
+      "邮箱",
+      "Email"
+     ],
+     "type": "email"
+    },
+    "name": {
+     "labels": [
+      "姓名",
+      "Name"
+     ],
+     "type": "person"
+    },
+    "position": {
+     "labels": [
+      "职位",
+      "Position"
+     ],
+     "type": "enum"
+    }
+   }
+  }
+ },
+ "noise_prefix": "misc/",
+ "note": "Frozen before the first run on this corpus. Classes are found by their member files (prefix); properties by any listed label; text and long_text are one type; a relation names the prefix of the class the values point at.",
+ "record_files": 55,
+ "version": "structure-heldout-gold/1"
+}

@@ -1,0 +1,120 @@
+{
+  "protocol": "oo.doc-parser.models-lock/v1",
+  "note": "Pinned at full commit shas (B-S1-07 LICENSES.md section 3). `files` is written by `fetch_models.py --mode write` and verified on every image build. TableFormer (docling-project/docling-models @ 2199320848bb9a8a519d22e4b528185a4f9a6f64, accurate variant only, the mode Docling uses by default) is shipped again since B-S3-01b: docling-ibm-models imports cv2, and the image now carries an OpenCV built from source without FFmpeg (D65, Dockerfile stage `opencv`). Its weights carry two license tags (CDLA-Permissive-2.0 and Apache-2.0, lawyer question L5); both are permissive and both texts ship in THIRD_PARTY_NOTICES. Since B-S9-04 the lock also carries the RapidOCR PP-OCRv5 ONNX models (explicit RapidOcrOptions, never OcrAutoOptions).",
+  "sources": [
+    {
+      "name": "docling-layout-heron",
+      "repo_id": "docling-project/docling-layout-heron",
+      "revision": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",
+      "local_dir": "docling-project--docling-layout-heron",
+      "allow_patterns": null,
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "docling-models-tableformer",
+      "repo_id": "docling-project/docling-models",
+      "revision": "2199320848bb9a8a519d22e4b528185a4f9a6f64",
+      "local_dir": "docling-project--docling-models",
+      "allow_patterns": [
+        "README.md",
+        "config.json",
+        "model_artifacts/tableformer/accurate/*"
+      ],
+      "license": "CDLA-Permissive-2.0 AND Apache-2.0"
+    },
+    {
+      "name": "rapidocr-ppocrv5",
+      "kind": "url",
+      "local_dir": "rapidocr-ppocrv5",
+      "license": "Apache-2.0",
+      "note": "RapidAI/RapidOCR on ModelScope, tag v3.10.0 (Apache-2.0), PP-OCRv5 mobile det and rec in ONNX with the recognition dictionary; every file is pinned by sha256.",
+      "files": [
+        {
+          "path": "onnx/PP-OCRv5/det/ch_PP-OCRv5_det_mobile.onnx",
+          "local": "det.onnx",
+          "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/onnx/PP-OCRv5/det/ch_PP-OCRv5_det_mobile.onnx",
+          "sha256": "4d97c44a20d30a81aad087d6a396b08f786c4635742afc391f6621f5c6ae78ae"
+        },
+        {
+          "path": "onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile.onnx",
+          "local": "rec.onnx",
+          "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile.onnx",
+          "sha256": "5825fc7ebf84ae7a412be049820b4d86d77620f204a041697b0494669b1742c5"
+        },
+        {
+          "path": "paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile/ppocrv5_dict.txt",
+          "local": "rec_keys.txt",
+          "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/paddle/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile/ppocrv5_dict.txt",
+          "sha256": "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "name": "docling-project--docling-layout-heron/.gitattributes",
+      "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361",
+      "size": 1519
+    },
+    {
+      "name": "docling-project--docling-layout-heron/README.md",
+      "sha256": "175700839bc7808eac6af1d0c23e4f483606ab2276fe01122f4093e61a1a65b6",
+      "size": 3219
+    },
+    {
+      "name": "docling-project--docling-layout-heron/config.json",
+      "sha256": "fdea30805ce2f5666b147fca941dcdd27ad468e27d6ed21902207d3da056a97d",
+      "size": 3268
+    },
+    {
+      "name": "docling-project--docling-layout-heron/docling_heron_400.png",
+      "sha256": "e7f78610372b32a7938e480d2c7fa1c3037ee170bd82282a5bd026232f6e6f9e",
+      "size": 96925
+    },
+    {
+      "name": "docling-project--docling-layout-heron/model.safetensors",
+      "sha256": "00333a43451945aaf89db8ca9c0a17e75d1537c17db60fdb91aa95f4c7929e0c",
+      "size": 171658996
+    },
+    {
+      "name": "docling-project--docling-layout-heron/preprocessor_config.json",
+      "sha256": "cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1",
+      "size": 444
+    },
+    {
+      "name": "docling-project--docling-models/README.md",
+      "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591",
+      "size": 3428
+    },
+    {
+      "name": "docling-project--docling-models/config.json",
+      "sha256": "9c34024dc28ff47b75818f415e769809798c29bf9bde6f2ccc63a4acb62396d9",
+      "size": 41
+    },
+    {
+      "name": "docling-project--docling-models/model_artifacts/tableformer/accurate/tableformer_accurate.safetensors",
+      "sha256": "2a7d6c924b3cd12fb99a09280ca9c33a89c5d60b93253617d2e088c1a40374d9",
+      "size": 212758388
+    },
+    {
+      "name": "docling-project--docling-models/model_artifacts/tableformer/accurate/tm_config.json",
+      "sha256": "984e122ceb8ccf84d84c9d2882f6f2302a44b4f1e577babd6289892c36f3cffd",
+      "size": 7060
+    },
+    {
+      "name": "rapidocr-ppocrv5/det.onnx",
+      "sha256": "4d97c44a20d30a81aad087d6a396b08f786c4635742afc391f6621f5c6ae78ae",
+      "size": 4819576
+    },
+    {
+      "name": "rapidocr-ppocrv5/rec.onnx",
+      "sha256": "5825fc7ebf84ae7a412be049820b4d86d77620f204a041697b0494669b1742c5",
+      "size": 16631306
+    },
+    {
+      "name": "rapidocr-ppocrv5/rec_keys.txt",
+      "sha256": "d1979e9f794c464c0d2e0b70a7fe14dd978e9dc644c0e71f14158cdf8342af1b",
+      "size": 74012
+    }
+  ]
+}

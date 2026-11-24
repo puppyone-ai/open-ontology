@@ -1,0 +1,139 @@
+{
+ "run_id": "verify-longruns",
+ "status": "partial",
+ "verifier_head": "869fe07f3",
+ "verifier_branch": "so/V6L-signoff",
+ "checks": [
+  {
+   "check": "acceptance 1: 44 scanned files through compose, all published",
+   "ok": true,
+   "detail": {
+    "published": 44
+   }
+  },
+  {
+   "check": "acceptance 1: core type recall >= 0.65",
+   "ok": true,
+   "detail": 0.8556
+  },
+  {
+   "check": "acceptance 1: ocr-parser peak memory vs 10 GiB limit",
+   "ok": true,
+   "detail": 6854
+  },
+  {
+   "check": "acceptance 1: chart/screenshot char recall >= 0.9",
+   "ok": null,
+   "detail": "not measured by the long script; executor value 0.9706 was sidecar only, not the engine path"
+  },
+  {
+   "check": "acceptance 3: 2h meeting core type recall >= 0.6",
+   "ok": true,
+   "detail": 1.0
+  },
+  {
+   "check": "acceptance 3: speaker confirm, kill/resume, byte-identical replay, speaker features gone",
+   "ok": null,
+   "detail": "not run by the long script; executor evidence long-audio.json only, not reproduced"
+  }
+ ],
+ "runs": {
+  "ocr44": {
+   "run_id": "verify-v6l-ocr44-2",
+   "files": 44,
+   "by_state": {
+    "published": 44
+   },
+   "entities_scored": 90,
+   "entities_found": 77,
+   "core_type_recall": 0.8556,
+   "by_type": {
+    "Decision": "10/10",
+    "Document": "34/44",
+    "Event": "4/5",
+    "Organization": "7/8",
+    "Person": "9/9",
+    "Project": "4/4",
+    "Term": "5/5",
+    "Topic": "4/5"
+   },
+   "missed": [
+    "商务",
+    "客户满意度",
+    "客户沙龙",
+    "星图看板产品方案",
+    "灯塔迁移方案",
+    "知了客服方案",
+    "官网改版方案",
+    "澄海物流合作方案",
+    "年度客户调研方案",
+    "办公迁址方案",
+    "速记0412",
+    "速记0601",
+    "速记0828"
+   ],
+   "timings": {
+    "pipeline_wall_seconds": 1511.9,
+    "peak_memory_mib": {
+     "doc-parser-1": 297,
+     "docs-db-1": 102,
+     "docs-engine-1": 31,
+     "media-parser-1": 35,
+     "ocr-parser-1": 6854
+    }
+   }
+  },
+  "meeting2h": {
+   "run_id": "verify-v6l-meeting-1",
+   "core_type_recall": 1.0,
+   "names_expected": {
+    "吴启明": "Person",
+    "产品": "Organization",
+    "研发": "Organization",
+    "数据": "Organization",
+    "星图看板": "Document",
+    "灯塔迁移": "Document",
+    "知了客服": "Document",
+    "官网改版": "Document",
+    "灰度发布": "Term"
+   },
+   "names_found": [
+    "产品",
+    "吴启明",
+    "官网改版",
+    "数据",
+    "星图看板",
+    "灯塔迁移",
+    "灰度发布",
+    "知了客服",
+    "研发"
+   ],
+   "rule_fact_recall_of_planted_statements": 0.1667,
+   "planted": 12,
+   "planted_found": [
+    "青云计划",
+    "远航项目"
+   ],
+   "golden_meeting_seconds": 96.8,
+   "golden_copies_per_gap": 5,
+   "state": "published",
+   "timings": {
+    "meeting_hours": 2.0,
+    "opus_bytes": 15413998,
+    "pipeline_wall_seconds": 580.6,
+    "peak_memory_mib": {
+     "doc-parser-1": 34,
+     "docs-db-1": 69,
+     "docs-engine-1": 34,
+     "media-parser-1": 1399,
+     "ocr-parser-1": 35
+    }
+   }
+  }
+ },
+ "attempts": {
+  "ocr44": "attempt 1 never started (oo binary not built; not a result); attempt 2 = verify-v6l-ocr44-2",
+  "meeting2h": "verify-v6l-meeting-1 first and only attempt"
+ },
+ "evidence_location": "notes verify-runs/v6l (not committed to evidence dir)"
+}

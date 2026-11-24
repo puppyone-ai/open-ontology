@@ -1,0 +1,69 @@
+{
+  "id": "P02",
+  "title": "Home counts what the sources hold",
+  "locales": [
+    "en",
+    "zh-Hans"
+  ],
+  "closes": "volume 25 section 6",
+  "steps": [
+    {
+      "do": "launch"
+    },
+    {
+      "do": "provision",
+      "action": "seedSource",
+      "name": "Sample docs",
+      "path": "${sampleDocs}"
+    },
+    {
+      "do": "relaunch"
+    },
+    {
+      "do": "click",
+      "name": "app.nav.home",
+      "until": "screen-home"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "screen-home"
+      }
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "home-count-sources",
+        "attribute": "data-count",
+        "matches": "^1$",
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "home-count-entities",
+        "attribute": "data-count",
+        "matches": "^([2-9]|\\d{2,})$",
+        "withinMs": 120000
+      }
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        }
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "home"
+    }
+  ]
+}

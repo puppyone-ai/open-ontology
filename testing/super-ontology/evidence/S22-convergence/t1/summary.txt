@@ -1,0 +1,5 @@
+T1 on the built .app (hidden launch with open -g -j, isolated HOME, no focus taken), final build 34790241...:
+engine-boot lite 5/5, first-run lite 9/9, drop 22/22, drop-latency measured, drop-large 28/28, speakers 11/11, engine-boot docker 5/5, first-run docker 9/9,
+cli-live PASS (1 attempt; attach, live events, actor tags, Postgres up/build with cb/gpt-6.2-sol), oo serve 10 start/stop cycles 10/10,
+upgrade from a state made by the delivered build (engine image dev-ae5): migrations docs-media-profile/1, docs-file-profile/1, docs-structure/1 applied, data intact.
+Earlier build of the same day (before the speaker-aware settle fix): the same scenarios passed as well (cli-live on attempt 2).

@@ -1,0 +1,12 @@
+SBOM gate: PASS  components={'python': 102, 'native-in-wheel': 21, 'base-os': 97, 'model': 24}
+  REVIEWED  certifi 2026.10.23  [python]  MPL-2.0
+  REVIEWED  crc32c 2.9.post0  [python]  LGPL-2.1-or-later
+  REVIEWED  cssutils 2.15.0  [python]  LGPL-3.0-or-later
+  REVIEWED  encutils 1.0.0  [python]  LGPL-3.0-or-later
+  REVIEWED  python-bidi 0.6.12  [python]  GNU Library or Lesser General Public License (LGPL)
+  REVIEWED  tqdm 4.70.1  [python]  MPL-2.0 AND MIT
+  REVIEWED  libgeos (shapely) bundled  [native-in-wheel]  LGPL-2.1-or-later
+  REVIEWED  libgeos_c (shapely) bundled  [native-in-wheel]  LGPL-2.1-or-later
+  REVIEWED  libgfortran (GCC Fortran runtime) bundled  [native-in-wheel]  GPL-3.0-or-later WITH GCC-exception-3.1
+  REVIEWED  libgomp (GCC OpenMP runtime) bundled  [native-in-wheel]  GPL-3.0-or-later WITH GCC-exception-3.1
+  REVIEWED  libquadmath (GCC) bundled  [native-in-wheel]  LGPL-2.1-or-later

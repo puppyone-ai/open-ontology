@@ -1,0 +1,98 @@
+{
+ "hostile": {
+  "comma.csv": [
+   "published",
+   null
+  ],
+  "docx-encrypted.docx": [
+   "encrypted",
+   "DOCS_PARSE_ENCRYPTED"
+  ],
+  "empty.csv": [
+   "published",
+   null
+  ],
+  "gb18030.txt": [
+   "unsupported",
+   "DOCS_PARSE_ENCODING"
+  ],
+  "legacy.doc": [
+   "unsupported",
+   "DOCS_PARSE_LEGACY_OFFICE"
+  ],
+  "pdf-encrypted.pdf": [
+   "encrypted",
+   "DOCS_PARSE_ENCRYPTED"
+  ],
+  "pdf-table.pdf": [
+   "published",
+   null
+  ],
+  "semicolon.csv": [
+   "published",
+   null
+  ],
+  "xlsx-hidden-sheet.xlsx": [
+   "published",
+   null
+  ],
+  "xlsx-merged-regions.xlsx": [
+   "published",
+   null
+  ],
+  "zip-bomb-ratio.docx": [
+   "unsupported",
+   "DOCS_PARSE_ZIP_BOMB"
+  ],
+  "zip-bomb-size.xlsx": [
+   "unsupported",
+   "DOCS_PARSE_ZIP_BOMB"
+  ],
+  "zip-plain.zip": [
+   "unsupported",
+   "DOCS_PARSE_UNSUPPORTED_FORMAT"
+  ],
+  "zip-traversal.docx": [
+   "unsupported",
+   "DOCS_PARSE_CORRUPT"
+  ]
+ },
+ "per_format": {
+  "csv": {
+   "failed": [],
+   "ok": 3,
+   "total": 3
+  },
+  "docx": {
+   "failed": [],
+   "ok": 10,
+   "total": 10
+  },
+  "md": {
+   "failed": [],
+   "ok": 18,
+   "total": 18
+  },
+  "pdf": {
+   "failed": [],
+   "ok": 7,
+   "total": 7
+  },
+  "pptx": {
+   "failed": [],
+   "ok": 6,
+   "total": 6
+  },
+  "txt": {
+   "failed": [],
+   "ok": 3,
+   "total": 3
+  },
+  "xlsx": {
+   "failed": [],
+   "ok": 4,
+   "total": 4
+  }
+ },
+ "settle_seconds": 283.5
+}

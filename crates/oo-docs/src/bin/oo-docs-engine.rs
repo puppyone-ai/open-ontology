@@ -1,0 +1,436 @@
+//! The docs engine process (10 §2.1): control API, scheduler, workers.
+//!
+//! Configuration is read from the environment and `<state>/docs.json`
+//! (`oo_docs::config`). The process prints one JSON line,
+//! `{"event":"listening","addr":"127.0.0.1:<port>"}`, once the API accepts
+//! connections; the daemon waits for `/livez` anyway. Stops on SIGTERM or
+//! SIGINT. Exit codes: 0 clean, 2 configuration, 3 database, 1 other.
+
+use std::process::ExitCode;
+use std::sync::Arc;
+use std::time::Duration;
+
+use oo_docs::api::{self, AppState, FactorySyncPort, auth};
+use oo_docs::config::EngineConfig;
+use oo_docs::health::{DfProbe, HealthProbe};
+use oo_docs::ingest::{AnyFactory, handlers, poll};
+use oo_docs::jobs::scheduler::{Scheduler, SchedulerConfig};
+use oo_docs::jobs::stages;
+use oo_docs::obs;
+use oo_docs::store::install;
+use serde_json::json;
+use sqlx::Connection;
+use sqlx::postgres::{PgConnectOptions, PgConnection, PgPoolOptions};
+use std::str::FromStr;
+use tokio::sync::watch;
+
+fn main() -> ExitCode {
+    let rt = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(_) => return ExitCode::from(1),
+    };
+    rt.block_on(run())
+}
+
+fn fail(code: u8, event: &str, why: impl std::fmt::Display) -> ExitCode {
+    obs::log(
+        "error",
+        event,
+        json!({ "reason": obs::scrub(&why.to_string()) }),
+    );
+    ExitCode::from(code)
+}
+
+async fn run() -> ExitCode {
+    #[cfg(feature = "failpoints")]
+    oo_docs::failpoints::init_from_env();
+    let env = |k: &str| std::env::var(k).ok();
+    let state = env("OO_DOCS_STATE_DIR").unwrap_or_default();
+    let docs_json = std::fs::read_to_string(std::path::Path::new(&state).join("docs.json")).ok();
+    let cfg = match EngineConfig::from_parts(&env, docs_json.as_deref()) {
+        Ok(c) => c,
+        Err(e) => return fail(2, "config.invalid", e),
+    };
+
+    let mut tokens = Vec::new();
+    for file in &cfg.token_files {
+        match std::fs::read_to_string(file) {
+            Ok(t) if t.trim().len() >= 16 => tokens.push(auth::token_hash(t.trim())),
+            _ => {
+                return fail(
+                    2,
+                    "config.token_unreadable",
+                    "token file missing or too short",
+                );
+            }
+        }
+    }
+
+    // Install the schema when an administrator login is configured.
+    if let Some(url) = &cfg.admin_database_url {
+        let opts = match PgConnectOptions::from_str(url) {
+            Ok(o) => o,
+            Err(e) => return fail(2, "config.invalid", e),
+        };
+        let mut conn = match PgConnection::connect_with(&opts).await {
+            Ok(c) => c,
+            Err(e) => return fail(3, "db.connect_failed", e),
+        };
+        if let Err(e) = install::install(&mut conn).await {
+            return fail(3, "db.install_failed", e);
+        }
+        let _ = conn.close().await;
+    }
+
+    let opts = match PgConnectOptions::from_str(&cfg.database_url) {
+        Ok(o) => o,
+        Err(e) => return fail(2, "config.invalid", e),
+    };
+    let pool = match PgPoolOptions::new()
+        .max_connections(24)
+        .acquire_timeout(Duration::from_secs(10))
+        .connect_with(opts)
+        .await
+    {
+        Ok(p) => p,
+        Err(e) => return fail(3, "db.connect_failed", e),
+    };
+    let schema_versions = {
+        let mut conn = match pool.acquire().await {
+            Ok(c) => c,
+            Err(e) => return fail(3, "db.connect_failed", e),
+        };
+        match install::verify_readiness(&mut conn).await {
+            Ok(v) => v.known.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>(),
+            Err(e) => return fail(3, "db.not_ready", format!("{e:?}")),
+        }
+    };
+
+    let cas_root = std::path::Path::new(&cfg.state_dir).join("cas");
+    let cas = match oo_docs::cas::Cas::open(&cas_root) {
+        Ok(c) => Arc::new(c),
+        Err(e) => return fail(1, "cas.open_failed", e),
+    };
+
+    let listener = match tokio::net::TcpListener::bind(cfg.listen).await {
+        Ok(l) => l,
+        Err(e) => return fail(1, "listen.failed", e),
+    };
+    let addr = match listener.local_addr() {
+        Ok(a) => a,
+        Err(e) => return fail(1, "listen.failed", e),
+    };
+
+    let disk: Arc<dyn oo_docs::health::DiskProbe> = Arc::new(DfProbe);
+    let guard = Arc::new(oo_docs::obs::disk::Guard::new(
+        disk.clone(),
+        cas_root.clone(),
+    ));
+    let health = Arc::new(HealthProbe::new(
+        pool.clone(),
+        Some(cas_root),
+        Box::new(disk),
+        schema_versions,
+    ));
+    let limits = Arc::new(cfg.ingest.clone());
+    let sync = Arc::new(FactorySyncPort::new(
+        pool.clone(),
+        AnyFactory::from_env(),
+        cfg.ingest.clone(),
+    ));
+    let progress = oo_docs::api::progress::Bus::new();
+    // The model (G3): its configuration lives in the state directory; the egress
+    // script is `OO_DOCS_MODEL_EGRESS` (the model stays off without one).
+    let model = oo_docs::extract::llm::config::ModelRuntime::open(
+        cfg.state_dir.clone(),
+        env("OO_DOCS_MODEL_EGRESS").map(std::path::PathBuf::from),
+        env("OO_DOCS_PYTHON"),
+    );
+    // The cloud entry (B-S12-01): a second listener for `oodc_` tokens only. Off unless asked for; it never
+    // widens the loopback listener above.
+    let cloud_listener = match env("OO_DOCS_CLOUD_LISTEN") {
+        None => None,
+        Some(a) => match tokio::net::TcpListener::bind(&a).await {
+            Ok(l) => Some(l),
+            Err(e) => return fail(2, "cloud.listen_failed", e),
+        },
+    };
+    let cloud_hosts: Vec<String> = match (&cloud_listener, env("OO_DOCS_CLOUD_HOSTS")) {
+        (Some(_), Some(h)) => h
+            .split(',')
+            .map(|x| x.trim().to_owned())
+            .filter(|x| !x.is_empty())
+            .collect(),
+        (Some(l), None) => l
+            .local_addr()
+            .map(|a| vec![a.to_string()])
+            .unwrap_or_default(),
+        (None, _) => Vec::new(),
+    };
+    let app = Arc::new(
+        AppState::new(
+            pool.clone(),
+            tokens,
+            oo_docs::api::auth::allowed_hosts(addr.port(), &cfg.allowed_hosts),
+            sync,
+            health.clone(),
+        )
+        .with_cas(cas.clone())
+        .with_model(model.clone())
+        .with_progress(progress.clone())
+        .with_cloud_hosts(cloud_hosts)
+        .with_agent_db(oo_docs::publish::agentdb::AgentDbConfig::from_env()),
+    );
+
+    let (stop_tx, stop_rx) = watch::channel(false);
+    let worker_id = oo_docs::jobs::worker_id(
+        &std::env::var("HOSTNAME").unwrap_or_else(|_| "engine".into()),
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as u64),
+    );
+    let mut sched_cfg = SchedulerConfig::new(&worker_id);
+    sched_cfg.concurrency = stages::default_concurrency();
+    sched_cfg.concurrency.extend(cfg.concurrency.clone());
+    let read_token = |file: &std::path::Path| -> Option<String> {
+        match std::fs::read_to_string(file) {
+            Ok(t) if t.trim().len() >= 16 => Some(t.trim().to_owned()),
+            _ => None,
+        }
+    };
+    use oo_docs::parse::sidecar::{SidecarClient, SidecarConfig};
+    let sidecar = match &cfg.parser {
+        Some(ep) => {
+            let Some(token) = read_token(&ep.token_file) else {
+                return fail(
+                    2,
+                    "config.parser_token_unreadable",
+                    "parser token file missing or too short",
+                );
+            };
+            let mut client = SidecarClient::new(SidecarConfig::new(ep.addr.clone(), token));
+            // Scanned pdf and standalone images go to the ocr-parser (10 17.1, 17.6).
+            if let Some(ocr) = &cfg.ocr {
+                let Some(otoken) = read_token(&ocr.token_file) else {
+                    return fail(
+                        2,
+                        "config.ocr_token_unreadable",
+                        "ocr token file missing or too short",
+                    );
+                };
+                client = client.with_ocr(SidecarClient::new(
+                    SidecarConfig::new(ocr.addr.clone(), otoken).for_ocr(),
+                ));
+            }
+            Some(Arc::new(client))
+        }
+        None => None,
+    };
+    let cas_for_retention = cas.clone();
+    let cas_for_projector = cas.clone();
+    let media = match &cfg.media {
+        Some(m) => {
+            let Some(token) = read_token(&m.endpoint.token_file) else {
+                return fail(
+                    2,
+                    "config.media_token_unreadable",
+                    "media token file missing or too short",
+                );
+            };
+            Some(stages::MediaRuntime {
+                client: Arc::new(SidecarClient::new(SidecarConfig::new(
+                    m.endpoint.addr.clone(),
+                    token,
+                ))),
+                external_ffmpeg: m.external_ffmpeg.clone(),
+            })
+        }
+        None => None,
+    };
+    // What the sidecars say they are now: a result of another version is not reused (D23).
+    {
+        let clients: Vec<Arc<SidecarClient>> = sidecar.iter().cloned().collect();
+        let ocr_info = sidecar
+            .as_ref()
+            .and_then(|c| c.ocr_client().map(|_| c.clone()));
+        let media_client = media.as_ref().map(|m| m.client.clone());
+        let versions = tokio::task::spawn_blocking(move || {
+            let mut out = Vec::new();
+            for c in clients {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            if let Some(c) = ocr_info.as_ref().and_then(|c| c.ocr_client()) {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            if let Some(c) = media_client {
+                out.extend(c.info().ok().as_ref().and_then(stages::parser_of_info));
+            }
+            out
+        })
+        .await
+        .unwrap_or_default();
+        for (id, version) in versions {
+            stages::set_current_parser(&id, &version);
+        }
+    }
+    // `GET /health` says what the sidecars say now (10 §4.4.4): a dead one is `unavailable`, not `ok`.
+    if let Some(c) = &sidecar {
+        let doc = c.clone();
+        health.watch_sidecar("parser", move || doc.healthy()).await;
+        if c.ocr_client().is_some() {
+            let ocr = c.clone();
+            health
+                .watch_sidecar("ocr_parser", move || {
+                    ocr.ocr_client().is_some_and(|o| o.healthy())
+                })
+                .await;
+        }
+    }
+    if let Some(m) = &media {
+        let client = m.client.clone();
+        health
+            .watch_sidecar("media_parser", move || client.healthy())
+            .await;
+    }
+    let mut handlers = handlers::handlers(&pool, Arc::new(AnyFactory::from_env()), limits);
+    handlers.extend(stages::handlers_with_runtime(
+        &pool,
+        Arc::new(AnyFactory::from_env()),
+        cas,
+        Some(progress),
+        sidecar,
+        media,
+        model.clone(),
+    ));
+    // Low disk pauses hashing, parsing and extraction (4.12, G7).
+    oo_docs::obs::disk::guard_handlers(
+        &mut handlers,
+        &guard,
+        &[
+            oo_docs::jobs::JobKind::Hash,
+            oo_docs::jobs::JobKind::Parse,
+            oo_docs::jobs::JobKind::ParseMedia,
+            oo_docs::jobs::JobKind::ExtractRules,
+            oo_docs::jobs::JobKind::ExtractLlm,
+        ],
+    );
+    let scheduler = Scheduler::new(pool.clone(), sched_cfg, handlers).spawn();
+    // Files made by an older parser or ruleset are reprocessed (4.2, D23).
+    if let Ok(n) = stages::mark_outdated(&pool).await
+        && n > 0
+    {
+        obs::log("info", "files.outdated", json!({ "count": n }));
+    }
+    {
+        let types = match pool.acquire().await {
+            Ok(mut c) => oo_docs::review::promotion::constrained_types(&mut c)
+                .await
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
+        let pv = oo_docs::extract::llm::prompt_version(&types);
+        if let Ok(n) = stages::mark_outdated_versions(&pool, &pv, cfg.ocr.is_some()).await
+            && n > 0
+        {
+            obs::log("info", "files.outdated_by_version", json!({ "count": n }));
+        }
+    }
+    let tasks = vec![
+        oo_docs::store::retention::spawn(
+            pool.clone(),
+            cas_for_retention,
+            oo_docs::store::retention::SWEEP_EVERY,
+            stop_rx.clone(),
+        ),
+        stages::spawn_pump_guarded(
+            pool.clone(),
+            app.wake.clone(),
+            stop_rx.clone(),
+            Some(guard.clone()),
+        ),
+        poll::spawn(
+            pool.clone(),
+            cfg.poll.clone(),
+            app.wake.clone(),
+            stop_rx.clone(),
+        ),
+        api::events::spawn_hub(pool.clone(), app.events.clone(), stop_rx.clone()),
+        api::freshness::spawn_watcher(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
+        api::lifecycle::spawn(pool.clone(), Duration::from_secs(1), stop_rx.clone()),
+        // The projection of published document entities into the Agent DB (D83); idle without a binding.
+        oo_docs::publish::projector::spawn(
+            Arc::new(oo_docs::publish::projector::Projector::new(
+                pool.clone(),
+                cas_for_projector,
+                oo_docs::publish::agentdb::AgentDbConfig::from_env(),
+            )),
+            app.wake.clone(),
+            stop_rx.clone(),
+            oo_docs::publish::projector::TICK,
+        ),
+    ];
+    health.set_parser(cfg.parser.is_some());
+    health.set_ready();
+    println!(
+        "{}",
+        json!({ "event": "listening", "addr": addr.to_string(), "worker": worker_id })
+    );
+
+    let shutdown = {
+        let app = app.clone();
+        async move {
+            wait_for_signal().await;
+            app.shutdown();
+        }
+    };
+    let cloud_task = cloud_listener.map(|l| {
+        if let Ok(a) = l.local_addr() {
+            println!(
+                "{}",
+                json!({ "event": "cloud_listening", "addr": a.to_string() })
+            );
+        }
+        let app = app.clone();
+        let mut stop = app.stop_signal();
+        tokio::spawn(async move {
+            let _ = api::serve_cloud(l, app, async move {
+                let _ = stop.wait_for(|v| *v).await;
+            })
+            .await;
+        })
+    });
+    let served = api::serve(listener, app, shutdown).await;
+    if let Some(t) = cloud_task {
+        let _ = t.await;
+    }
+    let _ = stop_tx.send(true);
+    scheduler.shutdown().await;
+    for t in tasks {
+        let _ = t.await;
+    }
+    model.stop();
+    pool.close().await;
+    match served {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => fail(1, "serve.failed", e),
+    }
+}
+
+async fn wait_for_signal() {
+    use tokio::signal::unix::{SignalKind, signal};
+    let (Ok(mut term), Ok(mut int)) = (
+        signal(SignalKind::terminate()),
+        signal(SignalKind::interrupt()),
+    ) else {
+        std::future::pending::<()>().await;
+        return;
+    };
+    tokio::select! {
+        _ = term.recv() => {}
+        _ = int.recv() => {}
+    }
+}

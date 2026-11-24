@@ -1,0 +1,12 @@
+$ cargo test -p oo-docs --locked --features failpoints --test faults -- --ignored --test-threads=1 --nocapture
+test a_file_still_being_written_is_hashed_once_when_it_stops_changing ... growing.md: 1 version(s), blob 409 bytes, final size 409
+test a_file_that_kills_the_sidecar_worker_is_quarantined_and_the_rest_flows ... poison: job quarantined attempt 2 crashes 2, 2 worker kills, 41.579379s
+test a_killed_engine_resumes_the_leased_job_after_its_lease_ends ... ok
+test a_poison_pill_is_quarantined_after_two_crashes_and_the_rest_flows ... 
+test a_retryable_parse_error_backs_off_three_times_then_waits_for_a_manual_retry ... {"attempt":1,"code":"DOCS_PARSE_TIMEOUT","drive_id":"061e3f7b-140e-435e-a31a-6888e3df08aa","duration_ms":5,"event":"job.retry","file_id":"26c27ac7-de20-473c-ad78-0193111ccfaf","job_id":"979d9348-312f-40ed-b1de-d84ec4e14467","kind":"parse","level":"info","ts":"2026-11-17T21:55:24Z"}
+test a_sidecar_killed_mid_parse_leaves_the_file_waiting_and_the_rest_flows ... slow.pdf history: [("stored", None, false), ("queued", None, false), ("parsing", None, false), ("queued", Some("DOCS_ENGINE_UNAVAILABLE"), false), ("parsing", None, false), ("queued", Some("DOCS_ENGINE_UNAVAILABLE"), false), ("parsing", None, false), ("parsed", None, false), ("extracting", None, false), ("indexed", None, false), ("published", None, false)]
+test a_sidecar_that_answers_5xx_holds_only_its_own_formats ... a.docx parse job attempts while the sidecar answers 503: 0
+test an_extract_failure_is_extract_partial_and_a_manual_retry_finishes_it ... {"event":"publish.version","level":"info","ontology_version":1,"ts":"2026-11-17T21:58:20Z"}
+test postgres_restarted_under_a_running_engine_loses_nothing ... postgres restarted in 645.4565ms
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 252.43s
+(exit 0)

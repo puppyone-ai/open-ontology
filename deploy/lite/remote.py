@@ -370,11 +370,11 @@ def status(_request, _stdin):
             'installed': True}
 
 
-def owned(kind, name, project):
+def owned(kind, name, project, lane='a'):
     fmt = '{{json .Config.Labels}}' if kind == 'container' else '{{json .Labels}}'
     p = run(['docker', kind, 'inspect', '--format', fmt, name])
     labels = json.loads(p.stdout) if not p.returncode else None
-    return bool(labels) and labels.get('oo.lane') == 'a' and labels.get(
+    return bool(labels) and labels.get('oo.lane') == lane and labels.get(
         'com.docker.compose.project') == project
 
 
@@ -409,7 +409,8 @@ def down(_request, _stdin):
         run(systemctl(scope) + ['daemon-reload'], 60)
         run(systemctl(scope) + ['reset-failed', UNIT + '.service', UNIT + '.timer'], 60)
     owner = ROOT / 'owner.json'
-    project = json.loads(read_private(owner))['project'] if owner.exists() else None
+    saved = json.loads(read_private(owner)) if owner.exists() else {}
+    project, lane = saved.get('project'), saved.get('lane', 'a')
     report = None
     if project:
         report, _ = lifecycle('down')
@@ -417,7 +418,7 @@ def down(_request, _stdin):
             args = ['docker', 'ps', '-aq'] if kind == 'container' else ['docker', kind, 'ls', '-q']
             names = run(args + ['--filter', 'label=com.docker.compose.project=' + project]).stdout.decode().split()
             for name in names:
-                if not owned(kind, name, project):
+                if not owned(kind, name, project, lane):
                     raise Refused('REMOTE_OWNERSHIP')
                 rm = ['docker', 'rm', '-f', name] if kind == 'container' else ['docker', kind, 'rm', name]
                 ok(rm, 'REMOTE_REMOVE_' + kind.upper())

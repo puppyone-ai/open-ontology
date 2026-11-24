@@ -1,0 +1,58 @@
+{
+  "protocol": "oo.eval.scopes/v1",
+  "scopes": [
+    {
+      "id": "all-main",
+      "include": [
+        "docs/**"
+      ],
+      "contains_redteam": false
+    },
+    {
+      "id": "projects-only",
+      "include": [
+        "docs/Projects/**",
+        "docs/Proposals/**"
+      ],
+      "contains_redteam": false
+    },
+    {
+      "id": "people-and-prefs",
+      "include": [
+        "docs/People/**",
+        "docs/Preferences/**",
+        "docs/Tables/人员表.xlsx"
+      ],
+      "contains_redteam": false
+    },
+    {
+      "id": "meetings-only",
+      "include": [
+        "docs/Meetings/**"
+      ],
+      "contains_redteam": false
+    },
+    {
+      "id": "decisions-only",
+      "include": [
+        "docs/Decisions/**"
+      ],
+      "contains_redteam": false
+    },
+    {
+      "id": "main-plus-redteam",
+      "include": [
+        "docs/**",
+        "redteam/docs/**"
+      ],
+      "contains_redteam": true
+    },
+    {
+      "id": "redteam-only",
+      "include": [
+        "redteam/docs/**"
+      ],
+      "contains_redteam": true
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+/*
+ * Super Ontology design tokens (spec volume 25, section 4). Light only; the structure (semantic names, one source per value)
+ * leaves room for a dark theme later without touching a component.
+ */
+@layer so-tokens {
+  :root {
+    color-scheme: light;
+
+    /* Surfaces */
+    --so-canvas: #fafaf9;
+    --so-panel: #ffffff;
+    --so-inset: #f4f4f2;
+    --so-line: #e7e5e4;
+    --so-line-strong: #d6d3d1;
+    --so-overlay-scrim: rgba(28, 25, 23, 0.32);
+
+    /* Text. `weak` is for disabled text and decoration only; captions use `muted` so they keep 4.5:1 on white. */
+    --so-text: #1c1917;
+    --so-text-2: #57534e;
+    --so-text-muted: #78716c;
+    --so-text-weak: #a8a29e;
+    --so-text-on-accent: #ffffff;
+
+    /* The one accent */
+    --so-accent: #2f4ad0;
+    --so-accent-hover: #2840b8;
+    --so-accent-press: #2339a3;
+    --so-accent-soft: #eef1fd;
+    --so-focus-ring: rgba(47, 74, 208, 0.3);
+    /* The keyboard focus indicator is the solid accent: 3:1 against every surface it can sit on (7:1 on white). */
+    --so-focus: #2f4ad0;
+
+    /* State colours with a soft background each */
+    --so-success: #15803d;
+    --so-success-soft: #ecfdf3;
+    --so-processing: var(--so-accent);
+    --so-processing-soft: var(--so-accent-soft);
+    --so-warning: #b45309;
+    --so-warning-soft: #fff4e5;
+    --so-danger: #b91c1c;
+    --so-danger-soft: #fef2f2;
+    --so-danger-hover: #991b1b;
+
+    /* Interaction fills (neutral controls) */
+    --so-hover: rgba(28, 25, 23, 0.045);
+    --so-press: rgba(28, 25, 23, 0.085);
+    --so-selected: var(--so-accent-soft);
+
+    /* Type */
+    --so-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Hiragino Sans", "Apple SD Gothic Neo", "Segoe UI", system-ui, sans-serif;
+    --so-font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --so-text-xs: 12px;
+    --so-text-sm: 13px;
+    --so-text-md: 15px;
+    --so-text-lg: 20px;
+    --so-text-xl: 28px;
+    --so-leading: 20px; /* whole pixels: line boxes, rows and controls stay on the pixel grid (D86) */
+    --so-leading-xs: 16px;
+    --so-weight-regular: 400;
+    --so-weight-medium: 500;
+    --so-weight-semibold: 600;
+
+    /* 4px grid */
+    --so-space-1: 4px;
+    --so-space-2: 8px;
+    --so-space-3: 12px;
+    --so-space-4: 16px;
+    --so-space-5: 24px;
+    --so-space-6: 32px;
+    --so-space-7: 48px;
+
+    /* Radii */
+    --so-radius-control: 6px;
+    --so-radius-card: 8px;
+    --so-radius-dialog: 12px;
+
+    /* Shadows only for floating layers */
+    --so-shadow-menu: 0 4px 16px rgba(28, 25, 23, 0.1), 0 1px 3px rgba(28, 25, 23, 0.08);
+    --so-shadow-dialog: 0 16px 48px rgba(28, 25, 23, 0.18), 0 2px 8px rgba(28, 25, 23, 0.08);
+
+    /* Controls */
+    --so-control-compact: 28px;
+    --so-control: 32px;
+    --so-icon-sm: 16px;
+    --so-icon-md: 20px;
+    --so-icon-stroke: 1.5;
+
+    /* Motion */
+    --so-ease: cubic-bezier(0.2, 0, 0, 1);
+    --so-duration-fast: 120ms;
+    --so-duration: 200ms;
+
+    /* Layout */
+    --so-nav-width: 224px;
+    --so-nav-width-collapsed: 56px;
+    --so-statusbar-height: 28px;
+    --so-page-max: 960px;
+    --so-z-menu: 60;
+    --so-z-dialog: 70;
+    --so-z-tooltip: 80;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --so-duration-fast: 0.01ms;
+      --so-duration: 0.01ms;
+    }
+  }
+}

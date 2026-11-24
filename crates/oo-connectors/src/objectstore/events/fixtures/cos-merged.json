@@ -1,0 +1,6 @@
+{"Records":[
+ {"event":{"eventName":"cos:ObjectCreated:CompleteMultipartUpload","eventTime":1545205770},"cos":{"cosObject":{"key":"/1253970026/examplebkt/drive/big.pdf","size":"52428800","vid":""},"cosBucket":{"name":"examplebkt","appid":"1253970026","region":"ap-guangzhou"}}},
+ {"event":{"eventName":"cos:ObjectCreated:Copy","eventTime":1545205771},"cos":{"cosObject":{"key":"/1253970026/examplebkt/other/skipped.md"},"cosBucket":{"name":"examplebkt","appid":"1253970026"}}},
+ {"event":{"eventName":"cos:ObjectCreated:Put","eventTime":1545205772},"cos":{"cosObject":{"key":"/1253970026/examplebkt/"},"cosBucket":{"name":"examplebkt","appid":"1253970026"}}},
+ {"event":{"eventName":"cos:ObjectRestore:Post","eventTime":1545205773},"cos":{"cosObject":{"key":"/1253970026/examplebkt/drive/restored.md"},"cosBucket":{"name":"examplebkt","appid":"1253970026"}}}
+]}

@@ -1,0 +1,1349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oo:docs-api:events:1.0",
+  "x-docs-api-version": "1.0-draft",
+  "description": "SSE events of docs-api/1.0-draft (10 §8.5 + G12, G19, G20). Persistent events carry seq and replay with since; transient ones do not.",
+  "type": "object",
+  "required": [
+    "type",
+    "at",
+    "data"
+  ],
+  "properties": {
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "enum": [
+        "engine.health_changed",
+        "drive.created",
+        "drive.updated",
+        "drive.deleted",
+        "drive.sync_started",
+        "drive.sync_completed",
+        "drive.sync_failed",
+        "drive.sync_held",
+        "file.state_changed",
+        "file.renamed",
+        "file.removed",
+        "files.bulk_changed",
+        "review.changed",
+        "review.decided",
+        "ontology.version_published",
+        "share.created",
+        "share.state_changed",
+        "share.mount_removed",
+        "pack.compiled",
+        "pack.leak_blocked",
+        "usage.changed",
+        "refs.accessed",
+        "drive.freshness_changed",
+        "share.update_appended",
+        "ontology.constraint_violated",
+        "db.source_changed",
+        "db.pipeline_changed",
+        "file.progress",
+        "stream.lagging"
+      ]
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "drive_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "data": {
+      "type": "object"
+    },
+    "actor": {
+      "type": "object",
+      "description": "Who caused an event (1.13). `kind` is `cli`, `app`, `mcp` (the client named by the `OO-Docs-Client` header of the control token), `agent` (an Agent token, or the control token with an `OO-Docs-Agent` header; `name` is the token name or the header), `cloud` (a cloud proxy token) or `local` (no or an unknown client header). Events appended by a background worker carry the actor of the request that caused them (same file or Drive, within 10 minutes) and none when no request is known.",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "cli",
+            "app",
+            "mcp",
+            "agent",
+            "cloud",
+            "local"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "examples": [
+        {
+          "kind": "app"
+        },
+        {
+          "kind": "agent",
+          "name": "claude"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "engine.health_changed",
+              "drive.created",
+              "drive.updated",
+              "drive.deleted",
+              "drive.sync_started",
+              "drive.sync_completed",
+              "drive.sync_failed",
+              "drive.sync_held",
+              "file.state_changed",
+              "file.renamed",
+              "file.removed",
+              "files.bulk_changed",
+              "review.changed",
+              "review.decided",
+              "ontology.version_published",
+              "share.created",
+              "share.state_changed",
+              "share.mount_removed",
+              "pack.compiled",
+              "pack.leak_blocked",
+              "usage.changed",
+              "refs.accessed",
+              "drive.freshness_changed",
+              "share.update_appended",
+              "ontology.constraint_violated",
+              "db.source_changed",
+              "db.pipeline_changed"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "seq"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "file.progress",
+              "stream.lagging"
+            ]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "seq"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.created"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.created"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.updated"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.updated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.deleted"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.deleted"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.sync_started"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.sync_started"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "file.state_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/file.state_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "file.renamed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/file.renamed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "file.removed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/file.removed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "files.bulk_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/files.bulk_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "review.changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/review.changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "review.decided"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/review.decided"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ontology.version_published"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/ontology.version_published"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ontology.constraint_violated"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/ontology.constraint_violated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "share.created"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/share.created"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "share.state_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/share.state_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "share.mount_removed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/share.mount_removed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "share.update_appended"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/share.update_appended"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "pack.compiled"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/pack.compiled"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "pack.leak_blocked"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/pack.leak_blocked"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "usage.changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/usage.changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "refs.accessed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/refs.accessed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.freshness_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.freshness_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "engine.health_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/engine.health_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "file.progress"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/file.progress"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.sync_completed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.sync_completed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.sync_failed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.sync_failed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "drive.sync_held"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/drive.sync_held"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "stream.lagging"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/stream.lagging"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "db.source_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/db.source_changed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "db.pipeline_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/x-data/db.pipeline_changed"
+          }
+        }
+      }
+    }
+  ],
+  "x-persistent": [
+    "engine.health_changed",
+    "drive.created",
+    "drive.updated",
+    "drive.deleted",
+    "drive.sync_started",
+    "drive.sync_completed",
+    "drive.sync_failed",
+    "drive.sync_held",
+    "file.state_changed",
+    "file.renamed",
+    "file.removed",
+    "files.bulk_changed",
+    "review.changed",
+    "review.decided",
+    "ontology.version_published",
+    "share.created",
+    "share.state_changed",
+    "share.mount_removed",
+    "pack.compiled",
+    "pack.leak_blocked",
+    "usage.changed",
+    "refs.accessed",
+    "drive.freshness_changed",
+    "share.update_appended",
+    "ontology.constraint_violated",
+    "db.source_changed",
+    "db.pipeline_changed"
+  ],
+  "x-transient": [
+    "file.progress",
+    "stream.lagging"
+  ],
+  "examples": [
+    {
+      "seq": 1,
+      "type": "file.state_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "file": {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "a.md",
+          "state": "published",
+          "state_since": "2026-11-17T00:00:00Z",
+          "retryable": false,
+          "pending_review": 0
+        }
+      }
+    },
+    {
+      "type": "file.progress",
+      "at": "2026-11-17T00:00:00Z",
+      "data": {
+        "file_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+        "unit": "page",
+        "done": 1,
+        "total": 2
+      }
+    },
+    {
+      "seq": 9,
+      "type": "db.source_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "name": "shop",
+        "action": "added",
+        "stack": "/Users/me/shop/stack.yaml"
+      },
+      "actor": {
+        "kind": "cli"
+      }
+    },
+    {
+      "seq": 10,
+      "type": "db.pipeline_changed",
+      "at": "2026-11-17T00:00:00Z",
+      "drive_id": null,
+      "data": {
+        "command": "build",
+        "ok": true,
+        "stack": "/Users/me/shop/stack.yaml",
+        "profile": "shop",
+        "published": true
+      },
+      "actor": {
+        "kind": "cli"
+      }
+    }
+  ],
+  "x-data": {
+    "drive.created": {
+      "type": "object",
+      "required": [
+        "drive"
+      ],
+      "properties": {
+        "drive": {
+          "type": "object",
+          "required": [
+            "id"
+          ]
+        }
+      }
+    },
+    "drive.updated": {
+      "type": "object",
+      "required": [
+        "drive"
+      ],
+      "properties": {
+        "drive": {
+          "type": "object",
+          "required": [
+            "id"
+          ]
+        }
+      }
+    },
+    "drive.deleted": {
+      "type": "object",
+      "required": [
+        "drive_id"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        }
+      }
+    },
+    "drive.sync_started": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "sync"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "sync": {
+          "type": "object"
+        }
+      }
+    },
+    "file.state_changed": {
+      "type": "object",
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "object",
+          "required": [
+            "id",
+            "drive_id",
+            "path",
+            "state"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "file.renamed": {
+      "type": "object",
+      "required": [
+        "file_id",
+        "old_path",
+        "new_path"
+      ],
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "old_path": {
+          "type": "string"
+        },
+        "new_path": {
+          "type": "string"
+        }
+      }
+    },
+    "file.removed": {
+      "type": "object",
+      "required": [
+        "file_id"
+      ],
+      "properties": {
+        "file_id": {
+          "type": "string"
+        }
+      }
+    },
+    "files.bulk_changed": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "count",
+        "states"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "states": {
+          "type": "object"
+        }
+      }
+    },
+    "review.changed": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "pending",
+        "by_source_changed"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The Drive whose queue changed; null for items that belong to no Drive."
+        },
+        "pending": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "by_source_changed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "review.decided": {
+      "type": "object",
+      "required": [
+        "accepted",
+        "rejected",
+        "item_ids"
+      ],
+      "properties": {
+        "accepted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rejected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "item_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 500
+        }
+      },
+      "additionalProperties": false
+    },
+    "ontology.version_published": {
+      "type": "object",
+      "required": [
+        "n",
+        "as_of",
+        "facts_added",
+        "facts_retracted",
+        "gates"
+      ],
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "as_of": {
+          "type": "string"
+        },
+        "facts_added": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "facts_retracted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gates": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ontology.constraint_violated": {
+      "type": "object",
+      "required": [
+        "constraint_id",
+        "entity_key",
+        "fact_ids"
+      ],
+      "properties": {
+        "constraint_id": {
+          "type": "string"
+        },
+        "entity_key": {
+          "type": "string"
+        },
+        "fact_ids": {
+          "type": "array"
+        },
+        "review_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "share.created": {
+      "type": "object",
+      "required": [
+        "share"
+      ],
+      "properties": {
+        "share": {
+          "type": "object",
+          "required": [
+            "id",
+            "drive_id",
+            "state",
+            "pack_id",
+            "revision"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "share.state_changed": {
+      "type": "object",
+      "required": [
+        "share"
+      ],
+      "properties": {
+        "share": {
+          "type": "object",
+          "required": [
+            "id",
+            "drive_id",
+            "state",
+            "pack_id",
+            "revision"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "share.mount_removed": {
+      "type": "object",
+      "required": [
+        "share_id",
+        "removed"
+      ],
+      "properties": {
+        "share_id": {
+          "type": "string"
+        },
+        "removed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "share.update_appended": {
+      "type": "object",
+      "required": [
+        "share_id",
+        "seq",
+        "level"
+      ],
+      "properties": {
+        "share_id": {
+          "type": "string"
+        },
+        "seq": {
+          "type": "integer"
+        },
+        "level": {
+          "type": "string"
+        }
+      }
+    },
+    "pack.compiled": {
+      "type": "object",
+      "required": [
+        "pack_id",
+        "pack_digest"
+      ],
+      "properties": {
+        "pack_id": {
+          "type": "string"
+        },
+        "pack_digest": {
+          "type": "string"
+        }
+      }
+    },
+    "pack.leak_blocked": {
+      "type": "object",
+      "required": [
+        "params_sha256",
+        "hits"
+      ],
+      "properties": {
+        "params_sha256": {
+          "type": "string"
+        },
+        "hits": {
+          "type": "integer"
+        }
+      }
+    },
+    "usage.changed": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "day",
+        "calls",
+        "limit",
+        "limited"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "day": {
+          "type": "string"
+        },
+        "calls": {
+          "type": "integer"
+        },
+        "limit": {},
+        "limited": {
+          "type": "boolean"
+        }
+      }
+    },
+    "refs.accessed": {
+      "type": "object",
+      "required": [
+        "share_id"
+      ],
+      "properties": {
+        "share_id": {
+          "type": "string"
+        }
+      }
+    },
+    "drive.freshness_changed": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "freshness"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "freshness": {
+          "type": "object",
+          "required": [
+            "state",
+            "ontology_version",
+            "as_of"
+          ]
+        }
+      }
+    },
+    "engine.health_changed": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "components": {
+          "type": "object"
+        }
+      }
+    },
+    "file.progress": {
+      "type": "object",
+      "required": [
+        "file_id",
+        "unit",
+        "done",
+        "total"
+      ],
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "done": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        }
+      }
+    },
+    "drive.sync_completed": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "sync"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "sync": {
+          "type": "object"
+        }
+      }
+    },
+    "drive.sync_failed": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "sync"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "sync": {
+          "type": "object"
+        }
+      }
+    },
+    "drive.sync_held": {
+      "type": "object",
+      "required": [
+        "drive_id",
+        "sync"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "sync": {
+          "type": "object"
+        }
+      }
+    },
+    "stream.lagging": {
+      "type": "object"
+    },
+    "db.source_changed": {
+      "type": "object",
+      "required": [
+        "name",
+        "action",
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "action": {
+          "enum": [
+            "added",
+            "removed",
+            "initialized"
+          ]
+        },
+        "stack": {
+          "type": "string"
+        }
+      }
+    },
+    "db.pipeline_changed": {
+      "type": "object",
+      "required": [
+        "command",
+        "ok",
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "enum": [
+            "up",
+            "down",
+            "build",
+            "init"
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "stack": {
+          "type": "string"
+        },
+        "profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "published": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

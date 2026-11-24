@@ -1,0 +1,461 @@
+{
+ "summary": {
+  "answerable": 30,
+  "correct": 29,
+  "correct_pct": 96.7,
+  "cited": 27,
+  "cited_pct": 90.0,
+  "correct_and_cited": 26,
+  "wrongly_declined": 0,
+  "unanswerable": 4,
+  "honest": 4,
+  "made_up": 0,
+  "by_kind": {
+   "single": "8/8",
+   "cross": "10/10",
+   "numeric": "5/6",
+   "audio": "3/3",
+   "crosslang": "3/3"
+  },
+  "not_run": []
+ },
+ "rows": [
+  {
+   "id": "q01",
+   "kind": "single",
+   "status": "answered",
+   "ms": 24996,
+   "sources": [
+    "decks/aurora-launch-plan.pptx",
+    "memos/launch-delay-memo-signed.pdf"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": false,
+   "correct_and_cited": false
+  },
+  {
+   "id": "q02",
+   "kind": "single",
+   "status": "answered",
+   "ms": 37662,
+   "sources": [
+    "meetings/minutes-2027-01-12-launch-sync.docx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q03",
+   "kind": "single",
+   "status": "answered",
+   "ms": 26369,
+   "sources": [
+    "people/team-roster.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q04",
+   "kind": "single",
+   "status": "answered",
+   "ms": 24357,
+   "sources": [
+    "contracts/hengding-lens-supply-contract.pdf"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q05",
+   "kind": "single",
+   "status": "answered",
+   "ms": 16949,
+   "sources": [
+    "specs/np7-product-spec.docx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q06",
+   "kind": "single",
+   "status": "answered",
+   "ms": 14422,
+   "sources": [
+    "specs/np7-product-spec.docx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q07",
+   "kind": "single",
+   "status": "answered",
+   "ms": 26377,
+   "sources": [
+    "specs/np7-product-spec.docx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q08",
+   "kind": "single",
+   "status": "answered",
+   "ms": 20226,
+   "sources": [
+    "people/team-roster.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q09",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 21109,
+   "sources": [
+    "meetings/minutes-2027-01-12-launch-sync.docx",
+    "memos/launch-delay-memo-signed.pdf"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q10",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 14768,
+   "sources": [
+    "contracts/hengding-lens-supply-contract.pdf",
+    "finance/vendor-list.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q11",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 16807,
+   "sources": [
+    "finance/launch-budget-2027.xlsx",
+    "reports/launch-readiness-report-2027-02-20.pdf"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q12",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 31205,
+   "sources": [
+    "finance/launch-budget-2027.xlsx",
+    "meetings/minutes-2027-01-26-budget-review.docx",
+    "people/team-roster.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q13",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 25387,
+   "sources": [
+    "meetings/minutes-2027-01-26-budget-review.docx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q14",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 17374,
+   "sources": [
+    "decks/aurora-launch-plan.pptx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q15",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 25257,
+   "sources": [
+    "decks/aurora-launch-plan.pptx",
+    "images/whiteboard-launch-timeline.png",
+    "notes/press-faq-en.md"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": false,
+   "correct_and_cited": false
+  },
+  {
+   "id": "q16",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 13890,
+   "sources": [
+    "meetings/minutes-2027-02-02-readiness.docx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q17",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 16505,
+   "sources": [
+    "finance/vendor-list.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q18",
+   "kind": "cross",
+   "status": "answered",
+   "ms": 23511,
+   "sources": [
+    "contracts/hengding-lens-supply-contract.pdf",
+    "people/team-roster.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q19",
+   "kind": "numeric",
+   "status": "answered",
+   "ms": 14557,
+   "sources": [
+    "finance/launch-budget-2027.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q20",
+   "kind": "numeric",
+   "status": "answered",
+   "ms": 14661,
+   "sources": [
+    "finance/launch-budget-2027.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q21",
+   "kind": "numeric",
+   "status": "answered",
+   "ms": 14003,
+   "sources": [
+    "meetings/minutes-2027-01-26-budget-review.docx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": false,
+   "correct_and_cited": false
+  },
+  {
+   "id": "q22",
+   "kind": "numeric",
+   "status": "answered",
+   "ms": 23328,
+   "sources": [
+    "finance/launch-budget-2027.xlsx"
+   ],
+   "declined": false,
+   "correct": false,
+   "cited": true,
+   "correct_and_cited": false
+  },
+  {
+   "id": "q23",
+   "kind": "numeric",
+   "status": "answered",
+   "ms": 20407,
+   "sources": [
+    "finance/actuals-2027-q1.csv"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q24",
+   "kind": "numeric",
+   "status": "answered",
+   "ms": 14132,
+   "sources": [
+    "finance/launch-budget-2027.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q25",
+   "kind": "audio",
+   "status": "answered",
+   "ms": 20675,
+   "sources": [
+    "images/whiteboard-launch-timeline.png",
+    "meetings/audio/launch-sync-2027-01-12.wav"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q26",
+   "kind": "audio",
+   "status": "answered",
+   "ms": 14899,
+   "sources": [
+    "meetings/audio/budget-call-2027-01-26.m4a"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q27",
+   "kind": "audio",
+   "status": "answered",
+   "ms": 28464,
+   "sources": [
+    "meetings/audio/supplier-call-2027-01-16.wav"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q28",
+   "kind": "crosslang",
+   "status": "answered",
+   "ms": 17283,
+   "sources": [
+    "people/team-roster.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q29",
+   "kind": "crosslang",
+   "status": "answered",
+   "ms": 9509,
+   "sources": [
+    "contracts/hengding-lens-supply-contract.pdf",
+    "finance/vendor-list.xlsx"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q30",
+   "kind": "crosslang",
+   "status": "answered",
+   "ms": 14371,
+   "sources": [
+    "memos/launch-delay-memo-signed.pdf"
+   ],
+   "declined": false,
+   "correct": true,
+   "cited": true,
+   "correct_and_cited": true
+  },
+  {
+   "id": "q31",
+   "kind": "unanswerable",
+   "status": "unanswerable",
+   "ms": 46021,
+   "sources": [],
+   "honest": true,
+   "made_up": false
+  },
+  {
+   "id": "q32",
+   "kind": "unanswerable",
+   "status": "unanswerable",
+   "ms": 37412,
+   "sources": [],
+   "honest": true,
+   "made_up": false
+  },
+  {
+   "id": "q33",
+   "kind": "unanswerable",
+   "status": "unanswerable",
+   "ms": 33080,
+   "sources": [],
+   "honest": true,
+   "made_up": false
+  },
+  {
+   "id": "q34",
+   "kind": "unanswerable",
+   "status": "unanswerable",
+   "ms": 22161,
+   "sources": [],
+   "honest": true,
+   "made_up": false
+  }
+ ]
+}

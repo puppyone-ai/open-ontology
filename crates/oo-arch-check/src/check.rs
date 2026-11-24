@@ -1770,8 +1770,9 @@ mod tests {
     }
 
     #[test]
-    fn required_membership_is_eighteen_including_xtask() {
-        assert_eq!(REQUIRED_MEMBERS.len(), 18);
+    fn required_membership_is_nineteen_including_xtask_and_docs() {
+        assert_eq!(REQUIRED_MEMBERS.len(), 19);
+        assert!(REQUIRED_MEMBERS.contains(&"oo-docs"));
         assert!(REQUIRED_MEMBERS.contains(&"oo-stack"));
         assert!(REQUIRED_MEMBERS.contains(&"xtask"));
         assert!(is_required_edge("xtask", "oo-core"));

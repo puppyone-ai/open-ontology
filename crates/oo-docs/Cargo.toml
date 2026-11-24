@@ -1,0 +1,58 @@
+[package]
+name = "oo-docs"
+description = "Super Ontology document pipeline: ingest, parse, index, compile Context Packs, docs control API."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Test-only fault injection (spec 10 §12.5). Never enabled in release builds.
+failpoints = []
+# B-S4-01: Drives on S3 compatible buckets (OpenDAL, through oo-connectors).
+objectstore-s3 = ["oo-connectors/objectstore-s3"]
+
+# B-S1-07: blake3, pulldown-cmark, calamine and proptest passed the supply-chain
+# admission (supply-chain/policy.md §1, §4). OpenDAL stays behind the
+# oo-connectors `objectstore-s3` feature.
+[dependencies]
+oo-core = { path = "../oo-core" }
+oo-connectors = { path = "../oo-connectors", features = ["objectstore"] }
+oo-builder = { path = "../oo-builder" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+thiserror = "=2.0.21"
+blake3 = { version = "=1.8.7", default-features = false, features = ["std", "pure"] }
+pulldown-cmark = { version = "=0.13.6", default-features = false }
+unicode-normalization = "=0.1.25"
+calamine = { version = "=0.38.0", default-features = false }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
+# Control-plane database stack, same pins as oo-pipeline. Default features
+# stay off; TLS is the patched sqlx-core `_tls-rustls-ring-no-roots` (caller
+# CA only). The facade pulls sqlx-core `migrate`; this crate does not call it,
+# it installs `_oo_docs` with its own checksummed installer (10 §3.1).
+sqlx = { version = "=0.9.0", default-features = false, features = [
+    "runtime-tokio",
+    "postgres",
+] }
+sqlx-core = { version = "=0.9.0", default-features = false, features = [
+    "_rt-tokio",
+    "_tls-rustls-ring-no-roots",
+] }
+tokio = { version = "=1.53.3", default-features = false, features = ["macros", "net", "rt", "rt-multi-thread", "signal", "sync", "time"] }
+# Control API (B-S2-09): same axum pin and features as oo-gateway. The router
+# is a single fallback handler, so no extractor features are needed.
+axum = { workspace = true }
+# SSE body stream (the Stream trait only); already locked at this version.
+futures-core = { version = "=0.3.34", default-features = false }
+
+[dev-dependencies]
+# Contract tests name the Validator type; same pin and features as oo-core.
+jsonschema = { version = "=0.57.0", default-features = false }
+proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
+tokio = { version = "=1.53.3", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "time", "sync"] }

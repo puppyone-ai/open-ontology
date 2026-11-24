@@ -1,0 +1,46 @@
+{
+ "checks": [
+  {
+   "check": "status before: not installed, uv found, no docker on PATH",
+   "ok": true
+  },
+  {
+   "check": "upload of docx and pdf exits 0 (published)",
+   "ok": true
+  },
+  {
+   "check": "both files are published, none unsupported",
+   "ok": true
+  },
+  {
+   "check": "the environment is under the oo state dir, not /tmp",
+   "ok": true
+  },
+  {
+   "check": "models came from the pinned sources (no Docker)",
+   "ok": true
+  },
+  {
+   "check": "files listed as published",
+   "ok": true
+  },
+  {
+   "check": "second start reuses the environment (no install lines)",
+   "ok": true
+  }
+ ],
+ "upload_seconds": 62.4,
+ "upload_stdout": "{\"added\":2,\"changed\":0,\"created_drive\":true,\"drive\":{\"backend\":\"fs\",\"id\":\"3ebde7b6-22da-4c8e-8d2e-bd6873a27141\",\"name\":\"default\"},\"drive_rev\":0,\"files\":[{\"bytes\":6793,\"path\":\"2026-01-08-年度计划会.docx\",\"renamed\":false},{\"bytes\":1766,\"path\":\"办公迁址方案.pdf\",\"renamed\":false}],\"managed\":true,\"protocol\":\"oo.docs-upload/v1\",\"skipped_hidden\":0,\"uploaded\":2,\"wait\":{\"awaiting_review\":0,\"counts\":{\"published\":2},\"drive_rev\":2,\"failed\":0,\"settled\":true,\"waited_ms\":34285}}\n",
+ "files": [
+  {
+   "state": "published",
+   "name": "2026-01-08-年度计划会.docx"
+  },
+  {
+   "state": "published",
+   "name": "办公迁址方案.pdf"
+  }
+ ],
+ "second_start_seconds": 3.4,
+ "ok": true
+}

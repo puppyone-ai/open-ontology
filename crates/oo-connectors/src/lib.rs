@@ -53,6 +53,27 @@ pub mod mysql;
 pub mod opensearch;
 #[cfg(feature = "mysql")]
 pub use mysql::{mariadb, oceanbase, tidb};
+#[cfg(feature = "objectstore")]
+pub mod objectstore;
+/// The OpenDAL `s3` backend and its compatibility layer (10 §4.3.3, B-S4-01).
+/// They are the spec files `objectstore/opendal.rs` and `objectstore/compat.rs`;
+/// `objectstore/mod.rs` is the integration thread's, so they are mounted here
+/// until it declares them (patches/B-S4-01-objectstore-mod.patch).
+#[cfg(feature = "objectstore-s3")]
+#[path = "objectstore/compat.rs"]
+pub mod objectstore_compat;
+/// Bucket event notifications as change hints (B-S11-02, 10 4.3.6). Needs only the trait, no OpenDAL.
+#[cfg(feature = "objectstore")]
+#[path = "objectstore/events/mod.rs"]
+pub mod objectstore_events;
+#[cfg(feature = "objectstore-s3")]
+#[path = "objectstore/opendal.rs"]
+pub mod objectstore_opendal;
+#[cfg(feature = "objectstore-s3")]
+pub mod objectstore_s3 {
+    pub use crate::objectstore_compat as compat;
+    pub use crate::objectstore_opendal as opendal;
+}
 #[cfg(feature = "olap")]
 pub mod olap;
 #[cfg(feature = "oracle")]

@@ -1,0 +1,57 @@
+# doc-parser image: OpenCV without FFmpeg, TableFormer on (B-S3-01b, D65). Run 2026-11-17.
+image: oo-docs-parser:dev sha256:83649cf8cb44b4a643babe7cb01c9850a2439c9d68adb0d07b064a7d8c160b26 size=2888900103
+
+$ docker run --rm --network none --entrypoint python oo-docs-parser:dev -c "import cv2 ..."
+cv2 5.0.0
+  OpenCV modules:
+    To be built:                 calib core features flann geometry imgcodecs imgproc objdetect python3 stereo
+    Disabled:                    world
+    Disabled by dependency:      dnn highgui java_bindings_generator js_bindings_generator objc_bindings_generator photo ptcloud python_tests stitching video videoio
+    Unavailable:                 java ts
+    Applications:                -
+    Documentation:
+Video I/O section: Orbbec:                      NO
+lines mentioning FFMPEG/GStreamer/v4l: []
+hasattr(cv2, VideoCapture): False
+codec libs enabled: []
+
+$ find / -xdev -name "libav*" -o -name "libsw*" -o -name "*ffmpeg*"   (inside the image, as root)
+files found: 0
+ldd cv2:
+	linux-vdso.so.1 
+	libstdc++.so.6 => /lib/aarch64-linux-gnu/libstdc++.so.6 
+	libm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 
+	libgcc_s.so.1 => /lib/aarch64-linux-gnu/libgcc_s.so.1 
+	libc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 
+	/lib/ld-linux-aarch64.so.1 
+needed sonames of every .so under cv2/:
+/opt/venv/lib/python3.13/site-packages/cv2/cv2.abi3.so
+
+## PDF table structure before and after (count_tables.py: parse with table_structure=true in the sidecar adapter)
+- before = image oo-docs-parser:before-nocv (B-S3-01, no OpenCV), after = oo-docs-parser:dev
+== oo-docs-parser:before-nocv: 7 golden PDFs + pdf-plain.pdf
+pdf-plain.pdf pages 1 tables 0 cells 0 texts 0 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+办公迁址方案.pdf pages 1 tables 0 cells 0 texts 3 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+官网改版方案.pdf pages 1 tables 0 cells 0 texts 3 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+年度客户调研方案.pdf pages 1 tables 0 cells 0 texts 3 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+星图看板产品方案.pdf pages 1 tables 0 cells 0 texts 4 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+澄海物流合作方案.pdf pages 1 tables 0 cells 0 texts 3 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+灯塔迁移方案.pdf pages 1 tables 0 cells 0 texts 5 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+知了客服方案.pdf pages 1 tables 0 cells 0 texts 5 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+TOTAL_TABLES 0
+== oo-docs-parser:before-nocv: pdf-table.pdf (new ruled-table fixture)
+pdf-table.pdf pages 1 tables 1 cells 1 texts 23 ['DOCS_PARSE_TABLE_STRUCTURE_OFF']
+TOTAL_TABLES 1
+== oo-docs-parser:dev: 7 golden PDFs + pdf-plain.pdf
+pdf-plain.pdf pages 1 tables 0 cells 0 texts 0 []
+办公迁址方案.pdf pages 1 tables 0 cells 0 texts 3 []
+官网改版方案.pdf pages 1 tables 0 cells 0 texts 3 []
+年度客户调研方案.pdf pages 1 tables 0 cells 0 texts 3 []
+星图看板产品方案.pdf pages 1 tables 0 cells 0 texts 4 []
+澄海物流合作方案.pdf pages 1 tables 0 cells 0 texts 3 []
+灯塔迁移方案.pdf pages 1 tables 0 cells 0 texts 5 []
+知了客服方案.pdf pages 1 tables 0 cells 0 texts 5 []
+TOTAL_TABLES 0
+== oo-docs-parser:dev: pdf-table.pdf (new ruled-table fixture)
+pdf-table.pdf pages 1 tables 1 cells 20 texts 3 []
+TOTAL_TABLES 1

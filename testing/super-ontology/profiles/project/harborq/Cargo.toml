@@ -1,0 +1,13 @@
+[package]
+name = "harborq-core"
+version = "0.3.0"
+
+[dependencies]
+rusqlite = "0.31"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt"] }
+thiserror = "1"
+rand = "0.8"
+
+[dev-dependencies]
+proptest = "1"

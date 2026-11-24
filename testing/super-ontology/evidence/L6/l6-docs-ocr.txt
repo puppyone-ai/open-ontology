@@ -1,0 +1,4 @@
+# docs-ocr image oo-docs-ocr-parser:dev
+RESULT {"egress_blocked": true, "pdf": {"seconds": 14.5, "blocks": 1, "has_text": true}, "image": {"seconds": 14.3, "blocks": 1, "has_text": true}}
+mem 56.68MiB / 10GiB
+# status passed in 195s

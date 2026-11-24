@@ -88,6 +88,38 @@ Run `oo init` against your own read-only database and follow
 Older source-build and manual fixture instructions are collected under
 [Legacy demos](docs/legacy/README.md).
 
+## Super Ontology: files and databases, one ontology
+
+Super Ontology turns your documents (md, txt, csv, xlsx, docx, pptx, pdf, scans, recordings)
+and your databases into one typed, cited ontology that any agent can read with a token.
+
+```bash
+oo docs upload ~/Documents/project          # zero setup: a managed local folder, no bucket needed
+oo source add postgres --name erp ...       # or s3/oss/cos/r2 and 16 other database kinds
+oo ontology search "renewal decision"       # every result cites its file anchor or table row
+oo agent token create --name my-agent --scope docs:read --scope db:read --output-file agent.token
+oo mcp --stdio --endpoint <url> --token-file agent.token   # read-only, scoped, revocable
+```
+
+Everything the CLI does is also in the **Super Ontology** desktop app (`apps/super-ontology-desktop`),
+with a live ontology atlas; builds are published on the Releases page.
+Design and decisions: [specs/super-ontology](specs/super-ontology/README.md).
+
+## Benchmarks
+
+Measured with the harnesses in `testing/super-ontology/bench/`; configs were frozen on dev splits
+before a single test run, and every run can be replayed from cached model replies.
+
+| Benchmark | Split | Metric | Open Ontology | Best approved entry on the board (2026-11-19) |
+|---|---|---|---|---|
+| STaRK Prime | test | Hit@1 | 49.48 | 20.10 |
+| STaRK MAG | test | Hit@1 | 77.64 | 46.08 |
+| STaRK Amazon | test | Hit@1 | 56.82 | 49.97 |
+
+The STaRK submission (LLM query planner + reranker, labelled as such) has not been reviewed by the
+board maintainers yet; positions are claimed only once they appear on the official page.
+LongMemEval-V2 and GraphRAG-Bench runs are in progress; see each folder's `RULES.md` and results.
+
 ## ![](docs/assets/readme/icons/sun.svg) Roadmap
 
 1. **Ten databases.** A working preview across ten database engines. *In progress.*

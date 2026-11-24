@@ -1,0 +1,40 @@
+# Super Ontology L6 end to end (compose), run l6e2e-20261118-221833
+$ cargo build --locked -p oo-cli --features docs
+  Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-l6e2e-l6e2e-20261118-221833-7lhsrpoq/state
+[PASS] compose stack is up and healthy - HTTP 200
+[PASS] ocr-parser and media-parser run beside the engine - oo-docs-67e65fc034b5-docs-engine-1 oo-docs-67e65fc034b5-media-parser-1 oo-docs-67e65fc034b5-ocr-parser-1 oo-docs-67e65fc034b5-doc-parser-1 oo-docs-67e65fc034b5-docs-db-1 
+[PASS] all files left the working states - {"Meetings/周会 参会=小王、小李.wav": "published", "Meetings/录屏.webm": "published", "Meetings/录屏h264.mp4": "unsupported", "Meetings/讲话.m4a": "unsupported", "People/林川.md": "published", "Projects/星火计划.md": "published", "Scans/低清晰.png": "published", "Scans/扫描件.pdf": "published", "Scans/纪要.png": "published"}
+[PASS] A1 Scans/纪要.png published - published None
+[PASS] A1 Scans/扫描件.pdf published - published None
+[PASS] A1 the OCR text carries the planted words - 3/3 words in 48 chars
+[PASS] A1b the degraded picture is published - published None
+[PASS] A1b its OCR block carries low_text_confidence - [[["low_text_confidence"], "2026年度计划会纪票\n"]]
+[PASS] A1b the clear scan is not marked
+[PASS] A3 the meeting is published - published None
+[PASS] A3 one speaker_identity item per speaker label - 4 items
+[PASS] A3 nothing is published under a named Person before confirmation - {"as_of_seq": 127, "items": [{"counts": {"aliases": 1, "facts": 2}, "id": "d886c17f-a2f5-4789-b578-edee27d48cd9", "key":
+[PASS] A3 confirming S1 as 小王 succeeds - {"accepted": 1, "publish_pending": true, "rejected": 0, "results": [{"id": "b4f40d78-1c96-4260-9770-7da4bbd06cd2", "status": "ok"}]}
+[PASS] A3 after confirming, the fact's subject is the Person 小王 - [{"counts": {"aliases": 1, "facts": 0}, "id": "bad6a16e-93f4-451e-ac3d-c4d4aa173bf3", "key": "person:d654bb7a63d462ed5e9caa4e", "label": null, "name": "小王", "su
+[PASS] A4 the screen recording is published - published None
+[PASS] A4 one key frame per slide - 2 frame_text blocks
+[PASS] A4 frame text recall >= 0.9 (character level) - 1.00
+[PASS] A4 blocks carry media anchors (t_start_ms) for #t= provenance
+[PASS] A5 Meetings/录屏h264.mp4 is unsupported with DOCS_PARSE_CODEC_UNAVAILABLE - unsupported DOCS_PARSE_CODEC_UNAVAILABLE
+[PASS] A5 Meetings/讲话.m4a is unsupported with DOCS_PARSE_CODEC_UNAVAILABLE - unsupported DOCS_PARSE_CODEC_UNAVAILABLE
+[PASS] A5b files:retry accepts the parked recording - {"results": [{"id": "6952f4e1-5376-4c53-8310-71330e324a99", "status": "ok"}]}
+[PASS] A5b the recording is published after the host decode - {"state": "published", "state_code": null}
+[PASS] A5b it has utterances - 1 blocks
+$ <repo>/target/debug/oo context mount --scope Projects --to /tmp/oo-l6e2e-l6e2e-20261118-221833-7lhsrpoq/m1 --json --state-dir /tmp/oo-l6e2e-l6e2e-20261118-221833-7lhsrpoq/state
+  {"blocked":{"entities":9,"facts":16},"expires_at":"2026-11-26T06:20:25.207571Z","pack_digest":"dfa46315f6eca714a0f0d1b649bd6ee895b12cb784b79760ba8ba1914b3f8cde","path":"/private/tmp/oo-l6e2e-l6e2e-20261118-221833-7lhsrpoq/m1/.context","protocol":"oo.context-mount/v1","share_id":"3a116bb4-363d-4b70-8bce-76fc24c5b7fc","tokens":{"brief":493,"budget":800},"trimmed":{},"warnings":[]}
+[PASS] A7 mount before the change
+[PASS] A7 the share drifted and refresh answers - HTTP 200
+[PASS] A7 BRIEF lists the change after the head - 987 bytes
+[PASS] A8 the drive has published facts before the bump - 21 facts, 4 sidecar files
+[PASS] A8 the sidecar files were reprocessed with the new parser version - seen outdated
+[PASS] A8 the old facts stayed published during the rerun - min 21 of 21
+[PASS] A8 no churn: same fact keys after, nothing retracted - 21 facts, retracted 0
+[PASS] A8 DOC-G10 judged the reruns: whatever it held is a reprocess_diff item for a person and nothing was retracted behind it - 2 held: Meetings/周会 参会=小王、小李.wav diff_over_30_percent, Meetings/录屏.webm diff_over_30_percent
+[PASS] A10 a media job was queued or running when the edit was made - 1 at the edit, max 1
+[PASS] A10 the md file went from detected to published within the calibrated D49 bound (7 s) while media work ran - 2.03 s (edit to BRIEF 5.2s)
+[PASS] A10 the edit reached a new BRIEF within the L2 bound (30 s) - 5.2s

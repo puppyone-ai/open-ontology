@@ -1,0 +1,57 @@
+{
+  "ok": true,
+  "skipped": null,
+  "title": "Super Drive without Docker",
+  "nativeInput": false,
+  "started": "2026-11-19T01:52:09.877Z",
+  "checks": [
+    {
+      "check": "without Docker the setup check ends at 'stopped', ready to start",
+      "ok": true,
+      "detail": "Project A\nNo Git\n0\nProject files\nSuper Drive\nNo Drive\nRegister new Drive…\nFiles\nReview\nSuggestions\nShares\nEngine\nSettings\nSuper Drive\nStopped\nLocal engine is stopped\n\nSuper Drive runs on this computer"
+    },
+    {
+      "check": "the checklist has no Docker item and the page does not say the word",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the engine was started as `oo serve --runtime host`",
+      "ok": true,
+      "detail": "[\"serve\",\"--state-dir\",\"/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-docker-free-1dSD96/puppyone-development/super-ontology/state\",\"--port\",\"0\",\"--json\",\"--runtime\",\"host\"]"
+    },
+    {
+      "check": "and no compose project, port or Docker argument was given",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the healthy engine page names the built-in database and the sidecar, and says it runs without Docker",
+      "ok": true,
+      "detail": "Running without Docker, on the built-in database. A change applies the next time the engine starts."
+    },
+    {
+      "check": "the page still has no Docker item",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "choosing Docker brings the Docker check back",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "and the built-in runtime takes it away again",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "timings": {
+    "engineToFirstScreenMs": 1685
+  },
+  "error": null,
+  "notRun": [
+    "a real embedded PostgreSQL (ADR-S14 step 2 in OO)",
+    "install to first BRIEF in 10 minutes on a Mac without Docker (T2, packaged app and macOS permissions)"
+  ]
+}

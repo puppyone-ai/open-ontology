@@ -1,0 +1,27 @@
+{
+  "kb": "amazon",
+  "split": "test",
+  "n": 1642,
+  "limit": 0,
+  "seed": 0,
+  "plan": "llm",
+  "rerank_k": 20,
+  "model": "cx/gpt-5.6-luna",
+  "fuzzy": 2,
+  "engine_args": [],
+  "candidate_types": [
+    "product"
+  ],
+  "wall_s": 6565.9,
+  "llm_calls": 3284,
+  "llm_tokens_in_out": [
+    20192109,
+    946139
+  ],
+  "latency_p50_s": 15.299,
+  "latency_p95_s": 21.72,
+  "hit@1": 56.82,
+  "hit@5": 71.32,
+  "recall@20": 55.78,
+  "mrr": 63.44
+}

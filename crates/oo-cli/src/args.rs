@@ -2,6 +2,8 @@
 
 #[path = "admin/mod.rs"]
 mod admin;
+#[cfg(feature = "docs")]
+pub(crate) use admin::ONTOLOGY_ADMIN_HELP;
 
 use std::net::IpAddr;
 
@@ -87,6 +89,10 @@ pub fn parse() -> Result<Invocation, Failure> {
         return result;
     }
     let args = expand_long_options(&args);
+    #[cfg(feature = "docs")]
+    if let Some(result) = crate::docs::dispatch(&args) {
+        return result;
+    }
     if let Some(result) = crate::profile::dispatch(&args) {
         return result;
     }
@@ -1041,9 +1047,15 @@ fn is_safe_flag(arg: &str) -> bool {
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
+/// Added to the top-level help of builds with the `docs` feature (D83).
+#[cfg(feature = "docs")]
+const DOCS_TOP: &str = "\n\nDocuments (no database needed; every command takes --json):\n  oo serve [--runtime auto|compose|embedded|host]   Start the local engine (Docker if present, else embedded)\n  oo docs upload <path>... [--drive NAME] [--wait terminal]   Add files; the first upload creates a local folder Drive\n  oo docs wait [--drive NAME]                          Wait until files are published\n  oo source add fs|s3|oss|cos|r2 --name N ...          Register a folder or bucket (credentials by prompt, stdin or env)\n  oo source ls|show|rm|test                            Manage sources\n  oo context mount --to DIR                            Write an agent-ready BRIEF with sources\n  oo ontology search|entity|query|schema|sources       Ask documents and database together as an Agent\n                                                       (read-only token: OO_ENDPOINT + OO_AGENT_TOKEN_FILE, see oo ontology --help)\n  oo agent token create|ls|revoke                      Mint the read-only Agent token\n  oo docs --help                                       Review, entities, model, usage, audit";
+#[cfg(not(feature = "docs"))]
+const DOCS_TOP: &str = "";
+
 pub fn top_help() -> String {
     format!(
-        "{TOP}\n\n{}\n\n{}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}",
+        "{TOP}{DOCS_TOP}\n\n{}\n\n{}\n\n{QUERY_FLAGS}\n\n{SEARCH_FLAGS}\n\n{ROUTE_FLAGS}\n\n{BINDING_FLAGS}\n\n{EXAMPLES}\n\n{SQL_NOTES}\n\n{NOTES}",
         admin::HELP,
         crate::lifecycle::HELP
     )

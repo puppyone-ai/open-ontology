@@ -10,6 +10,15 @@ version = "0.2.1"
 [lints]
 workspace = true
 
+[features]
+default = []
+# Super Ontology: `oo serve`, `oo context`, doctor docs section. Off by default
+# on master (spec 50 §2.1); release builds turn it on only after L4 (D41).
+# The CLI is a client of the docs engine over loopback HTTP and does not link
+# oo-docs: the engine carries sqlx, which a client crate may not reach
+# (architecture rule R-CLIENT-DB-DRIVER).
+docs = []
+
 [dependencies]
 oo-connectors = { path = "../oo-connectors", features = ["oracle", "sqlserver", "db2", "dm8"] }
 oo-stack = { path = "../oo-stack" }
@@ -24,7 +33,7 @@ ratatui = { version = "=0.30.2", default-features = false, features = ["crosster
 crossterm = { version = "=0.29.0", default-features = false, features = ["events"] }
 serde = "=1.0.229"
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
-tokio = { version = "=1.53.3", default-features = false, features = ["macros", "net", "rt-multi-thread", "time"] }
+tokio = { version = "=1.53.3", default-features = false, features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 
 [dev-dependencies]
 oo-core = { path = "../oo-core" }

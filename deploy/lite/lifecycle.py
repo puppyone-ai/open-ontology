@@ -17,6 +17,19 @@ import urllib.parse
 import uuid
 from datetime import datetime, timezone
 
+def model_call_limit(stack):
+    """Builder model-call budget: 6 covers two tables; each further table adds 4 (batch + repairs).
+    A wildcard scope is sized as 32 tables. OO_LITE_MODEL_CALL_LIMIT (1..4096) overrides."""
+    raw=os.environ.get('OO_LITE_MODEL_CALL_LIMIT')
+    if raw is not None:
+        if not raw.isdigit() or not 1<=int(raw)<=4096:raise ValueError('model call limit')
+        return int(raw)
+    tables=0
+    for source in stack.get('sources',[]):
+        include=(source.get('scope') or {}).get('include') or ['*']
+        tables+=32 if any('*' in i for i in include) else len(include)
+    return min(4096,6+4*max(0,tables-2))
+
 def publication_health(history, services_up, now=None):
     published=history.get('data_published_at')
     # An unchanged source is current data, not an overdue one: health follows
@@ -244,7 +257,12 @@ def docker_command(argv,env):
 def docker(argv,env):
     p=subprocess.run(docker_command(argv,env),capture_output=True,env=env,timeout=180)
     if p.returncode:
-        raise ValueError('LITE_DOCKER_FAILED')
+        # The tool's own last line says why (no daemon, bad context, unknown flag); keep it
+        # short and printable, so an isolated HOME or a stopped Docker is not a mystery.
+        last=(p.stderr.decode('utf-8','replace').strip().splitlines() or [''])[-1]
+        why=''.join(c for c in last if c.isprintable() and c not in '\\"')[:160]
+        raise ValueError('LITE_DOCKER_FAILED: docker '+' '.join(argv[:2])+' exited '+str(p.returncode)+(': '+why if why else '')
+                         +' (set DOCKER_HOST or OO_LITE_SUBNET if this process runs with a different HOME)')
     return p.stdout
 
 
@@ -548,7 +566,7 @@ def provision_retained(root,argv,env,request,port):
         'library_id':'library','secrets_dir':'/home/oo/.config/open-ontology/secrets',
         'builder_script':'/opt/oo/pg-builder/retained_build.py',
         'builder':{'project':'lite','psql_command':['psql','service=agent'],
-                   'model':{'stack':'/work/operator/model.json','egress':'/opt/oo/model_egress.py','call_limit':6}},
+                   'model':{'stack':'/work/operator/model.json','egress':'/opt/oo/model_egress.py','call_limit':model_call_limit(stack)}},
         'publisher_config':'/work/operator/publisher.json','gateway_login':DATA_LOGIN,
         'gateway':{'runtime_dir':'/work/operator/gateway','gateway_url':public,
                    'ca_file':'/pki/lite-ca-cert','client_pem':'/pki/lite-admin.pem',
@@ -678,8 +696,8 @@ def main(request):
     if not re.fullmatch(r'(?:[a-zA-Z0-9./:_-]+@)?sha256:[0-9a-f]{64}',image):
         raise ValueError('LITE_IMAGE_DIGEST_REQUIRED')
     saved=json.loads(read_private(owner)) if owner.exists() else {}
-    lane=saved.get('lane',os.environ.get('OO_LITE_LANE','a'))
-    if not re.fullmatch('[a-z][a-z0-9]{0,7}',lane):raise ValueError('LITE_LANE')
+    lane=saved.get('lane',os.environ.get('OO_LITE_LANE') or os.environ.get('OO_TEST_LANE') or 'a')
+    if not re.fullmatch('[a-z][a-z0-9-]{0,47}',lane):raise ValueError('LITE_LANE')
     env.update(OO_LITE_STATE=str(root),OO_LITE_RUNTIME_IMAGE=image,OO_LITE_UID=str(os.getuid()),
                OO_LITE_GID=str(os.getgid()),OO_LITE_LANE=lane)
     if os.environ.get('OO_LITE_POSTGRES_IMAGE'):

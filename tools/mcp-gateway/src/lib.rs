@@ -5,7 +5,9 @@
 
 #![forbid(unsafe_code)]
 
+mod docs;
 mod http;
+mod ontology;
 
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -17,7 +19,8 @@ use rmcp::model::{
     Implementation, InitializeRequestParams, InitializeResult, ListPromptsResult,
     ListResourcesResult, ListToolsResult, PaginatedRequestParams, ProtocolVersion,
     ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
-    ResourceContents, ServerCapabilities, ServerConfig, Tool, ToolAnnotations,
+    ResourceContents, ServerCapabilities, ServerConfig, SubscribeRequestParams, Tool,
+    ToolAnnotations,
 };
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::{ErrorData as McpError, ServerHandler, ServiceExt};
@@ -30,6 +33,12 @@ const READY_LINE: &str = "oo-mcp-gateway: stdio ready oauth=false remote_export=
 
 struct GatewayServer {
     client: GatewayClient,
+    /// L5: the docs engine side (suggest, context_check, the updates resource).
+    docs: Option<docs::Docs>,
+    /// D83: the unified ontology tools over `oo serve` (`OO_MCP_ONTOLOGY_URL`).
+    ontology: Option<ontology::Ontology>,
+    /// The Gateway data plane tools are advertised (`OO_MCP_GATEWAY_URL` or a profile is set).
+    gateway: bool,
 }
 
 pub fn run() -> i32 {
@@ -56,6 +65,10 @@ pub fn run() -> i32 {
 }
 
 impl GatewayServer {
+    fn config(&self) -> ServerConfig {
+        server_config(self.docs.is_some(), self.ontology.is_some())
+    }
+
     fn from_env() -> Result<Self, &'static str> {
         if let Ok(name) = std::env::var("OO_MCP_PROFILE") {
             if name.is_empty()
@@ -72,6 +85,26 @@ impl GatewayServer {
             }
             return Ok(Self {
                 client: GatewayClient::profile(cli, name),
+                ontology: None,
+                docs: docs::Docs::from_env()?,
+                gateway: true,
+            });
+        }
+        if let Some(ontology) = ontology::Ontology::from_env()? {
+            return Ok(Self {
+                client: GatewayClient::new(0, PathBuf::new()),
+                docs: None,
+                ontology: Some(ontology),
+                gateway: false,
+            });
+        }
+        let docs = docs::Docs::from_env()?;
+        if docs.is_some() && std::env::var_os("OO_MCP_GATEWAY_URL").is_none() {
+            return Ok(Self {
+                client: GatewayClient::new(0, PathBuf::new()),
+                docs,
+                ontology: None,
+                gateway: false,
             });
         }
         let url = std::env::var("OO_MCP_GATEWAY_URL").map_err(|_| "gateway_url")?;
@@ -82,6 +115,27 @@ impl GatewayServer {
         }
         Ok(Self {
             client: GatewayClient::new(port, PathBuf::from(token_file)),
+            docs,
+            ontology: None,
+            gateway: true,
+        })
+    }
+
+    async fn gateway_resources(&self) -> Result<Vec<Resource>, McpError> {
+        let reply = match self.client.get("/v1/pack/metadata").await {
+            Ok(reply) => reply,
+            Err(()) => {
+                eprintln!("oo-mcp-gateway: method=resources/list status=transport");
+                return Err(McpError::internal_error("gateway request failed", None));
+            }
+        };
+        if !(200..300).contains(&reply.status) {
+            log_status("resources/list", reply.status);
+            return Err(McpError::internal_error("gateway request failed", None));
+        }
+        resources_from_pack(&reply.body).map_err(|_| {
+            log_status("resources/list", 32602);
+            McpError::invalid_params("pack file path is not a knowledge resource", None)
         })
     }
 
@@ -108,9 +162,18 @@ impl GatewayServer {
         path: &str,
         body: Option<Value>,
     ) -> Result<CallToolResult, McpError> {
+        self.gateway_tool_with(&self.client, path, body).await
+    }
+
+    async fn gateway_tool_with(
+        &self,
+        client: &GatewayClient,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<CallToolResult, McpError> {
         let reply = match body {
-            None => self.client.get(path).await,
-            Some(body) => self.client.post_json(path, &body).await,
+            None => client.get(path).await,
+            Some(body) => client.post_json(path, &body).await,
         };
         match reply {
             Ok(reply) => {
@@ -131,7 +194,7 @@ impl GatewayServer {
 
 impl ServerHandler for GatewayServer {
     fn get_info(&self) -> ServerConfig {
-        server_config()
+        self.config()
     }
 
     fn supported_protocol_versions(&self) -> Cow<'static, [ProtocolVersion]> {
@@ -152,7 +215,7 @@ impl ServerHandler for GatewayServer {
         }
         context.peer.set_peer_info(request);
         log_status("initialize", 200);
-        Ok(server_config())
+        Ok(self.config())
     }
 
     async fn discover(
@@ -162,7 +225,7 @@ impl ServerHandler for GatewayServer {
         log_status("server/discover", 200);
         Ok(DiscoverResult::from_server_info(
             self.supported_protocol_versions().into_owned(),
-            server_config(),
+            self.config(),
         ))
     }
 
@@ -173,7 +236,18 @@ impl ServerHandler for GatewayServer {
     ) -> Result<ListToolsResult, McpError> {
         reject_cursor("tools/list", &request)?;
         log_status("tools/list", 200);
-        Ok(ListToolsResult::with_all_items(tool_list())
+        let mut tools = if self.gateway {
+            tool_list()
+        } else {
+            Vec::new()
+        };
+        if self.docs.is_some() {
+            tools.extend(docs::tools());
+        }
+        if self.ontology.is_some() {
+            tools.extend(ontology::tools());
+        }
+        Ok(ListToolsResult::with_all_items(tools)
             .with_ttl_ms(0)
             .with_cache_scope(CacheScope::Private))
     }
@@ -183,6 +257,38 @@ impl ServerHandler for GatewayServer {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, McpError> {
+        if let Some(o) = &self.ontology
+            && ontology::names().contains(&request.name.as_ref())
+        {
+            let (path, body) =
+                ontology::request(request.name.as_ref(), request.arguments.as_ref())?;
+            return self
+                .gateway_tool_with(&o.client, &path, body)
+                .await
+                .map(CallToolResponse::from);
+        }
+        if let Some(docs) = &self.docs
+            && matches!(request.name.as_ref(), "suggest" | "context_check")
+        {
+            let (path, body) = if request.name == "suggest" {
+                (
+                    "/v1/docs/suggestions".to_owned(),
+                    docs::suggest_body(request.arguments.as_ref())?,
+                )
+            } else {
+                docs::check_request(&docs.share_id, request.arguments.as_ref())?
+            };
+            return docs_tool(docs, &path, body)
+                .await
+                .map(CallToolResponse::from);
+        }
+        if !self.gateway {
+            return Err(McpError::new(
+                ErrorCode::METHOD_NOT_FOUND,
+                "unknown tool",
+                None,
+            ));
+        }
         match request.name.as_ref() {
             "session_current" => {
                 reject_arguments(&request)?;
@@ -230,21 +336,25 @@ impl ServerHandler for GatewayServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
         reject_cursor("resources/list", &request)?;
-        let reply = match self.client.get("/v1/pack/metadata").await {
-            Ok(reply) => reply,
-            Err(()) => {
-                eprintln!("oo-mcp-gateway: method=resources/list status=transport");
-                return Err(McpError::internal_error("gateway request failed", None));
-            }
-        };
-        if !(200..300).contains(&reply.status) {
-            log_status("resources/list", reply.status);
-            return Err(McpError::internal_error("gateway request failed", None));
+        if self.ontology.is_some() {
+            return Ok(ListResourcesResult::with_all_items(Vec::new())
+                .with_ttl_ms(0)
+                .with_cache_scope(CacheScope::Private));
         }
-        let resources = resources_from_pack(&reply.body).map_err(|_| {
-            log_status("resources/list", 32602);
-            McpError::invalid_params("pack file path is not a knowledge resource", None)
-        })?;
+        if let Some(docs) = &self.docs {
+            let mut resources = Vec::new();
+            if self.gateway {
+                resources = self.gateway_resources().await?;
+            }
+            resources.push(
+                Resource::new(docs.updates_uri(), "share updates")
+                    .with_mime_type("application/json"),
+            );
+            return Ok(ListResourcesResult::with_all_items(resources)
+                .with_ttl_ms(0)
+                .with_cache_scope(CacheScope::Private));
+        }
+        let resources = self.gateway_resources().await?;
         log_status("resources/list", 200);
         Ok(ListResourcesResult::with_all_items(resources)
             .with_ttl_ms(0)
@@ -256,6 +366,37 @@ impl ServerHandler for GatewayServer {
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, McpError> {
+        if let Some(docs) = &self.docs
+            && request.uri.starts_with("puppyone://share/")
+        {
+            if !docs.uri_ok(&request.uri) {
+                return Err(McpError::invalid_params(
+                    "resource is not this share's updates",
+                    None,
+                ));
+            }
+            let reply = docs
+                .client
+                .get(&format!(
+                    "/v1/docs/shares/{}/updates?limit=1000",
+                    docs.share_id
+                ))
+                .await
+                .map_err(|()| McpError::internal_error("docs engine request failed", None))?;
+            if !(200..300).contains(&reply.status) {
+                log_status("resources/read", reply.status);
+                return Err(McpError::internal_error("docs engine request failed", None));
+            }
+            let text = serde_json::to_string(&reply.body)
+                .map_err(|_| McpError::internal_error("docs engine request failed", None))?;
+            let contents =
+                ResourceContents::text(text, request.uri).with_mime_type("application/json");
+            return Ok(ReadResourceResponse::from(
+                ReadResourceResult::new(vec![contents])
+                    .with_ttl_ms(0)
+                    .with_cache_scope(CacheScope::Private),
+            ));
+        }
         let path = knowledge_path(&request.uri).map_err(|_| {
             log_status("resources/read", 32602);
             McpError::invalid_params("resource uri is not a pack path", None)
@@ -288,6 +429,53 @@ impl ServerHandler for GatewayServer {
         ))
     }
 
+    #[allow(deprecated)]
+    async fn subscribe(
+        &self,
+        request: SubscribeRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<(), McpError> {
+        let Some(docs) = &self.docs else {
+            return Err(McpError::method_not_found::<
+                rmcp::model::SubscribeRequestMethod,
+            >());
+        };
+        if !docs.uri_ok(&request.uri) {
+            return Err(McpError::invalid_params(
+                "only this share's updates can be subscribed",
+                None,
+            ));
+        }
+        let client = docs.client.clone();
+        let sid = docs.share_id.clone();
+        let uri = request.uri;
+        let peer = context.peer.clone();
+        // The engine has no push channel for a credential: poll its update stream twice a second, which
+        // keeps the notification under the 2 s bound (B-S7-07).
+        tokio::spawn(async move {
+            let mut last = latest_seq(&client, &sid).await.unwrap_or(0);
+            loop {
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                let Some(now) = latest_seq(&client, &sid).await else {
+                    continue;
+                };
+                if now > last {
+                    last = now;
+                    if peer
+                        .notify_resource_updated(
+                            rmcp::model::ResourceUpdatedNotificationParam::new(uri.clone()),
+                        )
+                        .await
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+            }
+        });
+        Ok(())
+    }
+
     async fn list_prompts(
         &self,
         request: Option<PaginatedRequestParams>,
@@ -301,6 +489,40 @@ impl ServerHandler for GatewayServer {
     }
 }
 
+async fn latest_seq(client: &GatewayClient, sid: &str) -> Option<i64> {
+    // `since` large enough to skip everything but the tail is not available: read the stream, newest wins.
+    let reply = client
+        .get(&format!("/v1/docs/shares/{sid}/updates?limit=1000"))
+        .await
+        .ok()?;
+    if !(200..300).contains(&reply.status) {
+        return None;
+    }
+    reply.body["items"]
+        .as_array()?
+        .iter()
+        .filter_map(|i| i["seq"].as_i64())
+        .max()
+        .or(Some(0))
+}
+
+async fn docs_tool(docs: &docs::Docs, path: &str, body: Value) -> Result<CallToolResult, McpError> {
+    match docs.client.post_json(path, &body).await {
+        Ok(reply) => {
+            log_status("tools/call", reply.status);
+            if (200..300).contains(&reply.status) && reply.body.get("error").is_none() {
+                Ok(CallToolResult::structured(reply.body))
+            } else {
+                Ok(CallToolResult::structured_error(reply.body))
+            }
+        }
+        Err(()) => {
+            eprintln!("oo-mcp-gateway: method=tools/call status=transport");
+            Err(McpError::internal_error("docs engine request failed", None))
+        }
+    }
+}
+
 fn query_body(sql: &str, profile: bool) -> Value {
     let mut body = serde_json::json!({"sql": sql});
     if profile {
@@ -309,19 +531,22 @@ fn query_body(sql: &str, profile: bool) -> Value {
     body
 }
 
-fn server_config() -> ServerConfig {
-    ServerConfig::new(
-        ServerCapabilities::builder()
-            .enable_tools()
-            .enable_resources()
-            .enable_prompts()
-            .build(),
-    )
-    .with_protocol_version(ProtocolVersion::V_2025_11_25)
-    .with_server_info(Implementation::new("oo-mcp-gateway", "0.1.0"))
-    .with_instructions(
-        "First check_readiness, then check_answerable (advisory, never blocks queries). Discover only the role's published semantic tables with list_tables, describe_table and read_knowledge; resolve entities and code values before validate_sql and query. Cite query_id and freshness. Report gaps and refusals honestly; no raw-database browsing or export. OAuth is not implemented.",
-    )
+fn server_config(subscribe: bool, unified: bool) -> ServerConfig {
+    let mut capabilities = ServerCapabilities::builder()
+        .enable_tools()
+        .enable_resources();
+    if subscribe {
+        capabilities = capabilities.enable_resources_subscribe();
+    }
+    let instructions = if unified {
+        ontology::INSTRUCTIONS
+    } else {
+        "First check_readiness, then check_answerable (advisory, never blocks queries). Discover only the role's published semantic tables with list_tables, describe_table and read_knowledge; resolve entities and code values before validate_sql and query. Cite query_id and freshness. Report gaps and refusals honestly; no raw-database browsing or export. OAuth is not implemented."
+    };
+    ServerConfig::new(capabilities.enable_prompts().build())
+        .with_protocol_version(ProtocolVersion::V_2025_11_25)
+        .with_server_info(Implementation::new("oo-mcp-gateway", "0.1.0"))
+        .with_instructions(instructions)
 }
 
 fn tool_list() -> Vec<Tool> {

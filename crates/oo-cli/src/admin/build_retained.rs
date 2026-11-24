@@ -56,7 +56,7 @@ pub(super) fn configuration(runtime: &Value) -> Result<Value> {
         || !runtime["gateway"].is_object()
         || runtime["builder"]["model"]["call_limit"]
             .as_u64()
-            .is_none_or(|n| !(1..=6).contains(&n))
+            .is_none_or(|n| !(1..=4096).contains(&n))
     {
         return Err(Failure::local("BUILD_RUNTIME_CONFIG"));
     }
@@ -185,6 +185,63 @@ pub(super) fn save(path: &Path, value: &Value) -> Result<()> {
         .map_err(|_| Failure::local("BUILD_STATE_IO"))
 }
 
+/// The failing child's own words, safe to show: its structured `error` code, or the last
+/// stderr line (an exception name and code), reduced to a short printable ASCII token set.
+/// Credentials never appear in these lines; anything else is dropped, not echoed.
+pub(super) fn cause(stderr: &[u8]) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    let line = text
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .unwrap_or("");
+    let raw = serde_json::from_str::<Value>(line)
+        .ok()
+        .and_then(|v| {
+            let code = v["error"]
+                .as_str()
+                .or_else(|| v["reason"].as_str())?
+                .to_owned();
+            Some(match v["detail"].as_str() {
+                Some(detail) => format!("{code}: {detail}"),
+                None => code,
+            })
+        })
+        .unwrap_or_else(|| line.to_owned());
+    let clean: String = raw
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || " _:.,-/=()".contains(*c))
+        .take(160)
+        .collect();
+    if clean.is_empty() {
+        "no error text from the child".into()
+    } else {
+        clean
+    }
+}
+
+/// A loopback source is reached from the runtime as `host.docker.internal`, so its server
+/// certificate must list that name; say so whenever a TLS failure could be that.
+pub(super) fn tls_hint(cause: &str) -> &'static str {
+    let lower = cause.to_ascii_lowercase();
+    if [
+        "tls",
+        "certificate",
+        "hostname",
+        "ssl",
+        "verify",
+        "handshake",
+    ]
+    .iter()
+    .any(|w| lower.contains(w))
+    {
+        " (a source on 127.0.0.1 or localhost is reached from the runtime as host.docker.internal; its server certificate must list host.docker.internal as a subject alternative name and carry the serverAuth usage)"
+    } else {
+        ""
+    }
+}
+
 pub(super) fn load(
     root: &Path,
     runtime: &Value,
@@ -234,13 +291,20 @@ pub(super) fn load(
         if (code != 0 && refusal["error"] != "publication_semantic_admission_required")
             || !matches!(value["state"].as_str(), Some("pending" | "ready"))
         {
-            return Err(Failure::local("BUILD_CANDIDATE_REFUSED"));
+            return Err(Failure::local(format!(
+                "BUILD_CANDIDATE_REFUSED: {}",
+                cause(&err)
+            )));
         }
         Ok(value)
     } else if code == 0 {
         Ok(json!({"generation":generation,"loaded":true}))
     } else {
-        Err(Failure::local("BUILD_LOAD_FAILED"))
+        let why = cause(&err);
+        Err(Failure::local(format!(
+            "BUILD_LOAD_FAILED: oo-load exited {code}: {why}{}",
+            tls_hint(&why)
+        )))
     }
 }
 
@@ -298,18 +362,40 @@ pub(super) fn builder(
     command.args(["-c", "import importlib.util,json,os,sys\np,c,o,r=sys.argv[1:]\nsys.path.insert(0,os.path.dirname(p))\ns=importlib.util.spec_from_file_location('retained_build',p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)\nos.umask(0o077)\nv=m.run(c,o)\nm.save(r,v)\nprint(json.dumps(v))"])
         .arg(text(runtime, "builder_script")?).arg(config_path).arg(&output).arg(&receipt)
         .env("OO_SELFBUILD_BUDGET_BIN", binary("selfbuild-budget")?);
-    let (code, _, _) = invoke(command, vec![], 1800)?;
+    let started = std::time::Instant::now();
+    let (code, _, err) = invoke(command, vec![], 1800)?;
     if code != 0 {
         // The Builder process finished with an error (e.g. one transient
         // model reply): its output can no longer change, so keep it aside as
         // evidence and let `--resume` start a fresh attempt. A Builder that
         // was interrupted mid-run still refuses above, never restarted.
-        keep_failed_output(root, &output)?;
-        return Err(Failure::local(
-            "BUILD_BUILDER_FAILED: the draft step failed; run oo build --resume to try again",
-        ));
+        let kept = keep_failed_output(root, &output)?;
+        return Err(Failure::local(format!(
+            "BUILD_BUILDER_FAILED: the draft step failed ({}); run oo build --resume to try again{}",
+            cause(&err),
+            repeat_hint(started.elapsed(), kept.as_deref())
+        )));
     }
     review::read(&receipt)
+}
+
+/// A draft that fails within seconds again, after earlier failed attempts, is not a slow
+/// model: it replays state the failed attempts left behind. Say how to recover.
+fn repeat_hint(elapsed: std::time::Duration, kept: Option<&Path>) -> String {
+    let Some(kept) = kept.filter(|k| {
+        elapsed < std::time::Duration::from_secs(5)
+            && k.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n != "builder-failed-1")
+    }) else {
+        return String::new();
+    };
+    let root = kept.parent().unwrap_or(Path::new("."));
+    format!(
+        "; this attempt failed within {} s like the one before it, so the cause is the provider's answer or state kept from earlier attempts: if a fresh deployment passes, remove {}/builder-failed-* (evidence only) and run oo build --resume",
+        elapsed.as_secs().max(1),
+        root.display()
+    )
 }
 
 /// Move a finished-but-failed Builder output aside (`builder-failed-<n>`),
@@ -476,6 +562,20 @@ mod tests {
     use std::os::unix::fs::symlink;
 
     #[test]
+    fn a_repeated_fast_failure_says_how_to_recover() {
+        let second = Path::new("/state/builder-failed-2");
+        let quick = std::time::Duration::from_secs(2);
+        let hint = repeat_hint(quick, Some(second));
+        assert!(
+            hint.contains("remove /state/builder-failed-*") && hint.contains("oo build --resume")
+        );
+        // The first failure, a slow one, or no kept output say nothing extra.
+        assert!(repeat_hint(quick, Some(Path::new("/state/builder-failed-1"))).is_empty());
+        assert!(repeat_hint(std::time::Duration::from_secs(60), Some(second)).is_empty());
+        assert!(repeat_hint(quick, None).is_empty());
+    }
+
+    #[test]
     fn failed_builder_output_is_kept_aside_for_a_fresh_resume() {
         let root = std::env::temp_dir().join(format!("oo-keep-failed-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
@@ -633,6 +733,24 @@ mod tests {
     }
 
     #[test]
+    fn child_failures_show_their_cause_and_nothing_else() {
+        assert_eq!(
+            cause(b"noise\n{\"error\":\"publication_unverified\",\"detail\":\"x y\"}\n"),
+            "publication_unverified: x y"
+        );
+        assert_eq!(
+            cause(b"Traceback (most recent call last):\nValueError: registry_entity_binding\n"),
+            "ValueError: registry_entity_binding"
+        );
+        assert_eq!(cause(b""), "no error text from the child");
+        assert!(tls_hint("tls handshake failed").contains("host.docker.internal"));
+        assert!(tls_hint("SOURCE auth failed").is_empty());
+        let long = "a".repeat(500);
+        assert_eq!(cause(long.as_bytes()).len(), 160);
+        assert!(!cause(b"pw=\x1b[31m<script>\n").contains(['<', '\x1b']));
+    }
+
+    #[test]
     fn timeout_is_not_a_success() {
         let mut command = Command::new("python3");
         command.args(["-c", "import time; time.sleep(60)"]);
@@ -671,7 +789,9 @@ mod tests {
             .ok()
             .unwrap();
         assert_ne!(first, configuration(&runtime).ok().unwrap());
-        runtime["builder"]["model"]["call_limit"] = json!(7);
+        runtime["builder"]["model"]["call_limit"] = json!(14);
+        assert!(configuration(&runtime).is_ok());
+        runtime["builder"]["model"]["call_limit"] = json!(4097);
         assert!(configuration(&runtime).is_err());
         runtime["builder"]["model"]["call_limit"] = json!(6);
         save(&model, &json!({"model":{"key":"inline-not-allowed"}}))

@@ -1,0 +1,153 @@
+{
+ "run_id": "verify-signoff",
+ "status": "pass_with_recorded_failure_resolved_at_e877ac64d",
+ "verifier_head": "7ec049f0b",
+ "verifier_branch": "so/V46-signoff",
+ "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+ "checks": [
+  {
+   "check": "pytest tools/super-ontology tools/oo-test",
+   "ok": true,
+   "detail": "339 passed, 1 skipped, 57 subtests"
+  },
+  {
+   "check": "super_ontology_live_suites (53 targets) at 7ec049f0b",
+   "ok": false,
+   "detail": "51 passed, 1 skipped (download needs --with-s3), 1 failed extract_llm_stage_live (timed out waiting for published; rerun also failed)"
+  },
+  {
+   "check": "extract_llm_stage_live at 62e11cd3a (fresh detached worktree)",
+   "ok": true,
+   "detail": "passed 116s"
+  },
+  {
+   "check": "super_ontology_l4.py",
+   "ok": true,
+   "detail": "70/70 checks"
+  },
+  {
+   "check": "super_ontology_redteam.py",
+   "ok": true,
+   "detail": "10/10 checks"
+  },
+  {
+   "check": "super_ontology_cli_acceptance.py (L4 CLI)",
+   "ok": true,
+   "detail": "2f6a14f29 (verifier run v4b-2f6a14f29): 58/58 checks passed. Earlier run at 7ec049f0b (verifier head of so/V46-signoff, log verify-runs/cli-l4-1.log): 57/58 checks passed; [FAIL] 9 its files are still published - 25 files. Cause: the exact check expected 24 published files while 25 were published before the restart (the count after restart was compared with a fixed 24, not with the pre-restart count). Fixed in f91da8a09, which compares with the pre-restart count."
+  },
+  {
+   "check": "eval golden model off/on",
+   "ok": true,
+   "detail": "2/2 checks",
+   "published": {
+    "off": {
+     "entities_P": 0.9885,
+     "entities_R": 0.86,
+     "facts_P": 0.9797,
+     "facts_R": 0.6346
+    },
+    "on": {
+     "entities_P": 0.9892,
+     "entities_R": 0.92,
+     "facts_P": 0.8995,
+     "facts_R": 0.8228
+    }
+   }
+  },
+  {
+   "check": "eval holdout model off/on",
+   "ok": true,
+   "detail": "2/2 checks",
+   "published": {
+    "off": {
+     "entities_P": 0.9878,
+     "entities_R": 0.8526,
+     "facts_P": 0.9781,
+     "facts_R": 0.6411
+    },
+    "on": {
+     "entities_P": 0.9884,
+     "entities_R": 0.8947,
+     "facts_P": 0.904,
+     "facts_R": 0.811
+    }
+   }
+  },
+  {
+   "check": "L4 target published view model on (ent P>=0.85 R>=0.75, facts P>=0.85 R>=0.75)",
+   "ok": true,
+   "detail": "golden and holdout met; facts R 0.82/0.81 is below 0.85 but the target in spec 30 is R>=0.75 for entities and facts"
+  },
+  {
+   "check": "regression gate core type F1 >= last signed -0.02",
+   "ok": true,
+   "detail": "no machine-readable last-signed baseline found; values equal the README table of evidence/L4/eval within rounding (golden on ent 0.989/0.920, facts 0.900/0.827 README vs 0.9892/0.92, 0.8995/0.8228 now)"
+  },
+  {
+   "check": "evidence/L4/formal.md matches spec 80 section 8 as amended by D81",
+   "ok": true,
+   "detail": "gate lists typecheck, simulate, verify-fast, conformance, kani-fast; verify-deep informational; L4 models FM5,FM6,FM8,FM10,FM11 present"
+  }
+ ],
+ "findings": [
+  "extract_llm_stage_live fails at 7ec049f0b (fixed by 62e11cd3a, passed there)",
+  "download target skipped: needs --with-s3 RustFS/MinIO, not run",
+  "no machine-readable last-signed L4 baseline for the regression gate",
+  "CLI acceptance at 7ec049f0b recorded 57/58 (check 9 'its files are still published - 25 files' FAIL, expected 24); the earlier 10/10 entry was wrong and is corrected here. Fixed in f91da8a09; rerun at 2f6a14f29 gives 58/58."
+ ],
+  "verify_signoff_runs": [
+    {
+      "run_id": "v48-stock-L4",
+      "git_head": "069497414",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 (stock, 17.11-bookworm)",
+        "args": "--with-s3"
+      },
+      "status": "superseded_by_v48-stock-rerun",
+      "summary": "Run A incomplete: 19 targets passed incl. download (s3). Failed: eval_live (PoolTimedOut sidecar stack.rs:108 after 248s), events_live and extract_llm_stage_live (admin connect ConnectionRefused). Runner aborted at faults target: docker run 500 'Docker Desktop is unable to start' (Docker Desktop backend down, host log 2026-11-18 19:56 UTC). Not run: faults and remaining targets, run B, 10x conformance_share. Failed targets not rerun (no daemon)."
+    }
+  ],
+  "verify_signoff_runs_v48": [
+    {
+      "run_id": "v48-stock-rerun",
+      "git_head": "069497414",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "postgres_image": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 (stock, 17.11-bookworm)",
+        "args": "--with-s3"
+      },
+      "status": "pass",
+      "tests": "53/53 targets passed, 0 failed, 0 skipped, exit 0",
+      "note": "Supersedes the interrupted first attempt (status blocked_docker_desktop_down above). That attempt's 3 failures (eval_live, events_live, extract_llm_stage_live) came from the Docker Desktop daemon dying and were not reproduced on the rerun."
+    },
+    {
+      "run_id": "v48-vectors-on",
+      "git_head": "069497414",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "OO_DOCS_VECTORS": "hashgram/1",
+        "postgres_image": "oo-docs-pgvector:dev (locked; track_commit_timestamp=on)",
+        "args": "--with-s3 (wrapper sets l2.PG_IMAGE to oo-docs-pgvector:dev)"
+      },
+      "status": "pass",
+      "tests": "53/53 targets passed, 0 failed, 0 skipped, exit 0"
+    },
+    {
+      "run_id": "v48-conformance-share-x10",
+      "git_head": "069497414",
+      "branch": "so/V48-signoff",
+      "env": {
+        "OO_TEST_LANE": "super-ontology-v48",
+        "OO_DOCS_VECTORS": "hashgram/1",
+        "postgres_image": "oo-docs-pgvector:dev (locked; track_commit_timestamp=on)",
+        "args": "--with-s3 (wrapper sets l2.PG_IMAGE to oo-docs-pgvector:dev)"
+      },
+      "status": "pass",
+      "tests": "cargo test -p oo-docs --test conformance_share -- --ignored: 10 of 10 runs ok, 4 passed 0 failed each"
+    }
+  ]
+}

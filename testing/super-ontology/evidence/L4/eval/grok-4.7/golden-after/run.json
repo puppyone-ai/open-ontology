@@ -1,0 +1,63 @@
+{
+  "entities": 125,
+  "facts": 460,
+  "facts_by_origin": [
+    [
+      "llm",
+      108
+    ],
+    [
+      "rule",
+      379
+    ]
+  ],
+  "files": 51,
+  "jobs": [
+    [
+      "extract_llm",
+      "succeeded",
+      51
+    ],
+    [
+      "extract_rules",
+      "succeeded",
+      51
+    ]
+  ],
+  "model": true,
+  "published_entities": 94,
+  "published_facts": 403,
+  "seconds": 2843.834641,
+  "states": {
+    "indexed": 3,
+    "published": 48
+  },
+  "usage": {
+    "drives": [
+      {
+        "cache_hits": 0,
+        "calls": 21,
+        "day": "2026-11-21",
+        "drive_id": "2e5a3e5a-afa5-4dde-8ee8-56206ed9562b",
+        "files_limited": 0,
+        "limit": 2000,
+        "tokens_in": 72061,
+        "tokens_out": 190074
+      },
+      {
+        "cache_hits": 0,
+        "calls": 89,
+        "day": "2026-11-20",
+        "drive_id": "2e5a3e5a-afa5-4dde-8ee8-56206ed9562b",
+        "files_limited": 0,
+        "limit": 2000,
+        "tokens_in": 200025,
+        "tokens_out": 510924
+      }
+    ],
+    "model": {
+      "status": "ok"
+    },
+    "per_file_limit": 20
+  }
+}

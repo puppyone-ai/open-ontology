@@ -1,0 +1,160 @@
+{
+  "protocol": "oo.doc-parser.models-lock/v1",
+  "note": "PP-StructureV3 models admitted by 90 section 2.1: PP-DocLayout_plus-L, PP-OCRv5_server_det, PP-OCRv5_server_rec, SLANeXt_wired (all Apache-2.0 on Hugging Face). Other table sub-models (RT-DETR-L cell det, PP-LCNet table_cls, SLANet_plus), orientation, unwarping, formula, chart and seal models are NOT shipped. Pinned at full commit shas; `files` is written by fetch_models.py --mode write and verified on every image build.",
+  "sources": [
+    {
+      "name": "PP-DocLayout_plus-L",
+      "repo_id": "PaddlePaddle/PP-DocLayout_plus-L",
+      "revision": "aa52b8528c84f9b1a34ac3a88fe0e576edb9d11d",
+      "local_dir": "PaddlePaddle--PP-DocLayout_plus-L",
+      "allow_patterns": null,
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "PP-OCRv5_server_det",
+      "repo_id": "PaddlePaddle/PP-OCRv5_server_det",
+      "revision": "ca867c897ecbca8873081573a802ad70d499cb94",
+      "local_dir": "PaddlePaddle--PP-OCRv5_server_det",
+      "allow_patterns": null,
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "PP-OCRv5_server_rec",
+      "repo_id": "PaddlePaddle/PP-OCRv5_server_rec",
+      "revision": "b26c3587fda8da3c8ec0ce357214b4d661ff1558",
+      "local_dir": "PaddlePaddle--PP-OCRv5_server_rec",
+      "allow_patterns": null,
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "SLANeXt_wired",
+      "repo_id": "PaddlePaddle/SLANeXt_wired",
+      "revision": "763069fcda6a065f2171753205a32bf899a88d15",
+      "local_dir": "PaddlePaddle--SLANeXt_wired",
+      "allow_patterns": null,
+      "license": "Apache-2.0"
+    }
+  ],
+  "files": [
+    {
+      "name": "PaddlePaddle--PP-DocLayout_plus-L/.gitattributes",
+      "sha256": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+      "size": 1575
+    },
+    {
+      "name": "PaddlePaddle--PP-DocLayout_plus-L/README.md",
+      "sha256": "71ad672ce4071f97eded25c22f9c452180d034b8bd7ffad91a1f53843fb189a0",
+      "size": 7121
+    },
+    {
+      "name": "PaddlePaddle--PP-DocLayout_plus-L/config.json",
+      "sha256": "adc92346e7ecc5d54dc9ed224c754c9237f56e5d88b0c9208db08cb315d66c09",
+      "size": 6074
+    },
+    {
+      "name": "PaddlePaddle--PP-DocLayout_plus-L/inference.json",
+      "sha256": "99bd09c0a1b9e88d35c65c305b91711d98055fc94b4a6eecd50da02e04729384",
+      "size": 1081621
+    },
+    {
+      "name": "PaddlePaddle--PP-DocLayout_plus-L/inference.pdiparams",
+      "sha256": "24ca3e2e442164505e250deef59f7ee9a54ea12dd32875c9cd6155d959dc97da",
+      "size": 129307978
+    },
+    {
+      "name": "PaddlePaddle--PP-DocLayout_plus-L/inference.yml",
+      "sha256": "d60f782a16f96afb27e8280399899a94c3e9ffc694ffb2f913ea00af1c522f1e",
+      "size": 1838
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_det/.gitattributes",
+      "sha256": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+      "size": 1575
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_det/README.md",
+      "sha256": "4fd4cf7c6fc3239ede7274c3877e7a0c4424ffa7f56b2775e4e7961c24b1f107",
+      "size": 15912
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_det/config.json",
+      "sha256": "436bf19010fe3879477e8599a870a0ec8ccd14ca39056805ec4ed20ab318ec04",
+      "size": 2871
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_det/inference.json",
+      "sha256": "af5876933d8806a1b50d895867e0781e135cd92ff37381992828fc8d1b842d28",
+      "size": 402480
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_det/inference.pdiparams",
+      "sha256": "183146fe9d9910352f68482f623bcbbb9fa7b9e8fa1463b9ad288cef00524d2d",
+      "size": 87932887
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_det/inference.yml",
+      "sha256": "28fb721efc3634fc8aa677e474b9602cb815a91cf569ef357a7a553d7b3ce685",
+      "size": 903
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_rec/.gitattributes",
+      "sha256": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+      "size": 1575
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_rec/README.md",
+      "sha256": "519eba1704ddeb8d3e68c4f54221dde11074be0644197cdc4d5581b6d74bd62c",
+      "size": 15892
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_rec/config.json",
+      "sha256": "6a780e213d7a830058ae1b6899c62cc13ca9c1f0f04ae39a27ebb2610fae7c51",
+      "size": 352253
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_rec/inference.json",
+      "sha256": "8e6e12e5d42531840310977fffb58165bf889fc5061408c5a8afdb6985f47fcb",
+      "size": 325204
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_rec/inference.pdiparams",
+      "sha256": "63853f062a5f4089befc16f565a68277618e0da5cb45468b49d11079de0ada77",
+      "size": 84390117
+    },
+    {
+      "name": "PaddlePaddle--PP-OCRv5_server_rec/inference.yml",
+      "sha256": "2c719dba044c4e2228aef8ff92f5f575394d75d24c16de096a33b7cfd902f66d",
+      "size": 148345
+    },
+    {
+      "name": "PaddlePaddle--SLANeXt_wired/.gitattributes",
+      "sha256": "a3a43406012ee8c7b9b38dfab1b11610f33e8245cd864a9a9302d042616a859e",
+      "size": 1575
+    },
+    {
+      "name": "PaddlePaddle--SLANeXt_wired/README.md",
+      "sha256": "6e5529b446ac4ece9afdbabc006407b849171921a0687665199ca6be06fdc504",
+      "size": 12912
+    },
+    {
+      "name": "PaddlePaddle--SLANeXt_wired/config.json",
+      "sha256": "1379eb21de34e69e3c5e68492304751db7f139037487c2c62133cdb22233993d",
+      "size": 4948
+    },
+    {
+      "name": "PaddlePaddle--SLANeXt_wired/inference.json",
+      "sha256": "5b872f08e74f628ca1db8405db147e82e6e0c7cb358e101fd01cdafc946632d8",
+      "size": 959302
+    },
+    {
+      "name": "PaddlePaddle--SLANeXt_wired/inference.pdiparams",
+      "sha256": "ff0362a30f707fa7d27d8453c4396b992fca287377a42d01515bca6eeb3908f5",
+      "size": 364771513
+    },
+    {
+      "name": "PaddlePaddle--SLANeXt_wired/inference.yml",
+      "sha256": "abbbd1b4dc6b1a2e9cd34c035514da53a1a6b1ec267292b0b8802025650a33bf",
+      "size": 2066
+    }
+  ]
+}

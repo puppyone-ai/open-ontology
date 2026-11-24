@@ -1,0 +1,95 @@
+{"kind":"entity","id":"E001","type":"Person","name":"宋芷若","aliases":["老宋","宋总","Fiona Song","Fiona"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶3-3"}]}
+{"kind":"entity","id":"E002","type":"Person","name":"范语桐","aliases":["语桐","Kyle Gan","Kyle"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-03-03-客服方案评审.docx","frag":"#¶3-3"}]}
+{"kind":"entity","id":"E003","type":"Person","name":"彭予宁","aliases":["小彭","予宁","Carl Kang","Carl"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶3-3"}]}
+{"kind":"entity","id":"E004","type":"Person","name":"闵弘毅","aliases":["小毅","Pia Geng","Pia"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-06-01-项目分工调整.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-06-15-迁址沟通会.docx","frag":"#¶3-3"}]}
+{"kind":"entity","id":"E005","type":"Person","name":"耿念安","aliases":["老耿","Seth Fan","Seth"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶6-6"},{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶3-3"}]}
+{"kind":"entity","id":"E006","type":"Person","name":"祁清岚","aliases":["清岚","Lena Ning"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-05-20-供应链大会.docx","frag":"#¶3-3"}]}
+{"kind":"entity","id":"E007","type":"Person","name":"石含章","aliases":["章哥","Ivan Jiang","Ivan"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-04-02-周会.docx","frag":"#¶3-3"}]}
+{"kind":"entity","id":"E008","type":"Person","name":"方望舒","aliases":["望望","Adam Qi","Adam"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶1-1"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶1-1"},{"file":"docs/Meetings/2027-03-03-客服方案评审.docx","frag":"#¶1-1"}]}
+{"kind":"entity","id":"E009","type":"Person","name":"薛思齐","aliases":["思齐","Hana Yin"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶3-3"},{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶1-1"},{"file":"docs/Meetings/2027-05-20-供应链大会.docx","frag":"#¶1-1"}]}
+{"kind":"entity","id":"E010","type":"Organization","name":"墨川软件","aliases":["墨川","Vertex Tech"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶5-5"},{"file":"docs/People/宋芷若.md","frag":"#L10-L10"},{"file":"docs/Projects/青藤数据湖.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E011","type":"Organization","name":"苍穹云","aliases":["苍穹","Nimbus Logistics"],"anchors":[{"file":"docs/Meetings/2027-04-02-周会.docx","frag":"#¶6-6"},{"file":"docs/Tables/客户与供应商.xlsx","frag":"#'客户与供应商'!A2:D2"},{"file":"docs/Proposals/海图平台方案.pdf","frag":"#p1","bbox":[7200,11344,37200,12544]}]}
+{"kind":"entity","id":"E012","type":"Organization","name":"磐安咨询","aliases":["磐安","Zenith Consulting"],"anchors":[{"file":"docs/Meetings/2027-03-03-客服方案评审.docx","frag":"#¶7-7"},{"file":"docs/Decisions/D-2027-03-海图平台采购外部模型.md","frag":"#L14-L14"},{"file":"docs/Tables/客户与供应商.xlsx","frag":"#'客户与供应商'!A3:D3"}]}
+{"kind":"entity","id":"E013","type":"Organization","name":"海纳云","aliases":["海纳","Orbit Cloud"],"anchors":[{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶7-7"},{"file":"docs/Projects/航标系统.md","frag":"#L8-L8"},{"file":"docs/Tables/客户与供应商.xlsx","frag":"#'客户与供应商'!A4:D4"}]}
+{"kind":"entity","id":"E014","type":"Organization","name":"营销","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A2:F2"}]}
+{"kind":"entity","id":"E015","type":"Organization","name":"运维","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A3:F3"}]}
+{"kind":"entity","id":"E016","type":"Organization","name":"总办","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A4:F4"}]}
+{"kind":"entity","id":"E017","type":"Organization","name":"市场","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A5:F5"}]}
+{"kind":"entity","id":"E018","type":"Organization","name":"工程","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A6:F6"}]}
+{"kind":"entity","id":"E019","type":"Organization","name":"法务","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A8:F8"}]}
+{"kind":"entity","id":"E020","type":"Organization","name":"创意","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A9:F9"}]}
+{"kind":"entity","id":"E021","type":"Project","name":"磐石风控","aliases":["磐石","Compass"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶5-5"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶6-6"},{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E022","type":"Project","name":"航标系统","aliases":["航标","Zephyr"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶5-5"},{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶7-7"},{"file":"docs/Meetings/2027-06-01-项目分工调整.docx","frag":"#¶5-5"}]}
+{"kind":"entity","id":"E023","type":"Project","name":"海图平台","aliases":["海图","Bedrock Bot"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶5-5"},{"file":"docs/Meetings/2027-03-03-客服方案评审.docx","frag":"#¶0-0"},{"file":"docs/Decisions/D-2027-03-海图平台采购外部模型.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E024","type":"Project","name":"青藤数据湖","aliases":["青藤","Granite Revamp"],"anchors":[{"file":"docs/Meetings/2027-06-01-项目分工调整.docx","frag":"#¶6-6"},{"file":"docs/Meetings/2027-07-06-年终答谢会.docx","frag":"#¶5-5"},{"file":"docs/People/闵弘毅.md","frag":"#L10-L10"}]}
+{"kind":"entity","id":"E025","type":"Topic","name":"月报","aliases":["月报汇总"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶8-8"},{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶5-5"},{"file":"docs/Meetings/2027-04-02-周会.docx","frag":"#¶5-5"}]}
+{"kind":"entity","id":"E026","type":"Topic","name":"知识沉淀","aliases":["知识沉淀汇总"],"anchors":[{"file":"docs/Decisions/D-2027-05-磐石改用边缘缓存.md","frag":"#L14-L14"}]}
+{"kind":"entity","id":"E027","type":"Topic","name":"差旅政策","aliases":["差旅政策汇总"],"anchors":[{"file":"docs/Proposals/年度客户调研方案.pdf","frag":"#p1","bbox":[7200,11344,32400,12544]}]}
+{"kind":"entity","id":"E028","type":"Topic","name":"安全巡检","aliases":["安全巡检汇总"],"anchors":[{"file":"docs/Meetings/2027-06-15-迁址沟通会.docx","frag":"#¶0-0"},{"file":"docs/Tables/年度预算表.xlsx","frag":"#'年度预算表'!A6:C6"},{"file":"docs/Proposals/安全巡检方案.pdf","frag":"#p1","bbox":[7200,8392,16800,9992]}]}
+{"kind":"entity","id":"E029","type":"Topic","name":"预算评审","aliases":["预算评审汇总"],"anchors":[{"file":"docs/Projects/航标系统.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E030","type":"Term","name":"蓝绿部署","aliases":["蓝绿部署版"],"anchors":[{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶5-5"},{"file":"docs/Meetings/2027-05-20-供应链大会.docx","frag":"#¶5-5"},{"file":"docs/Decisions/D-2027-02-磐石采用蓝绿部署版.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E031","type":"Term","name":"混沌演练","aliases":["混沌演练版"],"anchors":[{"file":"docs/Meetings/2027-03-03-客服方案评审.docx","frag":"#¶6-6"},{"file":"docs/Decisions/D-2027-03-海图平台采购外部模型.md","frag":"#L10-L10"},{"file":"docs/Projects/海图平台.md","frag":"#L12-L12"}]}
+{"kind":"entity","id":"E032","type":"Term","name":"边缘缓存","aliases":[],"anchors":[{"file":"docs/Meetings/2027-05-20-供应链大会.docx","frag":"#¶5-5"},{"file":"docs/Decisions/D-2027-05-磐石改用边缘缓存.md","frag":"#L8-L8"},{"file":"docs/Projects/磐石风控.md","frag":"#L16-L16"}]}
+{"kind":"entity","id":"E033","type":"Term","name":"影子流量","aliases":["影子流量版"],"anchors":[{"file":"docs/Projects/航标系统.md","frag":"#L12-L12"},{"file":"docs/Proposals/航标系统方案.pdf","frag":"#p1","bbox":[7200,13944,51600,17144]},{"file":"docs/Weekly/2027-W34-月报.pptx","frag":"#s2"}]}
+{"kind":"entity","id":"E034","type":"Term","name":"指标字典","aliases":["指标字典版"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶7-7"},{"file":"docs/People/宋芷若.md","frag":"#L10-L10"},{"file":"docs/Proposals/年度客户调研方案.pdf","frag":"#p1","bbox":[7200,11344,32400,12544]}]}
+{"kind":"entity","id":"E035","type":"Event","name":"客户恳谈会","aliases":["客户恳谈会（场次）"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E036","type":"Event","name":"供应链大会","aliases":["供应链大会（场次）"],"anchors":[{"file":"docs/Meetings/2027-05-20-供应链大会.docx","frag":"#¶0-0"},{"file":"docs/Weekly/2027-W22-月报.pptx","frag":"#s2"}]}
+{"kind":"entity","id":"E037","type":"Event","name":"年终答谢会","aliases":["年终答谢会（场次）"],"anchors":[{"file":"docs/Meetings/2027-07-06-年终答谢会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E038","type":"Event","name":"产品发布会","aliases":["产品发布会（场次）"],"anchors":[{"file":"docs/Meetings/2027-08-20-周会.docx","frag":"#¶6-6"},{"file":"docs/Weekly/2027-W34-月报.pptx","frag":"#s3"},{"file":"docs/Notes/速记-0828.txt","frag":"#L3-L3"}]}
+{"kind":"entity","id":"E039","type":"Event","name":"技术开放日","aliases":["技术开放日（场次）"],"anchors":[{"file":"docs/Proposals/年度客户调研方案.pdf","frag":"#p1","bbox":[7200,13944,40800,15144]}]}
+{"kind":"entity","id":"E040","type":"Decision","name":"月报每周二发送","aliases":["周二发月报"],"anchors":[{"file":"docs/Decisions/D-2027-01-月报每周二发送.md","frag":"#L8-L8"},{"file":"docs/Decisions/D-2027-04-月报改为每周一发送.md","frag":"#L12-L12"}]}
+{"kind":"entity","id":"E041","type":"Decision","name":"月报改为每周一发送","aliases":["周一发月报"],"anchors":[{"file":"docs/Decisions/D-2027-01-月报每周二发送.md","frag":"#L14-L14"},{"file":"docs/Decisions/D-2027-04-月报改为每周一发送.md","frag":"#L8-L8"},{"file":"docs/Decisions/D-2027-08-取消月报.md","frag":"#L12-L12"}]}
+{"kind":"entity","id":"E042","type":"Decision","name":"取消月报改用看板自动汇总","aliases":["取消月报"],"anchors":[{"file":"docs/Meetings/2027-08-20-周会.docx","frag":"#¶5-5"},{"file":"docs/Decisions/D-2027-08-取消月报.md","frag":"#L8-L8"},{"file":"docs/Weekly/2027-W34-月报.pptx","frag":"#s2"}]}
+{"kind":"entity","id":"E043","type":"Decision","name":"磐石风控采用蓝绿部署","aliases":["磐石自研方案"],"anchors":[{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶5-5"},{"file":"docs/Decisions/D-2027-02-磐石采用蓝绿部署版.md","frag":"#L8-L8"},{"file":"docs/Decisions/D-2027-05-磐石改用边缘缓存.md","frag":"#L12-L12"}]}
+{"kind":"entity","id":"E044","type":"Decision","name":"磐石风控改用边缘缓存","aliases":["换图表库"],"anchors":[{"file":"docs/Meetings/2027-05-20-供应链大会.docx","frag":"#¶5-5"},{"file":"docs/Decisions/D-2027-05-磐石改用边缘缓存.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E045","type":"Decision","name":"海图平台采购外部模型服务","aliases":["客服外采"],"anchors":[{"file":"docs/Meetings/2027-03-03-客服方案评审.docx","frag":"#¶7-7"},{"file":"docs/Decisions/D-2027-03-海图平台采购外部模型.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E046","type":"Decision","name":"办公室迁至山麓园区","aliases":["搬家山麓"],"anchors":[{"file":"docs/Decisions/D-2027-06-办公迁至山麓.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E047","type":"Decision","name":"会议控制在三十分钟内","aliases":["会议不超过半小时"],"subkind":"preference","anchors":[{"file":"docs/Preferences/宋芷若-会议偏好.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E048","type":"Decision","name":"文档先写结论再写过程","aliases":["结论先行"],"subkind":"preference","anchors":[{"file":"docs/Preferences/范语桐-文档偏好.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E049","type":"Decision","name":"沟通优先使用文字而非电话","aliases":["少打电话"],"subkind":"preference","anchors":[{"file":"docs/Preferences/彭予宁-沟通偏好.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E050","type":"Document","name":"2027客户恳谈会纪要","aliases":["2027-01-08-客户恳谈会"],"anchors":[{"file":"docs/Meetings/2027-01-08-客户恳谈会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E051","type":"Document","name":"1月第二周周会纪要","aliases":["2027-01-10-周会"],"anchors":[{"file":"docs/Meetings/2027-01-10-周会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E052","type":"Document","name":"磐石风控技术评审纪要","aliases":["2027-02-15-磐石技术评审"],"anchors":[{"file":"docs/Meetings/2027-02-15-磐石技术评审.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E053","type":"Document","name":"海图平台方案评审纪要","aliases":["2027-03-03-客服方案评审"],"anchors":[{"file":"docs/Meetings/2027-03-03-客服方案评审.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E054","type":"Document","name":"4月第一周周会纪要","aliases":["2027-04-02-周会"],"anchors":[{"file":"docs/Meetings/2027-04-02-周会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E055","type":"Document","name":"供应链大会纪要","aliases":["2027-05-20-供应链大会"],"anchors":[{"file":"docs/Meetings/2027-05-20-供应链大会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E056","type":"Document","name":"项目分工调整会纪要","aliases":["2027-06-01-项目分工调整"],"anchors":[{"file":"docs/Meetings/2027-06-01-项目分工调整.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E057","type":"Document","name":"安全巡检沟通会纪要","aliases":["2027-06-15-迁址沟通会"],"anchors":[{"file":"docs/Meetings/2027-06-15-迁址沟通会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E058","type":"Document","name":"年终答谢会纪要","aliases":["2027-07-06-年终答谢会"],"anchors":[{"file":"docs/Meetings/2027-07-06-年终答谢会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E059","type":"Document","name":"8月第三周周会纪要","aliases":["2027-08-20-周会"],"anchors":[{"file":"docs/Meetings/2027-08-20-周会.docx","frag":"#¶0-0"}]}
+{"kind":"entity","id":"E060","type":"Document","name":"决定：月报每周二发送","aliases":["D-2027-01-月报每周二发送"],"anchors":[{"file":"docs/Decisions/D-2027-01-月报每周二发送.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E061","type":"Document","name":"决定：磐石风控采用蓝绿部署","aliases":["D-2027-02-磐石采用蓝绿部署版"],"anchors":[{"file":"docs/Decisions/D-2027-02-磐石采用蓝绿部署版.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E062","type":"Document","name":"决定：海图平台采购外部模型服务","aliases":["D-2027-03-海图平台采购外部模型"],"anchors":[{"file":"docs/Decisions/D-2027-03-海图平台采购外部模型.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E063","type":"Document","name":"决定：月报改为每周一发送","aliases":["D-2027-04-月报改为每周一发送"],"anchors":[{"file":"docs/Decisions/D-2027-04-月报改为每周一发送.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E064","type":"Document","name":"决定：磐石风控改用边缘缓存","aliases":["D-2027-05-磐石改用边缘缓存"],"anchors":[{"file":"docs/Decisions/D-2027-05-磐石改用边缘缓存.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E065","type":"Document","name":"决定：办公室迁至山麓园区","aliases":["D-2027-06-办公迁至山麓"],"anchors":[{"file":"docs/Decisions/D-2027-06-办公迁至山麓.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E066","type":"Document","name":"决定：取消月报改用看板自动汇总","aliases":["D-2027-08-取消月报"],"anchors":[{"file":"docs/Decisions/D-2027-08-取消月报.md","frag":"#L8-L8"}]}
+{"kind":"entity","id":"E067","type":"Document","name":"宋芷若","aliases":[],"anchors":[{"file":"docs/People/宋芷若.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E068","type":"Document","name":"范语桐","aliases":[],"anchors":[{"file":"docs/People/范语桐.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E069","type":"Document","name":"彭予宁","aliases":[],"anchors":[{"file":"docs/People/彭予宁.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E070","type":"Document","name":"闵弘毅","aliases":[],"anchors":[{"file":"docs/People/闵弘毅.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E071","type":"Document","name":"磐石风控","aliases":[],"anchors":[{"file":"docs/Projects/磐石风控.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E072","type":"Document","name":"航标系统","aliases":[],"anchors":[{"file":"docs/Projects/航标系统.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E073","type":"Document","name":"海图平台","aliases":[],"anchors":[{"file":"docs/Projects/海图平台.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E074","type":"Document","name":"青藤数据湖","aliases":[],"anchors":[{"file":"docs/Projects/青藤数据湖.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E075","type":"Document","name":"宋芷若的会议偏好","aliases":["宋芷若-会议偏好"],"anchors":[{"file":"docs/Preferences/宋芷若-会议偏好.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E076","type":"Document","name":"范语桐的文档偏好","aliases":["范语桐-文档偏好"],"anchors":[{"file":"docs/Preferences/范语桐-文档偏好.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E077","type":"Document","name":"彭予宁的沟通偏好","aliases":["彭予宁-沟通偏好"],"anchors":[{"file":"docs/Preferences/彭予宁-沟通偏好.md","frag":"#L6-L6"}]}
+{"kind":"entity","id":"E078","type":"Document","name":"人员表","aliases":[],"anchors":[{"file":"docs/Tables/人员表.xlsx","frag":"#'人员表'!A1:F1"}]}
+{"kind":"entity","id":"E079","type":"Document","name":"项目负责人表","aliases":[],"anchors":[{"file":"docs/Tables/项目负责人表.xlsx","frag":"#'项目负责人表'!A1:D1"}]}
+{"kind":"entity","id":"E080","type":"Document","name":"客户与供应商","aliases":[],"anchors":[{"file":"docs/Tables/客户与供应商.xlsx","frag":"#'客户与供应商'!A1:D1"}]}
+{"kind":"entity","id":"E081","type":"Document","name":"年度预算表","aliases":[],"anchors":[{"file":"docs/Tables/年度预算表.xlsx","frag":"#'年度预算表'!A1:C1"}]}
+{"kind":"entity","id":"E082","type":"Document","name":"磐石风控产品方案","aliases":[],"anchors":[{"file":"docs/Proposals/磐石风控产品方案.pdf","frag":"#p1","bbox":[7200,8392,28000,9992]}]}
+{"kind":"entity","id":"E083","type":"Document","name":"航标系统方案","aliases":[],"anchors":[{"file":"docs/Proposals/航标系统方案.pdf","frag":"#p1","bbox":[7200,8392,16800,9992]}]}
+{"kind":"entity","id":"E084","type":"Document","name":"海图平台方案","aliases":[],"anchors":[{"file":"docs/Proposals/海图平台方案.pdf","frag":"#p1","bbox":[7200,8392,16800,9992]}]}
+{"kind":"entity","id":"E085","type":"Document","name":"青藤数据湖方案","aliases":[],"anchors":[{"file":"docs/Proposals/青藤数据湖方案.pdf","frag":"#p1","bbox":[7200,8392,18400,9992]}]}
+{"kind":"entity","id":"E086","type":"Document","name":"年度客户调研方案","aliases":[],"anchors":[{"file":"docs/Proposals/年度客户调研方案.pdf","frag":"#p1","bbox":[7200,8392,20000,9992]}]}
+{"kind":"entity","id":"E087","type":"Document","name":"安全巡检方案","aliases":[],"anchors":[{"file":"docs/Proposals/安全巡检方案.pdf","frag":"#p1","bbox":[7200,8392,16800,9992]}]}
+{"kind":"entity","id":"E088","type":"Document","name":"第10周月报","aliases":["2027-W10-月报"],"anchors":[{"file":"docs/Weekly/2027-W10-月报.pptx","frag":"#s1"}]}
+{"kind":"entity","id":"E089","type":"Document","name":"第15周月报","aliases":["2027-W15-月报"],"anchors":[{"file":"docs/Weekly/2027-W15-月报.pptx","frag":"#s1"}]}
+{"kind":"entity","id":"E090","type":"Document","name":"第22周月报","aliases":["2027-W22-月报"],"anchors":[{"file":"docs/Weekly/2027-W22-月报.pptx","frag":"#s1"}]}
+{"kind":"entity","id":"E091","type":"Document","name":"第28周月报","aliases":["2027-W28-月报"],"anchors":[{"file":"docs/Weekly/2027-W28-月报.pptx","frag":"#s1"}]}
+{"kind":"entity","id":"E092","type":"Document","name":"第34周月报","aliases":["2027-W34-月报"],"anchors":[{"file":"docs/Weekly/2027-W34-月报.pptx","frag":"#s1"}]}
+{"kind":"entity","id":"E093","type":"Document","name":"任务清单","aliases":[],"anchors":[{"file":"docs/Data/任务清单.csv","frag":"#R1"}]}
+{"kind":"entity","id":"E094","type":"Document","name":"速记0601","aliases":["速记-0601"],"anchors":[{"file":"docs/Notes/速记-0601.txt","frag":"#L1-L1"}]}
+{"kind":"entity","id":"E095","type":"Document","name":"速记0828","aliases":["速记-0828"],"anchors":[{"file":"docs/Notes/速记-0828.txt","frag":"#L1-L1"}]}

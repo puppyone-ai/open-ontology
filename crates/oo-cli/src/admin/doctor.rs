@@ -7,6 +7,7 @@ use std::time::Duration;
 use oo_connectors::engine::{EngineFamily, TableRef};
 use oo_connectors::oracle::engine::{OracleConnectConfig, OracleEngine};
 use oo_connectors::postgres::PostgresEngine;
+use oo_connectors::postgres::opengauss::OpenGaussEngine;
 use oo_connectors::{
     PgBudget, PgCredentials, PgEndpoint, PgSourceConfig, PgTlsConfig, SecretRef, SelectedTable,
     SourceId, TableSelection,
@@ -27,6 +28,22 @@ enum Adapter {
     Sqlserver,
     Db2,
     Dm8,
+    Opengauss,
+}
+
+/// Families the feature-isolated `oo-mysql-doctor` helper probes: the MySQL
+/// wire family and the analytic engines on the same wire (no second driver).
+fn helper_family(family: EngineFamily) -> bool {
+    matches!(
+        family,
+        EngineFamily::Mysql
+            | EngineFamily::Mariadb
+            | EngineFamily::Tidb
+            | EngineFamily::Oceanbase
+            | EngineFamily::Clickhouse
+            | EngineFamily::Doris
+            | EngineFamily::Starrocks
+    )
 }
 
 fn registry() -> BTreeMap<EngineFamily, Adapter> {
@@ -34,6 +51,13 @@ fn registry() -> BTreeMap<EngineFamily, Adapter> {
         (EngineFamily::Postgres, Adapter::Postgres),
         (EngineFamily::Kingbase, Adapter::Postgres),
         (EngineFamily::Mysql, Adapter::Mysql),
+        (EngineFamily::Mariadb, Adapter::Mysql),
+        (EngineFamily::Tidb, Adapter::Mysql),
+        (EngineFamily::Oceanbase, Adapter::Mysql),
+        (EngineFamily::Clickhouse, Adapter::Mysql),
+        (EngineFamily::Doris, Adapter::Mysql),
+        (EngineFamily::Starrocks, Adapter::Mysql),
+        (EngineFamily::Opengauss, Adapter::Opengauss),
         (EngineFamily::Oracle, Adapter::Oracle),
         (EngineFamily::Sqlserver, Adapter::Sqlserver),
         (EngineFamily::Db2, Adapter::Db2),
@@ -86,6 +110,28 @@ fn mysql(source: &Source, tables: &[TableRef]) -> Value {
     result.unwrap_or_else(|error| json!({"status":"blocked","error":error}))
 }
 
+/// Absolute `file:` secret paths named by a source: the helper in the image sees only the
+/// owner's secret store, so each of these files is bound read-only at the same path.
+fn file_secret_paths(source: &Value) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut refs = vec![&source["password"], &source["tls_ca"]];
+    if source["ssh"].is_object() {
+        refs.extend([&source["ssh"]["key"], &source["ssh"]["password"]]);
+    }
+    for reference in refs {
+        if let Some(path) = reference["secret_ref"]
+            .as_str()
+            .and_then(|r| r.strip_prefix("file:"))
+            && path.starts_with('/')
+            && !path.contains([',', ':', '\n'])
+            && !found.iter().any(|f| f == path)
+        {
+            found.push(path.to_owned());
+        }
+    }
+    found
+}
+
 /// One-shot `oo-mysql-doctor` from the pinned lite runtime image. It sees only
 /// the owner's secret store, read-only; a loopback source is this host.
 fn runtime_mysql_doctor(source: &mut Value) -> Result<Command, &'static str> {
@@ -121,7 +167,11 @@ fn runtime_mysql_doctor(source: &mut Value) -> Result<Command, &'static str> {
             "oo.lane={}",
             super::lite::lane(std::path::Path::new("/nonexistent"))
         ))
-        .args(["--env", "HOME=/home/oo"])
+        .args(["--env", "HOME=/home/oo"]);
+    for path in file_secret_paths(source) {
+        command.arg("--volume").arg(format!("{path}:{path}:ro"));
+    }
+    command
         .arg("--volume")
         .arg(format!(
             "{}:/home/oo/.config/open-ontology/secrets:ro",
@@ -218,7 +268,10 @@ pub(super) fn oracle(
                     "--platform",
                     "linux/amd64",
                     "--label",
-                    "oo.lane=a",
+                    &format!(
+                        "oo.lane={}",
+                        super::lite::lane(std::path::Path::new("/nonexistent"))
+                    ),
                     "--cap-drop",
                     "ALL",
                     "--security-opt",
@@ -243,7 +296,17 @@ pub(super) fn family(source: &Source) -> Result<EngineFamily, &'static str> {
     let name = source.engine.split('-').next().unwrap_or("");
     match name {
         "postgres" | "postgresql" => Ok(EngineFamily::Postgres),
-        "mysql" => Ok(EngineFamily::Mysql),
+        // PolarDB MySQL is a deployment variant (`mysql-polardb`), not a new family.
+        "mysql" | "polardb" => Ok(EngineFamily::Mysql),
+        "mariadb" => Ok(EngineFamily::Mariadb),
+        "tidb" => Ok(EngineFamily::Tidb),
+        "oceanbase" => Ok(EngineFamily::Oceanbase),
+        "opengauss" => Ok(EngineFamily::Opengauss),
+        "clickhouse" => Ok(EngineFamily::Clickhouse),
+        "doris" => Ok(EngineFamily::Doris),
+        "starrocks" => Ok(EngineFamily::Starrocks),
+        "mongodb" => Ok(EngineFamily::Mongodb),
+        "opensearch" => Ok(EngineFamily::Opensearch),
         "oracle" => Ok(EngineFamily::Oracle),
         "sqlserver" => Ok(EngineFamily::Sqlserver),
         "db2" => Ok(EngineFamily::Db2),
@@ -301,6 +364,20 @@ pub(super) fn postgres(
     store: &SecretStore,
     tunnel: Option<std::sync::Arc<oo_connectors::transport::ssh::Tunnel>>,
 ) -> Result<PostgresEngine, String> {
+    let config = pg_config(source, tables, store, tunnel)?;
+    Ok(if family(source) == Ok(EngineFamily::Kingbase) {
+        PostgresEngine::new_kingbase(config)
+    } else {
+        PostgresEngine::new(config)
+    })
+}
+
+fn pg_config(
+    source: &Source,
+    tables: &[TableRef],
+    store: &SecretStore,
+    tunnel: Option<std::sync::Arc<oo_connectors::transport::ssh::Tunnel>>,
+) -> Result<PgSourceConfig, String> {
     let ca = source.tls_ca.as_ref().ok_or("SOURCE_TLS_CA_REQUIRED")?;
     let password = store.read(&source.password.secret_ref)?;
     let ca = store.read(&ca.secret_ref)?;
@@ -327,15 +404,10 @@ pub(super) fn postgres(
         )
     })()
     .map_err(|e: oo_connectors::SourceError| e.to_string())?;
-    let config = match tunnel {
-        Some(tunnel) => config.with_tunnel(tunnel).map_err(|e| e.to_string())?,
-        None => config,
-    };
-    Ok(if family(source) == Ok(EngineFamily::Kingbase) {
-        PostgresEngine::new_kingbase(config)
-    } else {
-        PostgresEngine::new(config)
-    })
+    match tunnel {
+        Some(tunnel) => config.with_tunnel(tunnel).map_err(|e| e.to_string()),
+        None => Ok(config),
+    }
 }
 
 async fn sources(stack: &Stack) -> Vec<Value> {
@@ -351,8 +423,13 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                     | Adapter::Mysql
                     | Adapter::Sqlserver
                     | Adapter::Db2
-                    | Adapter::Dm8,
+                    | Adapter::Dm8
+                    | Adapter::Opengauss,
                 ) => (),
+                // Document sources need a driver the lite helper does not link yet.
+                None if matches!(family, EngineFamily::Mongodb | EngineFamily::Opensearch) => {
+                    return Err("DOCUMENT_SOURCE_DOCTOR_NOT_AVAILABLE: connect and import run in the pipeline; the read-only probe needs the document driver in the helper".into());
+                }
                 _ => return Err("engine not available in this build".into()),
             }
             let selection = tables(source);
@@ -364,7 +441,7 @@ async fn sources(stack: &Stack) -> Vec<Value> {
             Ok((family, store, selected, scope_error)) => {
                 // MySQL's helper owns its runtime and tunnel. Never block this
                 // runtime waiting for a child that needs its forwarding tasks.
-                let tunnel = if family == EngineFamily::Mysql {
+                let tunnel = if helper_family(family) {
                     Ok(None)
                 } else {
                     oo_connectors::transport::ssh::connect(source, &store).await
@@ -407,7 +484,17 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                                 }
                                 Err(error) => json!({"status":"blocked","error":error}),
                             },
-                            EngineFamily::Mysql => mysql(source, &selected),
+                            f if helper_family(f) => mysql(source, &selected),
+                            EngineFamily::Opengauss => {
+                                match pg_config(source, &selected, &store, tunnel.clone())
+                                    .map(OpenGaussEngine::new)
+                                {
+                                    Ok(mut engine) => {
+                                        inspect(&mut engine, &selected, &source.sync.mode).await
+                                    }
+                                    Err(error) => json!({"status":"blocked","error":error}),
+                                }
+                            }
                             EngineFamily::Sqlserver => {
                                 let config = (|| {
                                     let ca =
@@ -446,7 +533,7 @@ async fn sources(stack: &Stack) -> Vec<Value> {
                             _ => unreachable!("registry checked above"),
                         };
                         if let Some(ssh) = &source.ssh
-                            && family != EngineFamily::Mysql
+                            && !helper_family(family)
                         {
                             report["tunnel"] = json!({"status":"ok","host_key_sha256":ssh.host_key_sha256,
                             "transport":"ssh-direct-tcpip"});
@@ -509,6 +596,59 @@ fn model(stack: &Stack) -> Value {
     result.unwrap_or_else(|error| json!({"status":"blocked","error":error}))
 }
 
+/// What a DBA must grant before any build, from the probe each source report already
+/// carries. Only the capabilities the source's sync mode needs count (the snapshot
+/// path always; log CDC for C1, range digests for C5); the rest stays advice in
+/// `dba_requirements`. Builds that skip this fail later, at load.
+fn required_grants(stack: &Stack, sources: &[Value]) -> Vec<Value> {
+    let mut out = Vec::new();
+    for (source, report) in stack.sources.iter().zip(sources) {
+        let mut needed = vec!["catalog", "chunked_snapshot"];
+        match source.sync.mode.as_str() {
+            "C1" => needed.push("log_cdc"),
+            "C5" => needed.push("digest_diff"),
+            _ => (),
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for capability in needed {
+            let state = &report["probe"]["capabilities"][capability];
+            if state["state"] != "needs_setup" {
+                continue;
+            }
+            for need in state["requirements"].as_array().into_iter().flatten() {
+                let name = need["name"].as_str().unwrap_or_default();
+                if seen.insert(name.to_owned()) {
+                    out.push(json!({"source_id":source.id,"capability":capability,
+                        "requirement":name,"observed":need["observed"],"required":need["required"],
+                        "dba_statement":need["dba_statement"]}));
+                }
+            }
+        }
+    }
+    out
+}
+
+fn grants_text(grants: &[Value]) -> String {
+    let mut text = String::from(
+        "A DBA must grant this before oo build (run as an administrator, then re-run oo doctor):\n",
+    );
+    for grant in grants {
+        let line = match grant["dba_statement"].as_str() {
+            Some(statement) => statement.to_owned(),
+            None => format!(
+                "-- no automatic statement: {} ({})",
+                grant["requirement"].as_str().unwrap_or(""),
+                grant["required"].as_str().unwrap_or("")
+            ),
+        };
+        text.push_str(&format!(
+            "  {line}   -- source {}\n",
+            grant["source_id"].as_str().unwrap_or("")
+        ));
+    }
+    text
+}
+
 pub(super) fn run(stack: &Stack, json_output: bool) -> Result<Invocation, Failure> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -517,14 +657,37 @@ pub(super) fn run(stack: &Stack, json_output: bool) -> Result<Invocation, Failur
         .map_err(|_| Failure::local("DOCTOR_RUNTIME"))?;
     let sources = runtime.block_on(sources(stack));
     let model = model(stack);
-    let blocked = sources.iter().any(|s| s["status"] != "ok") || model["status"] != "ok";
-    let report = json!({"protocol":"oo.doctor/v1", "read_only":true,
+    let grants = required_grants(stack, &sources);
+    #[allow(unused_mut)]
+    let mut blocked = sources.iter().any(|s| s["status"] != "ok")
+        || model["status"] != "ok"
+        || !grants.is_empty();
+    #[allow(unused_mut)]
+    let mut report = json!({"protocol":"oo.doctor/v1", "read_only":true,
         "status": if blocked {"blocked"} else {"ok"}, "sources":sources, "model":model});
+    if !grants.is_empty() {
+        report["required_grants"] = json!(grants);
+    }
+    // Super Drive: an added field, only in builds with the docs feature.
+    #[cfg(feature = "docs")]
+    {
+        let docs = runtime.block_on(super::doctor_docs::section());
+        if docs["status"] == "blocked" {
+            blocked = true;
+            report["status"] = json!("blocked");
+        }
+        report["docs"] = docs;
+    }
     let output = if json_output {
         report.to_string()
     } else {
         format!(
-            "Read-only preflight (DBA statements are advice, never executed).\n{}",
+            "Read-only preflight (DBA statements are advice, never executed).\n{}{}",
+            if grants.is_empty() {
+                String::new()
+            } else {
+                grants_text(&grants)
+            },
             serde_json::to_string_pretty(&report).map_err(|_| Failure::local("DOCTOR_REPORT"))?
         )
     };
@@ -547,8 +710,23 @@ mod tests {
         let mut s = source();
         s.engine = "postgres-17".into();
         assert_eq!(family(&s).unwrap(), EngineFamily::Postgres);
+        // Compatible products keep their own family: never aliased to Postgres.
         s.engine = "opengauss".into();
-        assert!(family(&s).is_err());
+        assert_eq!(family(&s).unwrap(), EngineFamily::Opengauss);
+        for (engine, expected) in [
+            ("mariadb", EngineFamily::Mariadb),
+            ("tidb", EngineFamily::Tidb),
+            ("oceanbase", EngineFamily::Oceanbase),
+            ("mysql-polardb", EngineFamily::Mysql),
+            ("clickhouse", EngineFamily::Clickhouse),
+            ("doris", EngineFamily::Doris),
+            ("starrocks", EngineFamily::Starrocks),
+            ("mongodb", EngineFamily::Mongodb),
+            ("opensearch", EngineFamily::Opensearch),
+        ] {
+            s.engine = engine.into();
+            assert_eq!(family(&s).unwrap(), expected, "{engine}");
+        }
         s.engine = "kingbase".into();
         assert_eq!(family(&s).unwrap(), EngineFamily::Kingbase);
         assert!(matches!(
@@ -560,6 +738,23 @@ mod tests {
         s.engine = "dm8".into();
         assert_eq!(family(&s).unwrap(), EngineFamily::Dameng);
         assert!(matches!(registry()[&EngineFamily::Dameng], Adapter::Dm8));
+    }
+
+    #[test]
+    fn helper_container_gets_exactly_the_file_secrets_the_source_names() {
+        let source = json!({
+            "password":{"secret_ref":"file:/private/tmp/a/pw"},
+            "tls_ca":{"secret_ref":"file:/private/tmp/a/ca"},
+            "ssh":{"key":{"secret_ref":"file:/private/tmp/a/pw"},"password":{"secret_ref":"named-secret"}},
+        });
+        assert_eq!(
+            file_secret_paths(&source),
+            vec!["/private/tmp/a/pw", "/private/tmp/a/ca"]
+        );
+        for refused in ["file:relative/x", "file:/a,b/x", "env:X", "name"] {
+            let one = json!({"password":{"secret_ref":refused},"tls_ca":null});
+            assert!(file_secret_paths(&one).is_empty(), "{refused}");
+        }
     }
 
     #[test]
@@ -589,5 +784,43 @@ mod tests {
             s.scope.exclude = vec![unsupported.into()];
             assert!(tables(&s).is_err());
         }
+    }
+
+    #[test]
+    fn grants_the_sync_mode_needs_are_reported_before_any_build() {
+        let mut stack =
+            oo_stack::parse(include_str!("../../../oo-stack/example.stack.json")).unwrap();
+        stack.sources[0].sync.mode = "C5".into();
+        let need = |name: &str, statement: Value| {
+            json!({"name":name,"observed":"missing",
+            "required":"visibility of all active sessions","dba_statement":statement})
+        };
+        let stats = need(
+            "pg_read_all_stats",
+            json!("GRANT pg_read_all_stats TO oo_reader;"),
+        );
+        let report = json!({"status":"blocked","probe":{"capabilities":{
+            "catalog":{"state":"needs_setup","requirements":[stats.clone()]},
+            "chunked_snapshot":{"state":"needs_setup","requirements":[stats.clone()]},
+            "digest_diff":{"state":"needs_setup","requirements":[stats]},
+            "log_cdc":{"state":"needs_setup","requirements":[
+                need("REPLICATION", json!("ALTER ROLE oo_reader REPLICATION;"))]}}}});
+        let grants = required_grants(&stack, std::slice::from_ref(&report));
+        // One statement, named once, for the capabilities this mode needs; C1's is not asked.
+        assert_eq!(grants.len(), 1);
+        assert_eq!(
+            grants[0]["dba_statement"],
+            "GRANT pg_read_all_stats TO oo_reader;"
+        );
+        assert_eq!(grants[0]["source_id"], json!(stack.sources[0].id));
+        assert!(grants_text(&grants).contains("GRANT pg_read_all_stats TO oo_reader;"));
+        stack.sources[0].sync.mode = "C1".into();
+        let names: Vec<_> = required_grants(&stack, &[report])
+            .iter()
+            .map(|g| g["requirement"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(names, ["pg_read_all_stats", "REPLICATION"]);
+        let ready = json!({"probe":{"capabilities":{"catalog":{"state":"available"}}}});
+        assert!(required_grants(&stack, &[ready]).is_empty());
     }
 }

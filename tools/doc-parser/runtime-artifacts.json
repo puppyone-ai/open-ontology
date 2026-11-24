@@ -1,0 +1,32 @@
+{
+  "schema": "oo.docs-runtime-artifacts/v1",
+  "note": "Pins used by `oo docs runtime install` (Docker-free parser, ADR-S14). Embedded in the oo binary; copy kept in supply-chain/runtime-artifacts-audit.json. A file is used only when its sha256 matches.",
+  "uv": {
+    "version": "0.12.19",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://github.com/astral-sh/uv/releases/tag/0.12.19",
+    "published": "2026-09-24",
+    "base_url": "https://github.com/astral-sh/uv/releases/download/0.12.19",
+    "targets": {
+      "aarch64-apple-darwin": {"file": "uv-aarch64-apple-darwin.tar.gz", "sha256": "a9a8df1eedeb192f2e47e40e2faabfb387db4b850209118786d42f89dde3e0ba"},
+      "x86_64-apple-darwin": {"file": "uv-x86_64-apple-darwin.tar.gz", "sha256": "cb5fa57bafe68fc0fb94b17f06bee0b0b9a7feb94ccbd110445afa0696e39273"},
+      "aarch64-unknown-linux-gnu": {"file": "uv-aarch64-unknown-linux-gnu.tar.gz", "sha256": "0804e9b164c64b6914182d5920c08551958a095986f10a3731056df701126436"},
+      "x86_64-unknown-linux-gnu": {"file": "uv-x86_64-unknown-linux-gnu.tar.gz", "sha256": "23bf5552d220e0842b65c862097b2ebaeba0064b74eda5e565e77fd25969d8c8"}
+    }
+  },
+  "opencv": {
+    "version": "5.0.0.93",
+    "license": "Apache-2.0",
+    "source_sdist_sha256": "b82f9831daab90b725c7c1ee1b36cb5732c367096ac76d119e64e14eb70d5f3c",
+    "build": "tools/doc-parser/build_opencv_wheel.sh: same sdist and CMake flags as the parser image stage `opencv` (FFmpeg, GStreamer, videoio off), MACOSX_DEPLOYMENT_TARGET=12.0",
+    "platforms": {
+      "macosx_arm64": {
+        "file": "opencv_python_headless-5.0.0.93-cp313-cp313-macosx_12_0_arm64.whl",
+        "sha256": "8da5f445677a37fd6f0164517e3c15e9860a9694f7d08d68c2664bd1e9d36b49",
+        "url": "https://github.com/puppyone-ai/open-ontology/releases/download/runtime-opencv-5.0.0.93/opencv_python_headless-5.0.0.93-cp313-cp313-macosx_12_0_arm64.whl",
+        "published": true,
+        "note": "GitHub release runtime-opencv-5.0.0.93 of puppyone-ai/open-ontology; OO_DOCS_OPENCV_WHEEL or <state>/artifacts/ still override it"
+      }
+    }
+  }
+}

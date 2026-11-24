@@ -1,0 +1,32 @@
+{
+  "entities": 87,
+  "facts": 297,
+  "facts_by_origin": [
+    [
+      "rule",
+      324
+    ]
+  ],
+  "files": 51,
+  "jobs": [
+    [
+      "extract_rules",
+      "succeeded",
+      51
+    ]
+  ],
+  "model": false,
+  "published_entities": 87,
+  "published_facts": 296,
+  "seconds": 221.006155292,
+  "states": {
+    "published": 51
+  },
+  "usage": {
+    "drives": [],
+    "model": {
+      "status": "not_configured"
+    },
+    "per_file_limit": 20
+  }
+}

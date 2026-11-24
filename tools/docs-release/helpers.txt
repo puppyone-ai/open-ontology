@@ -1,0 +1,9 @@
+# Helper binaries `oo` starts from beside itself (found with current_exe().with_file_name).
+# oo-docs-engine: the engine child process.  oo-mysql-doctor: `oo doctor` for the MySQL family.
+# oo-load, oo-gateway: the build path (load the database, serve the Gateway).  mcp-gateway: `oo` MCP serve.
+# Not bundled: release-coordinator and selfbuild-budget (the retained remote build, which needs a server and image bundle).
+oo-docs-engine
+oo-mysql-doctor
+oo-load
+oo-gateway
+mcp-gateway

@@ -1,0 +1,53 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniGB-UCS2-H /DescendantFonts [4 0 R] /ToUnicode 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 2 >> /FontDescriptor 5 0 R /DW 1000 >>
+endobj
+5 0 obj
+<< /Type /FontDescriptor /FontName /STSong-Light /Flags 6 /FontBBox [-25 -254 1000 880] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 880 /StemV 93 >>
+endobj
+6 0 obj
+<< /Length 346 >>
+stream
+/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def /CMapName /Adobe-Identity-UCS def /CMapType 2 def 1 begincodespacerange <0000> <FFFF> endcodespacerange 1 beginbfrange <0000> <FFFF> <0000> endbfrange endcmap CMapName currentdict /CMap defineresource pop end end
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 593 >>
+stream
+BT
+/F1 16 Tf 1 0 0 1 72 744.00 Tm <661F56FE770B677F4EA754C165B96848FF087B2C4E8C7248FF09> Tj
+/F1 12 Tf 1 0 0 1 72 718.00 Tm <672C65B96848976254115BA262377ECF74064E0E8FD084254EBA5458FF0C63D04F9B56E2961F6D3B8DC35EA630014EFB52A18FDB5C557B49770B677F3002> Tj
+/F1 12 Tf 1 0 0 1 72 692.00 Tm <56FE88685C4291C775285F006E9056FE88685E93FF0C66FF4EE36700521D8BBE60F3768481EA781456FE88685F1564CEFF0C8BE58C0365744E8E00320030003200365E7400356708786E8BA43002> Tj
+/F1 12 Tf 1 0 0 1 72 666.00 Tm <4EA754C18D1F8D234EBAFF1A546882E56EAAFF1B6280672F8D1F8D234EBAFF1A96485B5058A8FF080045007400680061006EFF093002> Tj
+ET
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000260 00000 n 
+0000000440 00000 n 
+0000000612 00000 n 
+0000001009 00000 n 
+0000001135 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+1779
+%%EOF

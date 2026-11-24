@@ -1,0 +1,7714 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oo:docs-api:1.0",
+  "x-docs-api-version": "1.0-draft",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "examples": [
+        "0f8fad5b-d9cb-469f-a165-70867728950e"
+      ]
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time",
+      "examples": [
+        "2026-11-17T00:00:00Z"
+      ]
+    },
+    "Date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "examples": [
+        "2026-11-17"
+      ]
+    },
+    "Hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "examples": [
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    "SecretRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_ref"
+      ],
+      "properties": {
+        "secret_ref": {
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9_-]{0,63}|env:[A-Za-z_][A-Za-z0-9_]{0,127}|file:/[^\\u0000-\\u001f\\u007f]+)$"
+        }
+      },
+      "examples": [
+        {
+          "secret_ref": "env:OO_S3_KEY"
+        }
+      ]
+    },
+    "DrivePath": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?!.*//)(?!.*(^|/)\\.\\.?(/|$)).*$",
+      "examples": [
+        "Projects/a/plan.md"
+      ]
+    },
+    "Error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "retryable",
+        "details"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^DOCS_(SOURCE|PARSE|EXTRACT|REVIEW|PACK|SHARE|SUGGEST|ENGINE)_[A-Z0-9_]+$"
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "code": "DOCS_ENGINE_NOT_FOUND",
+          "message": "not found",
+          "retryable": false,
+          "details": {}
+        }
+      ]
+    },
+    "Page": {
+      "type": "object",
+      "required": [
+        "items",
+        "next_cursor",
+        "as_of_seq"
+      ],
+      "properties": {
+        "items": {
+          "type": "array"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "as_of_seq": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "items": [],
+          "next_cursor": null,
+          "as_of_seq": 0
+        }
+      ]
+    },
+    "FileState": {
+      "enum": [
+        "stored",
+        "queued",
+        "parsing",
+        "parsed",
+        "extracting",
+        "indexed",
+        "published",
+        "parse_failed",
+        "extract_partial",
+        "unsupported",
+        "too_large",
+        "encrypted",
+        "duplicate",
+        "superseded",
+        "deleted",
+        "outdated"
+      ],
+      "examples": [
+        "published"
+      ]
+    },
+    "BlockedReason": {
+      "enum": [
+        "parser_unavailable",
+        "disk_low",
+        "db_degraded",
+        "llm_limit",
+        "drive_paused"
+      ],
+      "examples": [
+        "disk_low"
+      ]
+    },
+    "ShareState": {
+      "enum": [
+        "active",
+        "drifted",
+        "refreshed",
+        "expired",
+        "revoked"
+      ],
+      "examples": [
+        "active"
+      ]
+    },
+    "ShareRole": {
+      "enum": [
+        "viewer",
+        "suggester",
+        "editor"
+      ],
+      "examples": [
+        "suggester"
+      ]
+    },
+    "ReviewKind": {
+      "enum": [
+        "low_confidence_fact",
+        "entity_merge",
+        "alias_conflict",
+        "orphaned_overlay",
+        "type_promotion",
+        "suggestion",
+        "reprocess_diff",
+        "constraint_conflict",
+        "speaker_identity"
+      ],
+      "examples": [
+        "low_confidence_fact"
+      ]
+    },
+    "EntityType": {
+      "enum": [
+        "Person",
+        "Organization",
+        "Project",
+        "Decision",
+        "Document",
+        "Topic",
+        "Event",
+        "Term",
+        "Thing",
+        "Recording",
+        "Meeting"
+      ],
+      "examples": [
+        "Person"
+      ]
+    },
+    "Backend": {
+      "enum": [
+        "fs",
+        "s3",
+        "oss",
+        "cos",
+        "r2"
+      ],
+      "examples": [
+        "fs"
+      ]
+    },
+    "ComponentStatus": {
+      "enum": [
+        "ok",
+        "degraded",
+        "unavailable",
+        "starting",
+        "not_configured",
+        "limited",
+        "blocked"
+      ],
+      "examples": [
+        "ok"
+      ]
+    },
+    "Health": {
+      "type": "object",
+      "required": [
+        "api_version",
+        "engine_version",
+        "status",
+        "components",
+        "queue",
+        "events_head"
+      ],
+      "properties": {
+        "api_version": {
+          "const": "1.0"
+        },
+        "engine_version": {
+          "type": "string"
+        },
+        "schema_versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "degraded",
+            "starting",
+            "unavailable"
+          ]
+        },
+        "components": {
+          "type": "object",
+          "required": [
+            "db",
+            "parser",
+            "model",
+            "cas"
+          ],
+          "properties": {
+            "db": {
+              "$ref": "#/$defs/Component"
+            },
+            "parser": {
+              "$ref": "#/$defs/Component",
+              "description": "The parse stage. With a doc-parser sidecar configured it is unavailable (code DOCS_ENGINE_PARSER_UNAVAILABLE, 1.10) while the sidecar's /healthz fails and the engine status is degraded: pdf, docx and pptx wait, md, txt, csv and xlsx still work."
+            },
+            "model": {
+              "$ref": "#/$defs/Component"
+            },
+            "cas": {
+              "$ref": "#/$defs/Component"
+            },
+            "engine": {
+              "$ref": "#/$defs/Component"
+            },
+            "ocr_parser": {
+              "$ref": "#/$defs/Component",
+              "description": "1.10: the ocr-parser sidecar, present only when configured; unavailable when its /healthz fails."
+            },
+            "media_parser": {
+              "$ref": "#/$defs/Component",
+              "description": "1.10: the media-parser sidecar, present only when configured; unavailable when its /healthz fails."
+            }
+          }
+        },
+        "queue": {
+          "type": "object",
+          "properties": {
+            "queued": {
+              "type": "integer"
+            },
+            "running": {
+              "type": "integer"
+            },
+            "failed_manual": {
+              "type": "integer"
+            },
+            "quarantined": {
+              "type": "integer"
+            },
+            "blocked": {
+              "type": "integer"
+            }
+          }
+        },
+        "disk": {
+          "type": "object",
+          "properties": {
+            "cas_used_bytes": {
+              "type": "integer"
+            },
+            "free_bytes": {
+              "type": "integer"
+            },
+            "original_cache_bytes": {
+              "type": "integer"
+            }
+          }
+        },
+        "events_head": {
+          "type": "integer"
+        },
+        "freshness": {
+          "$ref": "#/$defs/FreshnessState"
+        }
+      },
+      "examples": [
+        {
+          "api_version": "1.0",
+          "engine_version": "x",
+          "status": "ok",
+          "components": {
+            "db": {
+              "status": "ok"
+            },
+            "parser": {
+              "status": "ok"
+            },
+            "model": {
+              "status": "ok"
+            },
+            "cas": {
+              "status": "ok"
+            }
+          },
+          "queue": {},
+          "events_head": 0
+        }
+      ]
+    },
+    "Component": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/ComponentStatus"
+        },
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": "string"
+        },
+        "latency_ms": {
+          "type": "integer"
+        },
+        "detail": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "status": "ok"
+        }
+      ]
+    },
+    "DriveConfigFs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root"
+      ],
+      "properties": {
+        "root": {
+          "type": "string",
+          "pattern": "^/",
+          "maxLength": 4096
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "policy": {
+          "$ref": "#/$defs/DrivePolicy"
+        }
+      },
+      "examples": [
+        {
+          "root": "/Users/example/Drive"
+        }
+      ]
+    },
+    "DriveConfigS3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bucket",
+        "access_key_id",
+        "secret_access_key"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "pattern": "^https://|^http://(127\\.0\\.0\\.1|localhost)(:|/)",
+          "maxLength": 2048
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "bucket": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 63
+        },
+        "prefix": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "path_style": {
+          "type": "boolean"
+        },
+        "access_key_id": {
+          "$ref": "#/$defs/SecretRef"
+        },
+        "secret_access_key": {
+          "$ref": "#/$defs/SecretRef"
+        },
+        "session_token": {
+          "$ref": "#/$defs/SecretRef"
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "account_id": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "internal": {
+          "type": "boolean"
+        },
+        "policy": {
+          "$ref": "#/$defs/DrivePolicy"
+        }
+      },
+      "examples": [
+        {
+          "endpoint": "https://s3.example.com",
+          "bucket": "team-drive",
+          "access_key_id": {
+            "secret_ref": "env:OO_S3_KEY_ID"
+          },
+          "secret_access_key": {
+            "secret_ref": "file:/home/example/.config/oo/s3-secret"
+          }
+        },
+        {
+          "bucket": "team-drive",
+          "region": "cn-hangzhou",
+          "access_key_id": {
+            "secret_ref": "env:OO_OSS_KEY_ID"
+          },
+          "secret_access_key": {
+            "secret_ref": "env:OO_OSS_KEY_SECRET"
+          }
+        }
+      ],
+      "description": "Drives of backend s3, r2, oss and cos (S3 compatible), credentials as two references (1.10: valid for all four backends, not only s3). Each of access_key_id, secret_access_key and session_token is {secret_ref} and resolves to the plain value. endpoint is optional for r2, oss and cos (derived from region, or account_id for r2); region is required for oss and cos unless endpoint is given; account_id for r2 (32 hex); internal selects the in-cloud endpoint of oss and cos. Keys are never inline. DriveConfigCloud is the alternative with one secret_ref that resolves to a JSON credential."
+    },
+    "DriveCreate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "backend",
+        "config"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "backend": {
+          "$ref": "#/$defs/Backend"
+        },
+        "config": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/DriveConfigFs"
+            },
+            {
+              "$ref": "#/$defs/DriveConfigS3"
+            },
+            {
+              "$ref": "#/$defs/DriveConfigCloud"
+            }
+          ]
+        },
+        "model_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "llm_daily_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto_publish_bp": {
+              "type": "integer",
+              "minimum": 5000,
+              "maximum": 10000
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "name": "团队资料",
+          "backend": "fs",
+          "config": {
+            "root": "/Users/example/Drive"
+          }
+        }
+      ]
+    },
+    "DrivePatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model_enabled": {
+          "type": "boolean"
+        },
+        "llm_daily_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "paused": {
+          "type": "boolean"
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto_publish_bp": {
+              "type": "integer",
+              "minimum": 5000,
+              "maximum": 10000
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "paused": true
+        }
+      ]
+    },
+    "Drive": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "backend",
+        "config",
+        "status",
+        "revision",
+        "counts",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "name": {
+          "type": "string"
+        },
+        "backend": {
+          "$ref": "#/$defs/Backend"
+        },
+        "config": {
+          "type": "object",
+          "description": "与 DriveCreate.config 同形；secret_ref 原样返回，从不返回密钥值"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "paused",
+            "deleting",
+            "deleted"
+          ]
+        },
+        "status_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_enabled": {
+          "type": "boolean"
+        },
+        "llm_daily_calls": {
+          "type": "integer"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "counts": {
+          "type": "object",
+          "description": "FileState → 数量",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "pending_review": {
+          "type": "integer"
+        },
+        "files_total": {
+          "type": "integer"
+        },
+        "bytes_total": {
+          "type": "integer"
+        },
+        "last_sync": {
+          "$ref": "#/$defs/SyncInfo"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        },
+        "drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "name": "x",
+          "backend": "fs",
+          "config": {},
+          "status": "active",
+          "revision": 0,
+          "counts": {},
+          "created_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "SyncInfo": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "generation": {
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "complete",
+            "failed",
+            "held"
+          ]
+        },
+        "trigger": {
+          "type": "string"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "removed": {
+          "type": "integer"
+        },
+        "renamed": {
+          "type": "integer"
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "finished_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "SyncRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "confirm_mass_delete": {
+          "type": "integer",
+          "description": "确认被 held 的代际"
+        },
+        "deep": {
+          "type": "boolean",
+          "description": "忽略指纹、全量重哈希"
+        },
+        "paths": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/DrivePath"
+          },
+          "description": "G11/D47 targeted sync: stat only these paths and parents; never advances the generation or sweeps."
+        }
+      },
+      "examples": [
+        {
+          "paths": [
+            "Projects/a/plan.md"
+          ]
+        }
+      ]
+    },
+    "FileSummary": {
+      "type": "object",
+      "required": [
+        "id",
+        "drive_id",
+        "path",
+        "state",
+        "state_since",
+        "retryable",
+        "pending_review"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "format": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "profile": {
+          "description": "D94: what kind of file this is, which decides whether and how it enters the ontology. Derived from the path and format until the file is extracted, then stored. Clients show an unknown value as unknown.",
+          "type": "string",
+          "enum": [
+            "business",
+            "meeting",
+            "table",
+            "instruction",
+            "code",
+            "reference",
+            "media",
+            "other"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/FileState"
+        },
+        "state_since": {
+          "$ref": "#/$defs/Time"
+        },
+        "state_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "blocked_reason": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/BlockedReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "progress": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "unit": {
+              "enum": [
+                "page",
+                "sheet",
+                "line",
+                "batch",
+                "ms"
+              ]
+            },
+            "done": {
+              "type": "integer"
+            },
+            "total": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        },
+        "pending_review": {
+          "type": "integer"
+        },
+        "duplicate_of": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "b3": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "modified_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latency_ms": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "G13 per-stage durations; llm_wait_ms separate",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "profile_reason": {
+          "description": "Why the file has that profile: `frontmatter`, `name`, `dir`, `ext`, `format`, `content` (a rule), `default` (no rule decided), `model`, or `user` (a person chose it).",
+          "type": "string",
+          "enum": [
+            "frontmatter",
+            "name",
+            "dir",
+            "ext",
+            "format",
+            "content",
+            "default",
+            "model",
+            "user"
+          ]
+        },
+        "class": {
+          "description": "D94 admission class of the profile: `record` (business, meeting, table: enters the ontology through the class templates), `instruction` (attached as a working convention, no entities), `reference` (one Reference instance), `code` (structure only), `media`, `other` (archive only).",
+          "type": "string",
+          "enum": [
+            "record",
+            "instruction",
+            "reference",
+            "code",
+            "media",
+            "other"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "x",
+          "state": "published",
+          "state_since": "2026-11-17T00:00:00Z",
+          "retryable": false,
+          "pending_review": 0
+        }
+      ]
+    },
+    "StateEntry": {
+      "type": "object",
+      "required": [
+        "seq",
+        "to",
+        "at"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer"
+        },
+        "from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "to": {
+          "$ref": "#/$defs/FileState"
+        },
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attempt": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "examples": [
+        {
+          "seq": 0,
+          "to": "published",
+          "at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "FileDetail": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/FileSummary"
+        }
+      ],
+      "properties": {
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StateEntry"
+          },
+          "maxItems": 200
+        },
+        "versions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "b3": {
+                "type": "string"
+              },
+              "created_at": {
+                "$ref": "#/$defs/Time"
+              },
+              "superseded_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "parse": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "parser_id": {
+              "type": "string"
+            },
+            "parser_version": {
+              "type": "string"
+            },
+            "block_count": {
+              "type": "integer"
+            },
+            "page_count": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "media": {
+              "type": "object",
+              "description": "Audio and video only (1.14, D74 revision): what kind of recording this is, decided before speakers are told apart. `class` is `conversation` (a meeting, an interview, a call, a lecture, a voice memo: transcribed, speakers are told apart and a `speaker_identity` item per speaker may wait for a name), `non_conversation` (a media asset: a promo, an edited video, a film, music: one typed Recording object, no speakers, no facts from its sound) or `unsure`. `kind` says why (`conversation`, `lecture`, `voice_memo`, `promo`, `music_or_ambient`, `edited_video`, `undecided`); `source` is `rules` or `model`; `speakers_to_name` counts the pending `speaker_identity` items of this recording.",
+              "properties": {
+                "class": {
+                  "enum": [
+                    "conversation",
+                    "non_conversation",
+                    "unsure"
+                  ]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "source": {
+                  "enum": [
+                    "rules",
+                    "model"
+                  ]
+                },
+                "speakers_to_name": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityRef"
+          },
+          "maxItems": 500
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "maxItems": 500
+        },
+        "shares": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "state": {
+                "$ref": "#/$defs/ShareState"
+              },
+              "facts_used": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "llm": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "done",
+                "skipped_not_configured",
+                "skipped_limit",
+                "partial",
+                "pending"
+              ]
+            },
+            "calls": {
+              "type": "integer"
+            },
+            "cache_hits": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "a.md",
+          "state": "published",
+          "state_since": "2026-11-17T00:00:00Z",
+          "retryable": false,
+          "pending_review": 0
+        }
+      ]
+    },
+    "Block": {
+      "type": "object",
+      "description": "oo.doc-ir/v1 block，见 contracts/docs-ir/doc-ir.v1.schema.json#/$defs/block；另加 src 字段（出处片段）",
+      "properties": {
+        "src": {
+          "type": "string",
+          "pattern": "^\\[src:[^\\]#]+#[^\\]]+\\]$",
+          "description": "Source mark, canonical form [src:<path>#<frag>] (spec 10 6.2): the path percent-encodes ], #, % and whitespace."
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "RetryRequest": {
+      "type": "object",
+      "description": "Files in parse_failed or extract_partial, and (1.11) files parked as unsupported with DOCS_PARSE_CODEC_UNAVAILABLE after the host wrote its decoded output to the exchange directory (spec 10 17.2). Any other file answers not_retryable.",
+      "additionalProperties": false,
+      "required": [
+        "file_ids"
+      ],
+      "properties": {
+        "file_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          }
+        },
+        "mode": {
+          "enum": [
+            "normal",
+            "safe"
+          ],
+          "default": "normal"
+        }
+      },
+      "examples": [
+        {
+          "file_ids": [
+            "0f8fad5b-d9cb-469f-a165-70867728950e"
+          ]
+        }
+      ]
+    },
+    "EntityRef": {
+      "type": "object",
+      "required": [
+        "id",
+        "key",
+        "type",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "key": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/EntityType"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subkind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "key": "x",
+          "type": "Person",
+          "name": "x"
+        }
+      ]
+    },
+    "Evidence": {
+      "type": "object",
+      "required": [
+        "id",
+        "file_id",
+        "path",
+        "block_id",
+        "anchor",
+        "src",
+        "origin"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "file_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "path": {
+          "type": "string"
+        },
+        "block_id": {
+          "type": "string"
+        },
+        "anchor": {
+          "type": "object"
+        },
+        "src": {
+          "type": "string",
+          "pattern": "^\\[src:[^\\]#]+#[^\\]]+\\]$",
+          "description": "Source mark, canonical form [src:<path>#<frag>] (spec 10 6.2): the path percent-encodes ], #, % and whitespace."
+        },
+        "quote": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "origin": {
+          "enum": [
+            "rule",
+            "llm",
+            "human",
+            "suggest"
+          ]
+        },
+        "withdrawn_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "file_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "x",
+          "block_id": "x",
+          "anchor": {},
+          "src": "[src:x#L1-L1]",
+          "origin": "rule"
+        }
+      ]
+    },
+    "Fact": {
+      "type": "object",
+      "required": [
+        "id",
+        "fact_key",
+        "subject",
+        "predicate",
+        "confidence_bp",
+        "origin",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "fact_key": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "subject": {
+          "$ref": "#/$defs/EntityRef"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "object": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "valid_from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valid_to": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valid_precision": {
+          "type": "string"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "retracted_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence_bp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "origin": {
+          "enum": [
+            "rule",
+            "llm",
+            "human",
+            "suggest"
+          ]
+        },
+        "status": {
+          "enum": [
+            "draft",
+            "published",
+            "retracted",
+            "rejected"
+          ]
+        },
+        "published_in": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "superseded_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "description": "Optimistic concurrency token of corrections: send as If-Match \"r<revision>\" to POST /facts/{id}:correct."
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "maxItems": 50
+        },
+        "evidence_total": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "fact_key": "0000000000000000000000000000000000000000000000000000000000000000",
+          "subject": {
+            "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+            "key": "x",
+            "type": "Person",
+            "name": "x"
+          },
+          "predicate": "x",
+          "confidence_bp": 0,
+          "origin": "rule",
+          "status": "draft"
+        }
+      ]
+    },
+    "Alias": {
+      "type": "object",
+      "properties": {
+        "alias": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "confidence_bp": {
+          "type": "integer"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "Entity": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/EntityRef"
+        }
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "active",
+            "merged",
+            "withdrawn"
+          ]
+        },
+        "merged_into": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identity": {
+          "type": "object"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Alias"
+          }
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Fact"
+          }
+        },
+        "redirect_from": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "revision": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "key": "person:000000000000000000000000",
+          "type": "Person",
+          "name": "示例甲"
+        }
+      ]
+    },
+    "ResolveRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityType"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        }
+      },
+      "examples": [
+        {
+          "text": "x"
+        }
+      ]
+    },
+    "ResolveResult": {
+      "type": "object",
+      "properties": {
+        "mentions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "span": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "surface": {
+                "type": "string"
+              },
+              "candidates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "entity": {
+                      "$ref": "#/$defs/EntityRef"
+                    },
+                    "score_bp": {
+                      "type": "integer"
+                    },
+                    "via": {
+                      "enum": [
+                        "name",
+                        "alias",
+                        "alias_draft",
+                        "honorific",
+                        "identity"
+                      ]
+                    }
+                  }
+                }
+              },
+              "ambiguous": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "ReviewItem": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "status",
+        "reason_code",
+        "created_at",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "$ref": "#/$defs/ReviewKind"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "accepted",
+            "rejected",
+            "superseded"
+          ]
+        },
+        "reason_code": {
+          "type": "string"
+        },
+        "confidence_bp": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "drive_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "file_id": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "subject": {
+          "type": "object",
+          "description": "按 kind：{fact}|{entities:[EntityRef…],shared_aliases:[…]}|{alias,entities}|{overlay,missing_evidence}|{label,instances,files}|{suggestion}"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "maxItems": 20
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "decided_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "low_confidence_fact",
+          "status": "pending",
+          "reason_code": "x",
+          "created_at": "2026-11-17T00:00:00Z",
+          "revision": 0
+        }
+      ]
+    },
+    "ReviewGroup": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/$defs/ReviewKind"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "ReviewDecideRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "revision",
+              "decision"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "revision": {
+                "type": "integer"
+              },
+              "decision": {
+                "enum": [
+                  "accept",
+                  "reject",
+                  "edit"
+                ]
+              },
+              "edit": {
+                "type": "object",
+                "description": "decision=edit 时：fact 的 value/valid_from/valid_to，或 merge 的目标实体，或 alias 的归属实体"
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          }
+        },
+        "by_source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file_id",
+            "decision"
+          ],
+          "properties": {
+            "file_id": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "kinds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ReviewKind"
+              }
+            },
+            "decision": {
+              "enum": [
+                "accept",
+                "reject"
+              ]
+            },
+            "as_of_seq": {
+              "type": "integer",
+              "description": "只处理该序号前入队的项，避免误收新项"
+            }
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "items"
+          ]
+        },
+        {
+          "required": [
+            "by_source"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "items": [
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "revision": 1,
+              "decision": "accept"
+            }
+          ]
+        }
+      ]
+    },
+    "ReviewDecideResult": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "status": {
+                "enum": [
+                  "ok",
+                  "conflict",
+                  "not_found",
+                  "invalid",
+                  "already_decided"
+                ]
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "accepted": {
+          "type": "integer"
+        },
+        "rejected": {
+          "type": "integer"
+        },
+        "publish_pending": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "CompileRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id"
+      ],
+      "properties": {
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "scope": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/DrivePath"
+          }
+        },
+        "task": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "seeds": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "string"
+          }
+        },
+        "budget": {
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 20000,
+          "default": 800
+        },
+        "role": {
+          "$ref": "#/$defs/ShareRole"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 120000,
+          "default": 20000
+        },
+        "require_complete": {
+          "type": "boolean",
+          "default": false
+        },
+        "vector": {
+          "type": "string",
+          "enum": [
+            "hashgram/1"
+          ],
+          "description": "Since 1.5. Local vector model version used only to rank the 'other related' section of BRIEF (10 11.3). Omitted means the engine default (off unless the operator enabled a model). The version is part of the pack parameters: the same version replays byte for byte, another version is another pack."
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e"
+        },
+        {
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "task": "prepare the supplier review",
+          "vector": "hashgram/1"
+        }
+      ]
+    },
+    "ContextPack": {
+      "type": "object",
+      "required": [
+        "id",
+        "pack_digest",
+        "version",
+        "drive_id",
+        "scope",
+        "manifest",
+        "tokens",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pack_digest": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "manifest": {
+          "type": "object",
+          "description": "oo.context-pack.manifest/v1"
+        },
+        "tokens": {
+          "type": "object",
+          "properties": {
+            "brief": {
+              "type": "integer"
+            },
+            "budget": {
+              "type": "integer"
+            },
+            "total": {
+              "type": "integer"
+            }
+          }
+        },
+        "trimmed": {
+          "type": "object"
+        },
+        "blocked": {
+          "type": "object",
+          "properties": {
+            "facts": {
+              "type": "integer"
+            },
+            "entities": {
+              "type": "integer"
+            }
+          }
+        },
+        "maybe": {
+          "type": "array",
+          "description": "“可能指的是”"
+        },
+        "brief_preview": {
+          "type": "string",
+          "description": "BRIEF.md 全文（预览用）"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "pack_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "version": 0,
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "scope": [],
+          "manifest": {},
+          "tokens": {},
+          "created_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "ShareCreate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compile",
+        "mount"
+      ],
+      "properties": {
+        "compile": {
+          "$ref": "#/$defs/CompileRequest"
+        },
+        "mount": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target_dir"
+          ],
+          "properties": {
+            "target_dir": {
+              "type": "string",
+              "pattern": "^/",
+              "maxLength": 4096
+            }
+          }
+        },
+        "expires_in_seconds": {
+          "type": "integer",
+          "minimum": 3600,
+          "maximum": 2592000,
+          "default": 604800
+        },
+        "grantor": {
+          "type": "string",
+          "maxLength": 128,
+          "default": "owner"
+        },
+        "group": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._#:-]{1,128}$"
+        },
+        "refresh_policy": {
+          "$ref": "#/$defs/RefreshPolicy"
+        }
+      },
+      "examples": [
+        {
+          "compile": {
+            "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+            "scope": [
+              "Projects/a"
+            ],
+            "budget": 800
+          },
+          "mount": {
+            "target_dir": "/tmp/t1"
+          }
+        }
+      ]
+    },
+    "Share": {
+      "type": "object",
+      "required": [
+        "id",
+        "pack_id",
+        "pack_digest",
+        "drive_id",
+        "scope",
+        "role",
+        "state",
+        "created_at",
+        "expires_at",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pack_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pack_digest": {
+          "$ref": "#/$defs/Hex64"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "role": {
+          "$ref": "#/$defs/ShareRole"
+        },
+        "task": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "budget": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/ShareState"
+        },
+        "drift": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "facts_changed": {
+              "type": "integer"
+            },
+            "files_changed": {
+              "type": "integer"
+            },
+            "since_version": {
+              "type": "integer"
+            }
+          }
+        },
+        "mount": {
+          "type": "object",
+          "properties": {
+            "target_dir": {
+              "type": "string",
+              "description": "仅守护进程填充，来自 mounts.json"
+            },
+            "present": {
+              "type": "boolean"
+            }
+          }
+        },
+        "refreshed_from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "revoked_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "command": {
+          "type": "string",
+          "description": "等价的 oo context mount 命令行（不含凭证）"
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        },
+        "group_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "refresh_policy": {
+          "$ref": "#/$defs/RefreshPolicy"
+        },
+        "guarantees": {
+          "$ref": "#/$defs/Guarantees"
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "pack_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "pack_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "scope": [],
+          "role": "suggester",
+          "state": "active",
+          "created_at": "2026-11-17T00:00:00Z",
+          "expires_at": "2026-11-17T00:00:00Z",
+          "revision": 0
+        }
+      ]
+    },
+    "RevokeResult": {
+      "type": "object",
+      "properties": {
+        "share": {
+          "$ref": "#/$defs/Share"
+        },
+        "local_removed": {
+          "type": "boolean"
+        },
+        "notice_code": {
+          "const": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "Usage": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/Component"
+        },
+        "drives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "drive_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "day": {
+                "$ref": "#/$defs/Date"
+              },
+              "calls": {
+                "type": "integer"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "cache_hits": {
+                "type": "integer"
+              },
+              "tokens_in": {
+                "type": "integer"
+              },
+              "tokens_out": {
+                "type": "integer"
+              },
+              "files_limited": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "per_file_limit": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "EventActor": {
+      "type": "object",
+      "description": "Who caused an event (1.13). `kind` is `cli`, `app`, `mcp` (the client named by the `OO-Docs-Client` header of the control token), `agent` (an Agent token, or the control token with an `OO-Docs-Agent` header; `name` is the token name or the header), `cloud` (a cloud proxy token) or `local` (no or an unknown client header). Events appended by a background worker carry the actor of the request that caused them (same file or Drive, within 10 minutes) and none when no request is known.",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "cli",
+            "app",
+            "mcp",
+            "agent",
+            "cloud",
+            "local"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "examples": [
+        {
+          "kind": "app"
+        },
+        {
+          "kind": "agent",
+          "name": "claude"
+        }
+      ]
+    },
+    "Event": {
+      "type": "object",
+      "required": [
+        "seq",
+        "type",
+        "at",
+        "data"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer"
+        },
+        "type": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/$defs/Time"
+        },
+        "drive_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "data": {
+          "type": "object"
+        },
+        "actor": {
+          "$ref": "#/$defs/EventActor"
+        }
+      },
+      "examples": [
+        {
+          "seq": 0,
+          "type": "x",
+          "at": "2026-11-17T00:00:00Z",
+          "data": {}
+        },
+        {
+          "seq": 7,
+          "type": "file.state_changed",
+          "at": "2026-11-17T00:00:00Z",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "data": {},
+          "actor": {
+            "kind": "cli"
+          }
+        }
+      ]
+    },
+    "Freshness": {
+      "type": "object",
+      "required": [
+        "state",
+        "ontology_version",
+        "as_of"
+      ],
+      "description": "G12/G16, 00 §5.5. Priority held > degraded > syncing > processing > publishing > waiting_review > up_to_date.",
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/FreshnessState"
+        },
+        "ontology_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "as_of": {
+          "$ref": "#/$defs/Time"
+        },
+        "processing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_review": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "covers_drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "state": "up_to_date",
+          "ontology_version": 42,
+          "as_of": "2026-11-17T00:00:00Z",
+          "processing": 0,
+          "pending_review": 0,
+          "reason_code": null
+        }
+      ]
+    },
+    "FreshnessState": {
+      "enum": [
+        "up_to_date",
+        "syncing",
+        "processing",
+        "publishing",
+        "waiting_review",
+        "degraded",
+        "held"
+      ],
+      "examples": [
+        "up_to_date"
+      ]
+    },
+    "TreeDir": {
+      "type": "object",
+      "required": [
+        "path",
+        "files",
+        "counts"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "files": {
+          "type": "integer"
+        },
+        "counts": {
+          "type": "object",
+          "properties": {
+            "failed": {
+              "type": "integer"
+            },
+            "pending_review": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      },
+      "examples": [
+        {
+          "path": "x",
+          "files": 0,
+          "counts": {}
+        }
+      ]
+    },
+    "Tree": {
+      "type": "object",
+      "required": [
+        "dirs",
+        "files"
+      ],
+      "properties": {
+        "dirs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TreeDir"
+          }
+        },
+        "files": {
+          "$ref": "#/$defs/Page"
+        }
+      },
+      "examples": [
+        {
+          "dirs": [],
+          "files": {
+            "items": [],
+            "next_cursor": null,
+            "as_of_seq": 0
+          }
+        }
+      ]
+    },
+    "ModelConfig": {
+      "type": "object",
+      "required": [
+        "configured"
+      ],
+      "description": "G3: the key value is never returned.",
+      "properties": {
+        "configured": {
+          "type": "boolean"
+        },
+        "provider": {
+          "enum": [
+            "openai-compatible",
+            "anthropic"
+          ]
+        },
+        "base_url": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "key_ref": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "configured": false
+        }
+      ]
+    },
+    "ModelConfigPut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "base_url",
+        "model",
+        "key_ref"
+      ],
+      "properties": {
+        "provider": {
+          "enum": [
+            "openai-compatible",
+            "anthropic"
+          ]
+        },
+        "base_url": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "key_ref": {
+          "type": "string",
+          "pattern": "^(env:[A-Za-z_][A-Za-z0-9_]{0,127}|file:/[^\\u0000-\\u001f\\u007f]+)$"
+        }
+      },
+      "examples": [
+        {
+          "provider": "openai-compatible",
+          "base_url": "https://models.example.com/v1",
+          "model": "example-model",
+          "key_ref": "file:/Users/example/.config/oo/model-key"
+        }
+      ]
+    },
+    "SharePatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expires_at"
+      ],
+      "description": "G6: only expiry, ≤30 days.",
+      "properties": {
+        "expires_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "examples": [
+        {
+          "expires_at": "2026-11-24T00:00:00Z"
+        }
+      ]
+    },
+    "RefreshPolicy": {
+      "enum": [
+        "manual",
+        "at-checkpoint",
+        "pinned"
+      ],
+      "examples": [
+        "manual"
+      ]
+    },
+    "ShareUpdateLevel": {
+      "enum": [
+        "info",
+        "warn",
+        "block"
+      ],
+      "examples": [
+        "warn"
+      ]
+    },
+    "Coverage": {
+      "type": "object",
+      "required": [
+        "drive_rev",
+        "covered_rev",
+        "in_scope",
+        "processed"
+      ],
+      "properties": {
+        "drive_rev": {
+          "type": "integer"
+        },
+        "covered_rev": {
+          "type": "integer"
+        },
+        "in_scope": {
+          "type": "integer"
+        },
+        "processed": {
+          "type": "integer"
+        },
+        "pending": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "state"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/$defs/FileState"
+              }
+            }
+          }
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "state_code"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "state_code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "drive_rev": 0,
+          "covered_rev": 0,
+          "in_scope": 0,
+          "processed": 0
+        }
+      ]
+    },
+    "Guarantees": {
+      "type": "object",
+      "description": "00 §5.6.1 five promises",
+      "properties": {
+        "pack_consistent": {
+          "type": "boolean"
+        },
+        "freshness_floor": {
+          "type": "boolean"
+        },
+        "change_delivery": {
+          "type": "boolean"
+        },
+        "group_same_version": {
+          "type": "boolean"
+        },
+        "constraint_free": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "pack_consistent": true,
+          "freshness_floor": true,
+          "change_delivery": true,
+          "group_same_version": true,
+          "constraint_free": true
+        }
+      ]
+    },
+    "ShareUpdate": {
+      "type": "object",
+      "required": [
+        "share_id",
+        "seq",
+        "from_version",
+        "to_version",
+        "level",
+        "created_at"
+      ],
+      "properties": {
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "from_version": {
+          "type": "integer"
+        },
+        "to_version": {
+          "type": "integer"
+        },
+        "level": {
+          "$ref": "#/$defs/ShareUpdateLevel"
+        },
+        "section": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fact_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary_key": {
+          "type": "string"
+        },
+        "summary_args": {
+          "type": "object"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "examples": [
+        {
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "seq": 1,
+          "from_version": 0,
+          "to_version": 0,
+          "level": "warn",
+          "created_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "ContextCheckResult": {
+      "type": "object",
+      "required": [
+        "exit_code",
+        "level",
+        "items"
+      ],
+      "description": "G19; exit codes 00 §5.6.3",
+      "properties": {
+        "exit_code": {
+          "enum": [
+            0,
+            10,
+            20,
+            30,
+            40
+          ]
+        },
+        "level": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ShareUpdateLevel"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ShareUpdate"
+          }
+        },
+        "refreshed_to": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "action": {
+          "enum": [
+            "continue",
+            "refresh_recommended",
+            "stop",
+            "stop_share_ended"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "exit_code": 0,
+          "level": null,
+          "items": [],
+          "action": "continue"
+        }
+      ]
+    },
+    "Constraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "core"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "core": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "violations": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "x",
+          "core": false
+        }
+      ]
+    },
+    "FactCorrectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "enum": [
+            "mark_wrong",
+            "set_value"
+          ]
+        },
+        "value": {},
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "examples": [
+        {
+          "action": "mark_wrong",
+          "reason": "wrong owner"
+        }
+      ]
+    },
+    "EntityMergeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "into",
+        "from"
+      ],
+      "properties": {
+        "into": {
+          "type": "string"
+        },
+        "from": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "into": "person:abc",
+          "from": [
+            "person:def"
+          ]
+        }
+      ]
+    },
+    "EntitySplitRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "groups"
+      ],
+      "properties": {
+        "groups": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "facts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "groups": [
+            {},
+            {}
+          ]
+        }
+      ]
+    },
+    "OntologyVersion": {
+      "type": "object",
+      "required": [
+        "n",
+        "as_of",
+        "published_at"
+      ],
+      "properties": {
+        "n": {
+          "type": "integer"
+        },
+        "as_of": {
+          "$ref": "#/$defs/Time"
+        },
+        "facts_added": {
+          "type": "integer"
+        },
+        "facts_retracted": {
+          "type": "integer"
+        },
+        "gates": {
+          "type": "object"
+        },
+        "published_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "covers_drive_rev": {
+          "type": "integer"
+        },
+        "pinned_by": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "n": 0,
+          "as_of": "2026-11-17T00:00:00Z",
+          "published_at": "2026-11-17T00:00:00Z"
+        }
+      ]
+    },
+    "StaleVsPack": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "G22",
+      "properties": {
+        "pack_version": {
+          "type": "integer"
+        },
+        "latest_version": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {}
+      ]
+    },
+    "BatchResult": {
+      "type": "object",
+      "required": [
+        "results"
+      ],
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "ok",
+                  "conflict",
+                  "not_found",
+                  "invalid",
+                  "not_retryable"
+                ]
+              },
+              "code": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "results": [
+            {
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "status": "ok"
+            }
+          ]
+        }
+      ]
+    },
+    "RebuildRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirm"
+      ],
+      "properties": {
+        "confirm": {
+          "type": "string",
+          "description": "The id of the drive to rebuild. A full rebuild is manual and needs this confirmation (10 4.2, D23)."
+        }
+      },
+      "examples": [
+        {
+          "confirm": "0f8fad5b-d9cb-469f-a165-70867728950e"
+        }
+      ]
+    },
+    "RebuildInfo": {
+      "type": "object",
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "queued"
+          ]
+        },
+        "files": {
+          "type": "integer",
+          "description": "Files marked outdated; they are reprocessed at priority 900, one at a time, each new extraction judged by DOC-G10."
+        },
+        "priority": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "status": "queued",
+          "files": 42,
+          "priority": 900
+        }
+      ]
+    },
+    "SuggestionRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "subject",
+        "predicate",
+        "rationale"
+      ],
+      "description": "oo.suggest/v1 (10 11.1). object and value: exactly one for the fact kinds. share_id only with the engine token (the collector); a share credential implies it.",
+      "properties": {
+        "protocol": {
+          "const": "oo.suggest/v1"
+        },
+        "kind": {
+          "enum": [
+            "new_fact",
+            "supersede",
+            "correction",
+            "preference",
+            "type_change"
+          ]
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "predicate": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "object": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "valid_from": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "supersedes": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "a [src:...] tag of the BRIEF or a fact_key"
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "brief_line",
+                  "ref",
+                  "external"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "maxLength": 1024
+              }
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.suggest/v1",
+          "kind": "new_fact",
+          "subject": "星火计划",
+          "predicate": "attr.status",
+          "value": "进行中",
+          "rationale": "周会确认",
+          "evidence": [
+            {
+              "kind": "brief_line",
+              "ref": "[src:Projects/a/周会.md#L3-L3]"
+            }
+          ]
+        }
+      ]
+    },
+    "SuggestRequest": {
+      "type": "object",
+      "description": "One record, or items (at most 50 records), or documents (at most 200 files read from suggest/: name, format md|json, text). Idempotent per share on idempotency_key or the content hash; no Idempotency-Key header. The single-record form carries the SuggestionRecord fields at the top level; the request is closed like every request object.",
+      "properties": {
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/SuggestionRecord"
+          }
+        },
+        "documents": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "format",
+              "text"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "format": {
+                "enum": [
+                  "md",
+                  "json"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 65536
+              }
+            }
+          }
+        },
+        "protocol": {
+          "const": "oo.suggest/v1"
+        },
+        "kind": {
+          "enum": [
+            "new_fact",
+            "supersede",
+            "correction",
+            "preference",
+            "type_change"
+          ]
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "predicate": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "object": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "valid_from": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "supersedes": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "a [src:...] tag of the BRIEF or a fact_key"
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "evidence": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "brief_line",
+                  "ref",
+                  "external"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "maxLength": 1024
+              }
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "items": [
+            {
+              "kind": "new_fact",
+              "subject": "星火计划",
+              "predicate": "attr.status",
+              "value": "进行中",
+              "rationale": "周会确认"
+            }
+          ]
+        }
+      ]
+    },
+    "Suggestion": {
+      "type": "object",
+      "required": [
+        "id",
+        "share_id",
+        "kind",
+        "status",
+        "rule",
+        "revision",
+        "payload"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "drive_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "enum": [
+            "new_fact",
+            "supersede",
+            "correction",
+            "preference",
+            "type_change"
+          ]
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "auto_accepted",
+            "superseded_silently",
+            "accepted",
+            "rejected",
+            "undone",
+            "duplicate"
+          ]
+        },
+        "rule": {
+          "enum": [
+            "new_fact",
+            "supersede_unused",
+            "supersede_in_use",
+            "manual"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "review_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fact_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "old_fact_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "credential_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "submitted_by": {
+          "enum": [
+            "credential",
+            "collector"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "payload": {
+          "$ref": "#/$defs/SuggestionRecord"
+        },
+        "impact": {
+          "type": "object",
+          "properties": {
+            "shares": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "share_id": {
+                    "$ref": "#/$defs/Uuid"
+                  },
+                  "task": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "group_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "sections": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "version": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "replayed": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "decided_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decided_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "new_fact",
+          "status": "pending",
+          "rule": "new_fact",
+          "revision": 0,
+          "payload": {
+            "protocol": "oo.suggest/v1",
+            "kind": "new_fact",
+            "subject": "星火计划",
+            "predicate": "attr.status",
+            "value": "进行中",
+            "rationale": "周会确认",
+            "evidence": [
+              {
+                "kind": "brief_line",
+                "ref": "[src:Projects/a/周会.md#L3-L3]"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "SuggestResult": {
+      "type": "object",
+      "required": [
+        "share_id",
+        "accepted",
+        "rejected",
+        "results"
+      ],
+      "properties": {
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "accepted": {
+          "type": "integer"
+        },
+        "rejected": {
+          "type": "integer"
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "A Suggestion, or {status: invalid, error, document?, code?} for a record or document that was refused."
+          }
+        }
+      },
+      "examples": [
+        {
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "accepted": 0,
+          "rejected": 0,
+          "results": []
+        }
+      ]
+    },
+    "SuggestionDecideRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision"
+      ],
+      "properties": {
+        "decision": {
+          "enum": [
+            "accept",
+            "reject",
+            "undo"
+          ]
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "examples": [
+        {
+          "decision": "accept"
+        }
+      ]
+    },
+    "SuggestionDigest": {
+      "type": "object",
+      "required": [
+        "day",
+        "counts",
+        "total",
+        "in_effect",
+        "pending"
+      ],
+      "properties": {
+        "day": {
+          "type": "string"
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "total": {
+          "type": "integer"
+        },
+        "in_effect": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Suggestion"
+          }
+        },
+        "pending": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Suggestion"
+          }
+        },
+        "human_operations": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "day": "x",
+          "counts": {},
+          "total": 0,
+          "in_effect": [],
+          "pending": []
+        }
+      ]
+    },
+    "SuggestionDiff": {
+      "type": "object",
+      "required": [
+        "suggestion_id",
+        "share_id",
+        "kind",
+        "writable",
+        "writer",
+        "changes",
+        "ontology_effect"
+      ],
+      "description": "A draft for Desktop's revision mode; OO never writes the Drive. writable is true for an editor share; the write is Desktop's.",
+      "properties": {
+        "suggestion_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "share_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "viewer",
+            "suggester",
+            "editor"
+          ]
+        },
+        "writable": {
+          "type": "boolean"
+        },
+        "writer": {
+          "const": "desktop"
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "file_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "path": {
+                "type": "string"
+              },
+              "anchor": {
+                "type": "object"
+              },
+              "frag": {
+                "type": "string"
+              },
+              "block_id": {
+                "type": "string"
+              },
+              "source_b3": {
+                "type": "string"
+              },
+              "operation": {
+                "enum": [
+                  "replace",
+                  "insert_after",
+                  "annotate"
+                ]
+              },
+              "after": {
+                "type": "string"
+              },
+              "before_ref": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "ontology_effect": {
+          "type": "object"
+        },
+        "impact": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "suggestion_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "share_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "kind": "x",
+          "writable": false,
+          "writer": "desktop",
+          "changes": [],
+          "ontology_effect": {}
+        }
+      ]
+    },
+    "DrivePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Drive access policy (10 11.3): whole-segment path prefixes. Empty allow means the whole Drive; deny always wins. Applied in ingest and in the visible graph.",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "deny": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      },
+      "examples": [
+        {
+          "allow": [
+            "Projects"
+          ],
+          "deny": [
+            "Projects/Payroll"
+          ]
+        }
+      ]
+    },
+    "DriveConfigCloud": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bucket",
+        "secret_ref"
+      ],
+      "description": "Drives of backend s3, r2, oss and cos (S3 compatible), credentials as one secret_ref that resolves to the JSON {access_key_id, secret_access_key, session_token?} (oo source add writes this file). DriveConfigS3 is the alternative with two references; the two shapes cannot be mixed. region is required for oss and cos unless endpoint is given; account_id for r2 (32 hex); internal selects the in-cloud endpoint of oss and cos. Keys are never inline.",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "prefix": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "endpoint": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "path_style": {
+          "type": "boolean"
+        },
+        "account_id": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "internal": {
+          "type": "boolean"
+        },
+        "secret_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "exclude": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        },
+        "policy": {
+          "$ref": "#/$defs/DrivePolicy"
+        }
+      },
+      "examples": [
+        {
+          "bucket": "team-drive",
+          "region": "cn-hangzhou",
+          "secret_ref": "file:/home/example/.config/oo/oss.json"
+        }
+      ]
+    },
+    "EventsRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "messages"
+      ],
+      "properties": {
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "description": "Bucket event notification bodies as the cloud's queue delivered them (S3 Records, R2 Queues message, OSS MNS or EventBridge, or the neutral {hints:[...]} form), objects or JSON text.",
+          "items": {}
+        }
+      },
+      "examples": [
+        {
+          "messages": [
+            {
+              "hints": [
+                {
+                  "key": "Notes/a.md",
+                  "op": "put",
+                  "sequencer": "0A",
+                  "at_ms": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "EventsResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "received",
+        "fresh",
+        "duplicates",
+        "stale",
+        "rejected",
+        "denied_by_policy",
+        "looked_at",
+        "added",
+        "changed",
+        "maybe_deleted"
+      ],
+      "properties": {
+        "received": {
+          "type": "integer"
+        },
+        "fresh": {
+          "type": "integer"
+        },
+        "duplicates": {
+          "type": "integer"
+        },
+        "stale": {
+          "type": "integer"
+        },
+        "rejected": {
+          "type": "integer"
+        },
+        "denied_by_policy": {
+          "type": "integer"
+        },
+        "looked_at": {
+          "type": "integer"
+        },
+        "added": {
+          "type": "integer"
+        },
+        "changed": {
+          "type": "integer"
+        },
+        "maybe_deleted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "received": 1,
+          "fresh": 1,
+          "duplicates": 0,
+          "stale": 0,
+          "rejected": 0,
+          "denied_by_policy": 0,
+          "looked_at": 1,
+          "added": 1,
+          "changed": 0,
+          "maybe_deleted": []
+        }
+      ]
+    },
+    "CloudTokenRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant",
+        "drive_ids"
+      ],
+      "properties": {
+        "tenant": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "drive_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "expires_in_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 2592000
+        }
+      },
+      "examples": [
+        {
+          "tenant": "acme",
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ]
+        }
+      ]
+    },
+    "CloudToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "token",
+        "tenant",
+        "drive_ids",
+        "expires_in_seconds"
+      ],
+      "description": "The oodc_ token is shown once. Valid on the cloud entry only.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string",
+          "pattern": "^oodc_"
+        },
+        "tenant": {
+          "type": "string"
+        },
+        "drive_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expires_in_seconds": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "token": "oodc_example",
+          "tenant": "acme",
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "expires_in_seconds": 604800
+        }
+      ]
+    },
+    "AuditShares": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seq",
+              "at",
+              "actor",
+              "share_id",
+              "scope",
+              "refs_reads"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer"
+              },
+              "at": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string",
+                "description": "local, cloud:<token id>"
+              },
+              "tenant": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "drive_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "share_id": {
+                "type": "string"
+              },
+              "agent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "grantor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "role": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "scope": {},
+              "revoked_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "refs_reads": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": []
+        }
+      ]
+    },
+    "AuditVerify": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intact"
+      ],
+      "properties": {
+        "intact": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "integer"
+        },
+        "broken_at_seq": {
+          "type": "integer"
+        }
+      },
+      "examples": [
+        {
+          "intact": true,
+          "rows": 3
+        }
+      ]
+    },
+    "AgentTokenRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "scopes"
+      ],
+      "description": "Issue an Agent token (`ooa_`). `docs:*` scopes need `drive_ids` or `all_drives`; `db:read` needs `gw_profile` (the NAME of a Gateway profile the CLI proxy reads the database ontology with; never a credential) and `gw_profile` needs `db:read`. `docs:suggest` and `docs:write` need `docs:read`. One live token per name.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "expires_in_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 2592000
+        }
+      },
+      "examples": [
+        {
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read",
+            "db:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "gw_profile": "sales",
+          "expires_in_seconds": 86400
+        }
+      ]
+    },
+    "AgentToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "token",
+        "name",
+        "scopes",
+        "drive_ids",
+        "all_drives",
+        "expires_in_seconds",
+        "expires_at"
+      ],
+      "description": "The `ooa_` token is shown once and only its hash is stored. Valid on the local entry only (the loopback API), checked on every route.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string",
+          "pattern": "^ooa_"
+        },
+        "name": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_in_seconds": {
+          "type": "integer"
+        },
+        "expires_at": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "token": "ooa_example",
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read",
+            "db:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "all_drives": false,
+          "gw_profile": "sales",
+          "expires_in_seconds": 86400,
+          "expires_at": "2026-11-18T00:00:00Z"
+        }
+      ]
+    },
+    "AgentTokenInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "scopes",
+        "expires_at"
+      ],
+      "description": "An Agent token as the list and `GET /agent-tokens/self` show it: never the token, never a hash. `drives` is only in the answer of `self`.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "revoked_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_used_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "use_count": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "live",
+            "revoked",
+            "expired"
+          ]
+        },
+        "drives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "backend",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "backend": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "all_drives": false,
+          "gw_profile": null,
+          "label": null,
+          "created_at": "2026-11-18T00:00:00Z",
+          "expires_at": "2026-11-18T00:00:00Z",
+          "revoked_at": null,
+          "last_used_at": null,
+          "use_count": 0,
+          "state": "live"
+        }
+      ]
+    },
+    "AgentTokenList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AgentTokenInfo"
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": []
+        }
+      ]
+    },
+    "AgentIntrospectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "token"
+      ],
+      "properties": {
+        "token": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "examples": [
+        {
+          "token": "ooa_example"
+        }
+      ]
+    },
+    "AgentIntrospect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active"
+      ],
+      "description": "Answer of `POST /agent-tokens:introspect` (control token only): always 200; `active: false` carries a `reason`. Not a use of the token.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "docs:read",
+              "docs:suggest",
+              "docs:write",
+              "db:read"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "drive_ids": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "all_drives": {
+          "type": "boolean"
+        },
+        "gw_profile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "revoked_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_used_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "use_count": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "live",
+            "revoked",
+            "expired"
+          ]
+        },
+        "drives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "backend",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "backend": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "unknown",
+            "revoked",
+            "expired"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "active": true,
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "name": "sales-bot",
+          "scopes": [
+            "docs:read"
+          ],
+          "drive_ids": [
+            "00000000-0000-4000-8000-0000000000d1"
+          ],
+          "all_drives": false,
+          "gw_profile": null,
+          "expires_at": "2026-11-18T00:00:00Z"
+        },
+        {
+          "active": false,
+          "reason": "revoked"
+        }
+      ]
+    },
+    "AuditAgents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "description": "Calls, refusals, issues and revocations of Agent tokens, newest first. A call is a route template (values are `{id}`), never a path value or text.",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seq",
+              "at",
+              "action",
+              "actor"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer"
+              },
+              "at": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "agent_token.issued",
+                  "agent_token.revoked",
+                  "agent.read",
+                  "agent.denied"
+                ]
+              },
+              "actor": {
+                "type": "string"
+              },
+              "agent": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "drive_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "detail": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": [
+            {
+              "seq": 7,
+              "at": "2026-11-18T00:00:00Z",
+              "action": "agent.read",
+              "actor": "agent:sales-bot",
+              "agent": "sales-bot",
+              "drive_id": "00000000-0000-4000-8000-0000000000d1",
+              "detail": {
+                "route": "GET /v1/docs/entities/{id}",
+                "token_id": "00000000-0000-4000-8000-0000000000e1",
+                "reason": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "LinkItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "doc_entity_key",
+        "db_table",
+        "db_key",
+        "status",
+        "provenance"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "doc_entity_key": {
+          "type": "string"
+        },
+        "doc_entity_type": {
+          "type": "string"
+        },
+        "canonical_name": {
+          "type": "string"
+        },
+        "db_table": {
+          "type": "string"
+        },
+        "db_key": {
+          "type": "string"
+        },
+        "matched_via": {
+          "type": "string",
+          "enum": [
+            "name",
+            "alias"
+          ]
+        },
+        "matched_column": {
+          "type": "string"
+        },
+        "matched_text": {
+          "type": "string"
+        },
+        "confidence_bp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "confirmed",
+            "rejected"
+          ]
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "table_row"
+          ],
+          "description": "Where a link comes from: the file anchors of the document entity (page and box, sheet and cell, heading and line; `anchor` is the document IR anchor) and the table row it is linked to with the rule that matched.",
+          "properties": {
+            "file": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "file_version",
+                  "block_id",
+                  "anchor"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "file_version": {
+                    "type": "string"
+                  },
+                  "block_id": {
+                    "type": "string"
+                  },
+                  "anchor": {
+                    "type": "object"
+                  }
+                }
+              }
+            },
+            "table_row": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "table",
+                "key"
+              ],
+              "properties": {
+                "table": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "matched_column": {
+                  "type": "string"
+                },
+                "rule_revision": {
+                  "type": "integer"
+                },
+                "ontology_version": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "doc_entity_key": "organization:0123456789abcdef01234567",
+          "doc_entity_type": "Organization",
+          "canonical_name": "Acme Ltd",
+          "db_table": "sales.customers",
+          "db_key": "17",
+          "matched_via": "name",
+          "matched_column": "name",
+          "matched_text": "Acme Ltd",
+          "confidence_bp": 9000,
+          "status": "auto",
+          "provenance": {
+            "file": [
+              {
+                "path": "Contracts/acme.md",
+                "file_version": "00000000-0000-4000-8000-0000000000e1",
+                "block_id": "b1",
+                "anchor": {
+                  "kind": "text",
+                  "line_start": 1,
+                  "line_end": 3,
+                  "char_start": 0,
+                  "char_end": 40
+                }
+              }
+            ],
+            "table_row": {
+              "table": "sales.customers",
+              "key": "17",
+              "matched_column": "name",
+              "rule_revision": 1,
+              "ontology_version": 3
+            }
+          }
+        }
+      ]
+    },
+    "LinkList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "agent_db"
+      ],
+      "description": "`agent_db` is `unbound` when no Agent DB is configured (documents only: an empty list is the normal answer) and `bound` otherwise. An Agent token only sees the links of its Drives.",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkItem"
+          }
+        },
+        "agent_db": {
+          "type": "string",
+          "enum": [
+            "unbound",
+            "bound"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "items": [],
+          "agent_db": "unbound"
+        }
+      ]
+    },
+    "LinkDecideRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "doc_entity_key",
+        "db_table",
+        "db_key",
+        "status"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "doc_entity_key": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "db_table": {
+          "type": "string",
+          "maxLength": 130
+        },
+        "db_key": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "rejected"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "doc_entity_key": "organization:0123456789abcdef01234567",
+          "db_table": "sales.customers",
+          "db_key": "17",
+          "status": "confirmed"
+        }
+      ]
+    },
+    "LinkDecideResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "doc_entity_key",
+        "db_table",
+        "db_key",
+        "status"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "doc_entity_key": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "db_table": {
+          "type": "string",
+          "maxLength": 130
+        },
+        "db_key": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "rejected"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "doc_entity_key": "organization:0123456789abcdef01234567",
+          "db_table": "sales.customers",
+          "db_key": "17",
+          "status": "confirmed"
+        }
+      ]
+    },
+    "ProjectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "force": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "force": true
+        }
+      ]
+    },
+    "ProjectRuns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runs"
+      ],
+      "description": "What the projection did per Drive: `skipped` (`no_agent_db`, `unchanged`, `no_ontology`, `drive_inactive`) or `projection` (entities inserted, rewritten because their digest changed, removed) and `links` (created, updated, removed).",
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "runs": [
+            {
+              "drive_id": "00000000-0000-4000-8000-0000000000d1",
+              "skipped": "no_agent_db",
+              "projection": null,
+              "links": null
+            }
+          ]
+        }
+      ]
+    },
+    "LinkRuleRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "db_table",
+        "key_col",
+        "name_col"
+      ],
+      "description": "Match `name_col` (and `alias_cols`) of `db_table` against document entities of `entity_type` (empty: any). One rule per (Drive, table); a changed rule moves its `revision`. Plain identifiers only; `_oo*`, `pg_catalog` and `information_schema` are refused.",
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "db_table": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,62}$"
+        },
+        "key_col": {
+          "type": "string"
+        },
+        "name_col": {
+          "type": "string"
+        },
+        "alias_cols": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string"
+          }
+        },
+        "entity_type": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "db_table": "sales.customers",
+          "key_col": "id",
+          "name_col": "name",
+          "entity_type": "Organization"
+        }
+      ]
+    },
+    "LinkRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "db_table",
+        "key_col",
+        "name_col",
+        "revision"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "db_table": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,62}\\.[A-Za-z_][A-Za-z0-9_]{0,62}$"
+        },
+        "key_col": {
+          "type": "string"
+        },
+        "name_col": {
+          "type": "string"
+        },
+        "alias_cols": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string"
+          }
+        },
+        "entity_type": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "db_table": "sales.customers",
+          "key_col": "id",
+          "name_col": "name",
+          "alias_cols": [],
+          "entity_type": "Organization",
+          "revision": 1
+        }
+      ]
+    },
+    "LinkRuleList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LinkRule"
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": []
+        }
+      ]
+    },
+    "AgentDbBindingRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secret_ref"
+      ],
+      "description": "A secret reference (`env:NAME`, `file:/absolute/path` or a name in the secrets directory) whose content is the connection URL of the Agent DB login. A URL is never accepted. The reference must resolve and the login must connect.",
+      "properties": {
+        "secret_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      },
+      "examples": [
+        {
+          "secret_ref": "agentdb"
+        }
+      ]
+    },
+    "AgentDbBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bound"
+      ],
+      "properties": {
+        "bound": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "environment",
+            "binding"
+          ]
+        },
+        "secret_ref": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "unchecked",
+            "ok",
+            "failed"
+          ]
+        },
+        "last_error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "bound": true,
+          "source": "binding",
+          "secret_ref": "agentdb",
+          "status": "ok",
+          "last_error_code": null,
+          "updated_at": "2026-11-18 00:00:00+00"
+        },
+        {
+          "bound": false
+        }
+      ]
+    },
+    "LinkRuleDeleted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drive_id",
+        "db_table",
+        "deleted"
+      ],
+      "properties": {
+        "drive_id": {
+          "type": "string"
+        },
+        "db_table": {
+          "type": "string"
+        },
+        "deleted": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "drive_id": "00000000-0000-4000-8000-0000000000d1",
+          "db_table": "sales.customers",
+          "deleted": true
+        }
+      ]
+    },
+    "AgentTokenRevoked": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revoked"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revoked": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000e1",
+          "revoked": true
+        }
+      ]
+    },
+    "OntologyProvenance": {
+      "type": "object",
+      "description": "A file anchor (`kind` file: drive_id, path, file_version, block_id, anchor) or a table row (`kind` table_row: source, table, pk, key_column, publication_id, data_vector_sha256) or a Gateway query (`kind` gateway_query).",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "file",
+            "table_row",
+            "gateway_query"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "kind": "file",
+          "drive_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+          "path": "notes/acme.md",
+          "file_version": "v1",
+          "block_id": "b1",
+          "anchor": {
+            "heading": "Acme"
+          }
+        }
+      ]
+    },
+    "SearchHit": {
+      "type": "object",
+      "description": "One hit of `GET /v1/docs/search` (1.9). `kind` `fact`: a published fact whose subject name, predicate words, value text or object name matches; `kind` `block`: a block of a live file version. `score` is `ts_rank_cd(..., 32)` in [0, 1). Every hit has at least one `evidence` object (the file anchor).",
+      "required": [
+        "kind",
+        "id",
+        "text",
+        "score",
+        "evidence"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "fact",
+            "block"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "description": "The fact id, or `<file_id>#<block_id>` for a block."
+        },
+        "text": {
+          "type": "string",
+          "description": "Fact: the value text or the object name. Block: the block text, flattened and cut at 240 characters."
+        },
+        "score": {
+          "type": "number"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "description": "Where a hit comes from: the file, its version, the block and the anchor inside it.",
+            "required": [
+              "file_id",
+              "drive_id",
+              "version_id",
+              "path",
+              "block_id",
+              "anchor"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "drive_id": {
+                "type": "string"
+              },
+              "version_id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "block_id": {
+                "type": "string"
+              },
+              "anchor": {
+                "type": "object"
+              },
+              "src": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "fact_key": {
+          "type": "string"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            }
+          }
+        },
+        "hpath": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "block_kind": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "kind": "fact",
+          "id": "f-0193",
+          "text": "Acme Ltd",
+          "score": 0.42,
+          "evidence": [
+            {
+              "file_id": "fl-12",
+              "drive_id": "dr-1",
+              "version_id": "v-3",
+              "path": "Projects/alpha.md",
+              "block_id": "b-7",
+              "anchor": {
+                "kind": "text",
+                "start": 10,
+                "end": 18
+              },
+              "src": "[src:Projects/alpha.md#b-7]"
+            }
+          ],
+          "fact_key": "fk-88",
+          "predicate": "customer_of",
+          "subject": {
+            "key": "e-4",
+            "name": "Alpha",
+            "type": "Project"
+          }
+        },
+        {
+          "kind": "block",
+          "id": "fl-12#b-9",
+          "text": "Kickoff with Acme on 3 March",
+          "score": 0.31,
+          "evidence": [
+            {
+              "file_id": "fl-12",
+              "drive_id": "dr-1",
+              "version_id": "v-3",
+              "path": "Projects/alpha.md",
+              "block_id": "b-9",
+              "anchor": {
+                "kind": "text",
+                "start": 0,
+                "end": 28
+              }
+            }
+          ],
+          "hpath": [
+            "Alpha",
+            "Timeline"
+          ],
+          "block_kind": "paragraph"
+        }
+      ]
+    },
+    "SearchResult": {
+      "type": "object",
+      "description": "Answer of `GET /v1/docs/search?q&drive_id&limit` (1.9): full text search (PostgreSQL `simple` configuration; a CJK character is one token, a Chinese phrase is a phrase match; words are prefixes; all terms must match) over facts and blocks. Order: `score` descending, then fact before block, then id. `truncated` is true when `limit` or a scan bound (300 files, 20000 blocks per file) cut the result. An `ooa_` token needs `docs:read` and a `drive_id` of its set (or all Drives).",
+      "required": [
+        "items",
+        "as_of_seq",
+        "truncated"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        },
+        "as_of_seq": {
+          "type": "integer"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "examples": [
+        {
+          "items": [
+            {
+              "kind": "block",
+              "id": "0f8fad5b-d9cb-469f-a165-70867728950e#blk_0123456789abcdef0123",
+              "text": "The contract renews every March.",
+              "score": 0.0909,
+              "evidence": [
+                {
+                  "file_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+                  "drive_id": "adcec46c-ab67-4c93-8f5b-000000000001",
+                  "version_id": "0f8fad5b-d9cb-469f-a165-70867728950f",
+                  "path": "Customers/acme.md",
+                  "block_id": "blk_0123456789abcdef0123",
+                  "anchor": {
+                    "kind": "text",
+                    "line_start": 11,
+                    "line_end": 11,
+                    "char_start": 107,
+                    "char_end": 139
+                  }
+                }
+              ]
+            }
+          ],
+          "as_of_seq": 42,
+          "truncated": false
+        }
+      ]
+    },
+    "OntologySearchResult": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/search` (CLI proxy surface, 1.7): one merged result set over documents (engine) and databases (Gateway). Every item has a stable URN and a provenance; `sides` says which side answered.",
+      "required": [
+        "protocol",
+        "items",
+        "sides"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.search/v1"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "urn",
+              "side",
+              "name",
+              "score",
+              "provenance"
+            ],
+            "properties": {
+              "urn": {
+                "type": "string"
+              },
+              "side": {
+                "type": "string",
+                "enum": [
+                  "doc",
+                  "db"
+                ]
+              },
+              "type": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "provenance": {
+                "$ref": "#/$defs/OntologyProvenance"
+              },
+              "links": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "entity",
+                  "fact",
+                  "block"
+                ],
+                "description": "1.9: what matched. Absent means `entity` (a name or alias, 1.7)."
+              },
+              "text": {
+                "type": "string",
+                "description": "1.9: the matched fact value or block text."
+              },
+              "fact_key": {
+                "type": "string"
+              },
+              "predicate": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sides": {
+          "type": "object"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.search/v1",
+          "items": [],
+          "sides": {
+            "docs": {
+              "status": "ok",
+              "count": 0
+            },
+            "db": {
+              "status": "skipped",
+              "count": 0
+            }
+          },
+          "warnings": []
+        }
+      ]
+    },
+    "OntologyEntity": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/entities/{urn}` (1.7): the entity with facts (each cited) or the table row, and its links to the other side (a linked row or document carries its own provenance).",
+      "required": [
+        "protocol",
+        "urn",
+        "side"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.entity/v1"
+        },
+        "urn": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string",
+          "enum": [
+            "doc",
+            "db"
+          ]
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "row": {
+          "type": "object"
+        },
+        "provenance": {
+          "$ref": "#/$defs/OntologyProvenance"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.entity/v1",
+          "urn": "oo:doc/0f8fad5b-d9cb-469f-a165-70867728950e/org:acme",
+          "side": "doc",
+          "facts": [],
+          "links": []
+        }
+      ]
+    },
+    "OntologySources": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/sources` (1.7): the Drives and the database the token reaches.",
+      "required": [
+        "protocol",
+        "items"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.sources/v1"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.sources/v1",
+          "items": []
+        }
+      ]
+    },
+    "OntologyQueryRequest": {
+      "type": "object",
+      "description": "Body of `POST /v1/ontology/query` (1.7): one read-only SELECT. Anything else is 403 `ONTOLOGY_READ_ONLY`.",
+      "required": [
+        "sql"
+      ],
+      "properties": {
+        "sql": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384
+        },
+        "max_rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000
+        }
+      },
+      "examples": [
+        {
+          "sql": "SELECT 1"
+        }
+      ],
+      "additionalProperties": false
+    },
+    "OntologyQueryResult": {
+      "type": "object",
+      "description": "Answer of `POST /v1/ontology/query` (1.7), read through the Gateway profile of the token (`db:read`).",
+      "required": [
+        "protocol",
+        "columns",
+        "rows",
+        "provenance"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.query/v1"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "array"
+          }
+        },
+        "row_count": {
+          "type": "integer"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "provenance": {
+          "$ref": "#/$defs/OntologyProvenance"
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.query/v1",
+          "columns": [
+            "n"
+          ],
+          "rows": [
+            [
+              "1"
+            ]
+          ],
+          "row_count": 1,
+          "truncated": false,
+          "provenance": {
+            "kind": "gateway_query"
+          }
+        }
+      ]
+    },
+    "OntologySchema": {
+      "type": "object",
+      "description": "Answer of `GET /v1/ontology/schema` (1.12, CLI proxy surface; `oo ontology schema`): the database side of the unified ontology, read-only and scoped by the token (`db:read` and its Gateway profile; without them 403 `ONTOLOGY_SCOPE_DENIED`). `tables` and their `columns` come from the Gateway (`/v1/tables`, `/v1/tables/{table}`) with the token's profile; `relationships` are the edges of the role pack's published relationship graph (declared foreign keys and reviewed relations); `doc_links` are the links between document entities and rows of the listed tables (needs `docs:read`; `sides.docs.status` is `skipped` otherwise). Paging: tables are sorted by qualified name and `limit` (1..=100, default 50) takes a window; `next_cursor` (opaque, null on the last page) continues it. A relationship and a link are returned once, in the page of the table it starts from (`from.table`, `db_table`). URNs: table `oo:db/<profile>/<schema.table>` (the prefix of its row URNs), column `<table urn>#<column>`, relationship `oo:db/<profile>/relationship/<id>`; a row URN is the one `oo ontology search|entity` returns.",
+      "required": [
+        "protocol",
+        "source",
+        "tables",
+        "relationships",
+        "doc_links",
+        "total_tables",
+        "next_cursor",
+        "sides",
+        "provenance"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.ontology.schema/v1"
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "kind",
+            "profile"
+          ],
+          "properties": {
+            "kind": {
+              "const": "database"
+            },
+            "profile": {
+              "type": "string"
+            }
+          }
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "urn",
+              "qualified_name",
+              "schema",
+              "name",
+              "column_count",
+              "columns",
+              "columns_status"
+            ],
+            "properties": {
+              "urn": {
+                "type": "string"
+              },
+              "qualified_name": {
+                "type": "string"
+              },
+              "schema": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "column_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "columns_status": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "error"
+                ],
+                "description": "`error` when the Gateway could not describe this table; `columns` is then empty and `warnings` says why."
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "urn",
+                    "name",
+                    "position"
+                  ],
+                  "properties": {
+                    "urn": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type_oid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "urn",
+              "id",
+              "from",
+              "to"
+            ],
+            "properties": {
+              "urn": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "from": {
+                "type": "object",
+                "required": [
+                  "table",
+                  "urn"
+                ],
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "urn": {
+                    "type": "string"
+                  },
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "column_urns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "to": {
+                "type": "object",
+                "required": [
+                  "table",
+                  "urn"
+                ],
+                "properties": {
+                  "table": {
+                    "type": "string"
+                  },
+                  "urn": {
+                    "type": "string"
+                  },
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "column_urns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "cardinality": {
+                "type": "string",
+                "enum": [
+                  "one_to_one",
+                  "one_to_many",
+                  "many_to_one",
+                  "many_to_many"
+                ]
+              },
+              "join_hint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "provenance": {
+                "type": "string",
+                "enum": [
+                  "declared_fk",
+                  "inferred",
+                  "view_definition",
+                  "query_log",
+                  "human"
+                ]
+              },
+              "confidence": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "doc_links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "table_urn",
+              "row_urn",
+              "target",
+              "db_table",
+              "db_key",
+              "status"
+            ],
+            "properties": {
+              "table_urn": {
+                "type": "string"
+              },
+              "row_urn": {
+                "type": "string"
+              },
+              "target": {
+                "type": "object",
+                "required": [
+                  "urn"
+                ],
+                "properties": {
+                  "urn": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                }
+              },
+              "db_table": {
+                "type": "string"
+              },
+              "db_key": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "confidence_bp": {
+                "type": "integer"
+              },
+              "matched_via": {
+                "type": "string"
+              },
+              "inferred": {
+                "type": "boolean"
+              },
+              "provenance": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "total_tables": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sides": {
+          "type": "object",
+          "required": [
+            "db",
+            "relationships",
+            "docs"
+          ],
+          "properties": {
+            "db": {
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "skipped",
+                    "error",
+                    "unavailable"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "relationships": {
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "skipped",
+                    "error",
+                    "unavailable"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "docs": {
+              "type": "object",
+              "required": [
+                "status",
+                "count"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "skipped",
+                    "error",
+                    "unavailable"
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "required": [
+            "kind",
+            "source"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gateway_schema"
+            },
+            "source": {
+              "type": "string"
+            },
+            "knowledge_version": {},
+            "policy_version": {},
+            "pack_digest": {},
+            "publication_id": {}
+          }
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.ontology.schema/v1",
+          "source": {
+            "kind": "database",
+            "profile": "salesgw"
+          },
+          "tables": [
+            {
+              "urn": "oo:db/salesgw/sales.orders",
+              "qualified_name": "sales.orders",
+              "schema": "sales",
+              "name": "orders",
+              "column_count": 1,
+              "columns_status": "ok",
+              "columns": [
+                {
+                  "urn": "oo:db/salesgw/sales.orders#id",
+                  "name": "id",
+                  "position": 1,
+                  "type": "int8",
+                  "type_oid": 20
+                }
+              ]
+            }
+          ],
+          "relationships": [],
+          "doc_links": [],
+          "total_tables": 1,
+          "next_cursor": null,
+          "sides": {
+            "db": {
+              "status": "ok",
+              "count": 1
+            },
+            "relationships": {
+              "status": "ok",
+              "count": 0
+            },
+            "docs": {
+              "status": "skipped",
+              "count": 0
+            }
+          },
+          "warnings": [],
+          "provenance": {
+            "kind": "gateway_schema",
+            "source": "salesgw"
+          }
+        }
+      ]
+    },
+    "EventPublishRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "data"
+      ],
+      "description": "Body of `POST /v1/docs/events:publish` (1.13, control token only): the CLI tells the app that a database source or the pipeline changed. `data` is a JSON object of at most 4 KiB with no credential keys and no `actor` key (the engine sets it); it is delivered unchanged as `Event.data`. The event has no Drive.",
+      "properties": {
+        "type": {
+          "enum": [
+            "db.source_changed",
+            "db.pipeline_changed"
+          ]
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "examples": [
+        {
+          "type": "db.source_changed",
+          "data": {
+            "name": "shop",
+            "action": "added",
+            "stack": "/Users/me/shop/stack.yaml"
+          }
+        },
+        {
+          "type": "db.pipeline_changed",
+          "data": {
+            "command": "up",
+            "ok": true,
+            "stack": "/Users/me/shop/stack.yaml"
+          }
+        }
+      ]
+    },
+    "EventPublishResult": {
+      "type": "object",
+      "required": [
+        "seq"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "examples": [
+        {
+          "seq": 42
+        }
+      ]
+    },
+    "ProfileOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "path",
+        "profile"
+      ],
+      "description": "A person's choice of the class of one file (`scope` file) or of a directory and everything below it (`dir`). A file's own choice wins over a directory's, the nearest directory over a farther one.",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "file",
+            "dir"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string",
+          "enum": [
+            "business",
+            "meeting",
+            "table",
+            "instruction",
+            "code",
+            "reference",
+            "media",
+            "other"
+          ]
+        },
+        "class": {
+          "type": "string",
+          "enum": [
+            "record",
+            "instruction",
+            "reference",
+            "code",
+            "media",
+            "other"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "scope": "dir",
+          "path": "notes/sop",
+          "profile": "instruction",
+          "class": "instruction"
+        }
+      ]
+    },
+    "ProfileOverrideList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProfileOverride"
+          }
+        }
+      },
+      "examples": [
+        {
+          "items": [
+            {
+              "scope": "file",
+              "path": "notes/plan.md",
+              "profile": "business",
+              "class": "record"
+            }
+          ]
+        }
+      ]
+    },
+    "ProfileOverridePut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "path",
+        "profile"
+      ],
+      "description": "Body of `PUT /v1/docs/drives/{id}/profile-overrides` (1.15): set the choice, or remove it with `profile: null`.",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "file",
+            "dir"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "profile": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "business",
+                "meeting",
+                "table",
+                "instruction",
+                "code",
+                "reference",
+                "media",
+                "other"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "examples": [
+        {
+          "scope": "dir",
+          "path": "notes/sop",
+          "profile": "instruction"
+        },
+        {
+          "scope": "file",
+          "path": "notes/plan.md",
+          "profile": null
+        }
+      ]
+    },
+    "ProfileOverrideResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected"
+      ],
+      "description": "How many files were reclassified and sent through extraction again.",
+      "properties": {
+        "affected": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "affected": 3
+        }
+      ]
+    },
+    "StructureProperty": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "slug",
+        "name",
+        "keys",
+        "source",
+        "value_type",
+        "multi",
+        "files_with",
+        "coverage",
+        "fill",
+        "required",
+        "examples",
+        "enum_values",
+        "relation",
+        "status"
+      ],
+      "description": "One property of a record class (1.16, D93): a field that recurs across the files of the class (a frontmatter key, a table header, a fixed section heading, a `key: value` line, a varying directory level), with the type its values decide. `slug` is stable (the `attr.<slug>` of the instance layer); renaming changes `name` only. A value that names an entity of another class makes the property a relation.",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z_]{1,40}$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "frontmatter",
+            "column",
+            "section",
+            "line",
+            "directory"
+          ]
+        },
+        "value_type": {
+          "type": "string",
+          "enum": [
+            "date",
+            "amount",
+            "number",
+            "percent",
+            "email",
+            "url",
+            "id",
+            "version",
+            "person",
+            "project",
+            "organization",
+            "enum",
+            "text",
+            "long_text"
+          ]
+        },
+        "multi": {
+          "type": "boolean"
+        },
+        "files_with": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "fill": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sample_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "enum_values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "relation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": true,
+              "required": [
+                "target",
+                "target_kind",
+                "resolved",
+                "predicate"
+              ],
+              "properties": {
+                "target": {
+                  "type": "string"
+                },
+                "target_kind": {
+                  "type": "string",
+                  "enum": [
+                    "entity_type",
+                    "class"
+                  ]
+                },
+                "resolved": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "predicate": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected"
+          ]
+        },
+        "edited": {
+          "type": "boolean"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "slug": "attendees",
+          "name": "参会人",
+          "keys": [
+            "attendees"
+          ],
+          "source": "section",
+          "value_type": "person",
+          "multi": true,
+          "files_with": 18,
+          "coverage": 1.0,
+          "fill": 1.0,
+          "required": true,
+          "examples": [
+            "陈子墨",
+            "周若溪"
+          ],
+          "sample_values": [
+            "陈子墨",
+            "周若溪"
+          ],
+          "enum_values": [],
+          "relation": {
+            "target": "people_table",
+            "target_kind": "class",
+            "resolved": 1.0,
+            "predicate": "mentions"
+          },
+          "status": "proposed",
+          "edited": false
+        }
+      ]
+    },
+    "StructureClass": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "class_key",
+        "label",
+        "kind",
+        "shape",
+        "status",
+        "version",
+        "files",
+        "rows",
+        "properties",
+        "sample_paths",
+        "signature"
+      ],
+      "description": "One class of record files with its structure (1.16, D93). `kind` is `meeting_minutes`, `decision_log`, `weekly_report`, `people_table`, `project_table`, `contract` or `other`. A class is `proposed` until a person confirms it; the extraction reads only a confirmed class.",
+      "properties": {
+        "class_key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "label": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "document",
+            "table"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "confirmed",
+            "rejected"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StructureProperty"
+          }
+        },
+        "sample_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signature": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "examples": [
+        {
+          "class_key": "meeting_minutes",
+          "label": "meeting_minutes",
+          "kind": "meeting_minutes",
+          "shape": "document",
+          "status": "proposed",
+          "version": 1,
+          "files": 18,
+          "rows": 18,
+          "properties": [
+            {
+              "slug": "attendees",
+              "name": "参会人",
+              "keys": [
+                "attendees"
+              ],
+              "source": "section",
+              "value_type": "person",
+              "multi": true,
+              "files_with": 18,
+              "coverage": 1.0,
+              "fill": 1.0,
+              "required": true,
+              "examples": [
+                "陈子墨",
+                "周若溪"
+              ],
+              "sample_values": [
+                "陈子墨",
+                "周若溪"
+              ],
+              "enum_values": [],
+              "relation": {
+                "target": "people_table",
+                "target_kind": "class",
+                "resolved": 1.0,
+                "predicate": "mentions"
+              },
+              "status": "proposed",
+              "edited": false
+            }
+          ],
+          "sample_paths": [
+            "meetings/atlas/2026-04-01-kickoff.md"
+          ],
+          "signature": [
+            "attendees",
+            "date"
+          ]
+        }
+      ]
+    },
+    "StructureCoverage": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "record_files",
+        "in_class",
+        "confirmed",
+        "share_in_class",
+        "share_confirmed"
+      ],
+      "description": "Coverage of the structure layer (1.16): record files, those that belong to a class, those whose class is confirmed, and the shares of the record files.",
+      "properties": {
+        "record_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in_class": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "confirmed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "share_in_class": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "share_confirmed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "examples": [
+        {
+          "record_files": 66,
+          "in_class": 62,
+          "confirmed": 62,
+          "share_in_class": 0.939,
+          "share_confirmed": 0.939
+        }
+      ]
+    },
+    "StructureSchema": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "protocol",
+        "version",
+        "classes",
+        "coverage"
+      ],
+      "description": "The structure layer of a Drive (1.16): the schema version (every change is a version), the classes and the coverage. `induced` is present in the answer of `structure:induce`.",
+      "properties": {
+        "protocol": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StructureClass"
+          }
+        },
+        "coverage": {
+          "$ref": "#/$defs/StructureCoverage"
+        },
+        "induced": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.docs.structure/v1",
+          "version": 2,
+          "classes": [
+            {
+              "class_key": "meeting_minutes",
+              "label": "meeting_minutes",
+              "kind": "meeting_minutes",
+              "shape": "document",
+              "status": "proposed",
+              "version": 1,
+              "files": 18,
+              "rows": 18,
+              "properties": [
+                {
+                  "slug": "attendees",
+                  "name": "参会人",
+                  "keys": [
+                    "attendees"
+                  ],
+                  "source": "section",
+                  "value_type": "person",
+                  "multi": true,
+                  "files_with": 18,
+                  "coverage": 1.0,
+                  "fill": 1.0,
+                  "required": true,
+                  "examples": [
+                    "陈子墨",
+                    "周若溪"
+                  ],
+                  "sample_values": [
+                    "陈子墨",
+                    "周若溪"
+                  ],
+                  "enum_values": [],
+                  "relation": {
+                    "target": "people_table",
+                    "target_kind": "class",
+                    "resolved": 1.0,
+                    "predicate": "mentions"
+                  },
+                  "status": "proposed",
+                  "edited": false
+                }
+              ],
+              "sample_paths": [
+                "meetings/atlas/2026-04-01-kickoff.md"
+              ],
+              "signature": [
+                "attendees",
+                "date"
+              ]
+            }
+          ],
+          "coverage": {
+            "record_files": 66,
+            "in_class": 62,
+            "confirmed": 62,
+            "share_in_class": 0.939,
+            "share_confirmed": 0.939
+          }
+        }
+      ]
+    },
+    "StructureDecide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "op",
+        "class_key"
+      ],
+      "description": "Body of `POST /v1/docs/drives/{id}/structure:decide` (1.16): accept or reject a class (`property` null) or one property, rename a class or a property (`name`), or merge a property into another one of the class (`into`; the fields it read are read as the target). Accepting a class confirms its proposed properties and sends its files through extraction again.",
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "accept",
+            "reject",
+            "rename",
+            "merge"
+          ]
+        },
+        "class_key": {
+          "type": "string"
+        },
+        "property": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "into": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "op": "accept",
+          "class_key": "meeting_minutes",
+          "property": null
+        },
+        {
+          "op": "rename",
+          "class_key": "meeting_minutes",
+          "property": "attendees",
+          "name": "Who came"
+        },
+        {
+          "op": "merge",
+          "class_key": "decision_log",
+          "property": "rationale",
+          "into": "decisions"
+        }
+      ]
+    },
+    "StructureYaml": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "protocol",
+        "version",
+        "sources",
+        "agent_db",
+        "text"
+      ],
+      "description": "The ontology YAML of both sides (1.16, D93): the structure layer of the documents and, when an Agent DB is bound, the structure of its tables with the cross-links between a document property and a table the link rules name. `?database=0` leaves the database out.",
+      "properties": {
+        "protocol": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "documents",
+              "database"
+            ]
+          }
+        },
+        "agent_db": {
+          "type": "string",
+          "enum": [
+            "bound",
+            "unbound"
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "examples": [
+        {
+          "protocol": "oo.docs.structure/v1",
+          "version": 2,
+          "sources": [
+            "documents"
+          ],
+          "agent_db": "unbound",
+          "text": "protocol: oo.docs.structure/v1\nstructure_version: 2\nsources: [documents]\ntypes: []\nrelations: []\n"
+        }
+      ]
+    }
+  },
+  "title": "Super Ontology Docs Control API",
+  "description": "docs-api/1.0-draft: spec 10 §8.2 with the §8.8 (G1-G3, G5-G15) and §16.10 (G16-G24) additions. Request objects are closed; response objects stay open so minor versions can add fields. Owned by the integration thread; every change carries a Contract-Version trailer (50 §6).",
+  "x-endpoints": [
+    {
+      "method": "GET",
+      "path": "/livez",
+      "request": null,
+      "response": "204",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/health",
+      "request": null,
+      "response": "Health",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives",
+      "request": null,
+      "response": "Page<Drive>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives",
+      "request": "DriveCreate",
+      "response": "Drive",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}",
+      "request": null,
+      "response": "Drive",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/docs/drives/{id}",
+      "request": "DrivePatch",
+      "response": "Drive",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/drives/{id}",
+      "request": null,
+      "response": "Drive",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}:sync",
+      "request": "SyncRequest",
+      "response": "SyncInfo",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}:rebuild",
+      "request": "RebuildRequest",
+      "response": "RebuildInfo",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.2"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/files",
+      "request": null,
+      "response": "Page<FileSummary>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/tree",
+      "request": null,
+      "response": "Tree",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/files/{fid}",
+      "request": null,
+      "response": "FileDetail",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/files/{fid}/blocks",
+      "request": null,
+      "response": "Page<Block>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/files/{fid}/content",
+      "request": null,
+      "response": "bytes",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/files:retry",
+      "request": "RetryRequest",
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/entities",
+      "request": null,
+      "response": "Page<EntityRef>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/entities/{eid}",
+      "request": null,
+      "response": "Entity",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/search",
+      "request": null,
+      "response": "SearchResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.9"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/resolve",
+      "request": "ResolveRequest",
+      "response": "ResolveResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/review",
+      "request": null,
+      "response": "Page<ReviewItem>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/review:decide",
+      "request": "ReviewDecideRequest",
+      "response": "ReviewDecideResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/context-packs:compile",
+      "request": "CompileRequest",
+      "response": "ContextPack",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/context-packs/{pid}",
+      "request": null,
+      "response": "ContextPack",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/context-packs/{pid}/files/{path}",
+      "request": null,
+      "response": "bytes",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares",
+      "request": "ShareCreate",
+      "response": "Share",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/shares",
+      "request": null,
+      "response": "Page<Share>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/shares/{sid}",
+      "request": null,
+      "response": "Share",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v1/docs/shares/{sid}",
+      "request": "SharePatch",
+      "response": "Share",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares/{sid}:refresh",
+      "request": null,
+      "response": "Share",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares/{sid}:revoke",
+      "request": null,
+      "response": "RevokeResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/shares/{sid}:check",
+      "request": null,
+      "response": "ContextCheckResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/shares/{sid}/updates",
+      "request": null,
+      "response": "Page<ShareUpdate>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/share-groups/{gid}:refresh",
+      "request": null,
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/constraints",
+      "request": null,
+      "response": "Page<Constraint>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/facts/{id}:correct",
+      "request": "FactCorrectRequest",
+      "response": "Fact",
+      "idempotency_key": true,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/entities:merge",
+      "request": "EntityMergeRequest",
+      "response": "Entity",
+      "idempotency_key": true,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/entities/{eid}:split",
+      "request": "EntitySplitRequest",
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/events",
+      "request": null,
+      "response": "text/event-stream",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/events:publish",
+      "request": "EventPublishRequest",
+      "response": "EventPublishResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.13"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/usage",
+      "request": null,
+      "response": "Usage",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/ontology/versions",
+      "request": null,
+      "response": "Page<OntologyVersion>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/metrics",
+      "request": null,
+      "response": "text/plain",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/refs/{b3}",
+      "request": null,
+      "response": "bytes",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/config/model",
+      "request": null,
+      "response": "ModelConfig",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/config/model",
+      "request": "ModelConfigPut",
+      "response": "ModelConfig",
+      "idempotency_key": false,
+      "if_match": true,
+      "since": "1.0"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/changes",
+      "request": null,
+      "response": "Page<object>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.0"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/review:undo",
+      "request": null,
+      "response": "BatchResult",
+      "idempotency_key": true,
+      "if_match": false,
+      "since": "1.1"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions",
+      "request": null,
+      "response": "Page<Suggestion>",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/suggestions",
+      "request": "SuggestRequest",
+      "response": "SuggestResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions:digest",
+      "request": null,
+      "response": "SuggestionDigest",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions/{id}",
+      "request": null,
+      "response": "Suggestion",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/suggestions/{id}/diff",
+      "request": null,
+      "response": "SuggestionDiff",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/suggestions/{id}:decide",
+      "request": "SuggestionDecideRequest",
+      "response": "Suggestion",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.3"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}:events",
+      "request": "EventsRequest",
+      "response": "EventsResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/cloud-tokens",
+      "request": "CloudTokenRequest",
+      "response": "CloudToken",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/cloud-tokens/{id}",
+      "request": null,
+      "response": null,
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/audit/shares",
+      "request": null,
+      "response": "AuditShares",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/audit/verify",
+      "request": null,
+      "response": "AuditVerify",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.4"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/agent-tokens",
+      "request": "AgentTokenRequest",
+      "response": "AgentToken",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/agent-tokens",
+      "request": null,
+      "response": "AgentTokenList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/agent-tokens/{id}",
+      "request": null,
+      "response": "AgentTokenRevoked",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/agent-tokens/self",
+      "request": null,
+      "response": "AgentTokenInfo",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/agent-tokens:introspect",
+      "request": "AgentIntrospectRequest",
+      "response": "AgentIntrospect",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/audit/agents",
+      "request": null,
+      "response": "AuditAgents",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/links",
+      "request": null,
+      "response": "LinkList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/links:decide",
+      "request": "LinkDecideRequest",
+      "response": "LinkDecideResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/links:project",
+      "request": "ProjectRequest",
+      "response": "ProjectRuns",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/link-rules",
+      "request": null,
+      "response": "LinkRuleList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/link-rules",
+      "request": "LinkRuleRequest",
+      "response": "LinkRule",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/link-rules",
+      "request": null,
+      "response": "LinkRuleDeleted",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/agent-db-binding",
+      "request": null,
+      "response": "AgentDbBinding",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/agent-db-binding",
+      "request": "AgentDbBindingRequest",
+      "response": "AgentDbBinding",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/docs/agent-db-binding",
+      "request": null,
+      "response": "AgentDbBinding",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.6"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/search",
+      "request": null,
+      "response": "OntologySearchResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/entities/{urn}",
+      "request": null,
+      "response": "OntologyEntity",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/sources",
+      "request": null,
+      "response": "OntologySources",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/ontology/query",
+      "request": "OntologyQueryRequest",
+      "response": "OntologyQueryResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.7"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/ontology/schema",
+      "request": null,
+      "response": "OntologySchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.12"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/profile-overrides",
+      "request": null,
+      "response": "ProfileOverrideList",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.15"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/docs/drives/{id}/profile-overrides",
+      "request": "ProfileOverridePut",
+      "response": "ProfileOverrideResult",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.15"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/structure",
+      "request": null,
+      "response": "StructureSchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}/structure:induce",
+      "request": null,
+      "response": "StructureSchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/docs/drives/{id}/structure:decide",
+      "request": "StructureDecide",
+      "response": "StructureSchema",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/structure/yaml",
+      "request": null,
+      "response": "StructureYaml",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.16"
+    }
+  ]
+}

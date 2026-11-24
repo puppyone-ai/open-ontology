@@ -95,7 +95,9 @@ The wizard can save or run the retained build chain after passing preflight.
 On a local lite deployment, build runs every stage (load, Self-build, publication,
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
---resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
+adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
+"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
@@ -230,7 +232,9 @@ The wizard can save or run the retained build chain after passing preflight.
 On a local lite deployment, build runs every stage (load, Self-build, publication,
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
---resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
+adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
+"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
@@ -423,7 +427,9 @@ The wizard can save or run the retained build chain after passing preflight.
 On a local lite deployment, build runs every stage (load, Self-build, publication,
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
---resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
+adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
+"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
@@ -478,7 +484,9 @@ The wizard can save or run the retained build chain after passing preflight.
 On a local lite deployment, build runs every stage (load, Self-build, publication,
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
---resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
+adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
+"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
@@ -636,7 +644,9 @@ The wizard can save or run the retained build chain after passing preflight.
 On a local lite deployment, build runs every stage (load, Self-build, publication,
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
---resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
+adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
+"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
@@ -765,7 +775,9 @@ The wizard can save or run the retained build chain after passing preflight.
 On a local lite deployment, build runs every stage (load, Self-build, publication,
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
---resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
+adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
+"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.
@@ -933,28 +945,34 @@ Admin issuance requires --client-pem FILE. Credentials are saved as private file
 ## `oo ontology --help`
 
 ```text
-oo ontology export --format html|mermaid|yaml --out PATH [--pack PACK.json] [--role R]
+oo ontology export --format html|mermaid --out PATH [--pack PACK.json] [--role R]
+oo ontology export --format yaml --out PATH [--registry reviewed-registry.json]
 oo ontology open [--print-path] [--pack PACK.json] [--role R]
 oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] (see oo ontology graph --help)
 Common options: --config stack.yaml --yes --json
 Default Pack: .oo/role-pack.json beside --config (default stack.yaml).
 --role asserts the supplied Pack's role; it never grants or expands visibility.
 HTML is one offline file. Mermaid is Markdown with bounded ER pages.
-YAML is not yet available: role Packs do not contain reviewed effective OOS.
+YAML is the owner's full reviewed ontology (the effective OOS of reviewed-registry.json; default
+.oo/lite/work/build/.oo/reviewed-registry.json beside --config). It is not role-closed: it never
+comes from a Pack, and --pack/--role do not apply to it (role-closed YAML is not yet available).
 Existing outputs are never overwritten. open creates a private temporary file.
 ```
 
 ## `oo ontology export --help`
 
 ```text
-oo ontology export --format html|mermaid|yaml --out PATH [--pack PACK.json] [--role R]
+oo ontology export --format html|mermaid --out PATH [--pack PACK.json] [--role R]
+oo ontology export --format yaml --out PATH [--registry reviewed-registry.json]
 oo ontology open [--print-path] [--pack PACK.json] [--role R]
 oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] (see oo ontology graph --help)
 Common options: --config stack.yaml --yes --json
 Default Pack: .oo/role-pack.json beside --config (default stack.yaml).
 --role asserts the supplied Pack's role; it never grants or expands visibility.
 HTML is one offline file. Mermaid is Markdown with bounded ER pages.
-YAML is not yet available: role Packs do not contain reviewed effective OOS.
+YAML is the owner's full reviewed ontology (the effective OOS of reviewed-registry.json; default
+.oo/lite/work/build/.oo/reviewed-registry.json beside --config). It is not role-closed: it never
+comes from a Pack, and --pack/--role do not apply to it (role-closed YAML is not yet available).
 Existing outputs are never overwritten. open creates a private temporary file.
 ```
 
@@ -974,14 +992,17 @@ Existing files are never overwritten.
 ## `oo ontology open --help`
 
 ```text
-oo ontology export --format html|mermaid|yaml --out PATH [--pack PACK.json] [--role R]
+oo ontology export --format html|mermaid --out PATH [--pack PACK.json] [--role R]
+oo ontology export --format yaml --out PATH [--registry reviewed-registry.json]
 oo ontology open [--print-path] [--pack PACK.json] [--role R]
 oo ontology graph [--adjudication FILE] [--format ascii|text|mermaid] (see oo ontology graph --help)
 Common options: --config stack.yaml --yes --json
 Default Pack: .oo/role-pack.json beside --config (default stack.yaml).
 --role asserts the supplied Pack's role; it never grants or expands visibility.
 HTML is one offline file. Mermaid is Markdown with bounded ER pages.
-YAML is not yet available: role Packs do not contain reviewed effective OOS.
+YAML is the owner's full reviewed ontology (the effective OOS of reviewed-registry.json; default
+.oo/lite/work/build/.oo/reviewed-registry.json beside --config). It is not role-closed: it never
+comes from a Pack, and --pack/--role do not apply to it (role-closed YAML is not yet available).
 Existing outputs are never overwritten. open creates a private temporary file.
 ```
 
@@ -1457,7 +1478,9 @@ The wizard can save or run the retained build chain after passing preflight.
 On a local lite deployment, build runs every stage (load, Self-build, publication,
 Gateway, first token, share prompt) inside the pinned runtime image that oo up
 started; only owner review runs here, on the review input copied out of it.
---resume retains checkpoints; without a TTY add --review-file DECISIONS.json.
+--resume retains checkpoints; without a TTY add --review-file DECISIONS.json. When the draft has
+adjudicated edges, that file is {"protocol":"oo.build-review/v1","reason":"...",
+"overrides":optional oo.adjudication-overrides/v1}: one confirmation, edge decisions as data.
 Developer overrides: --agent-target (private oo-load target JSON) and
 --runtime-config (private oo.build-runtime/v1) run the helpers beside oo instead.
 --resume --cycle ID starts a data-only cycle against the initial reviewed registry.

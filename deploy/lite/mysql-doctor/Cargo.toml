@@ -9,7 +9,7 @@ publish = false
 [workspace]
 
 [dependencies]
-oo-connectors = { path = "../../../crates/oo-connectors", features = ["mysql"] }
+oo-connectors = { path = "../../../crates/oo-connectors", features = ["mysql", "olap"] }
 oo-stack = { path = "../../../crates/oo-stack" }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
 tokio = { version = "=1.53.3", features = ["rt", "time", "net"] }

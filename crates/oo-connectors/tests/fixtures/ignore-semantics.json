@@ -1,0 +1,1042 @@
+{
+ "about": "Shared by the Rust fs walk (oo-connectors) and the desktop app copy path and watcher; both must decide every entry the same way. ignored is the source of the deciding rule or null.",
+ "cases": [
+  {
+   "name": "name anywhere",
+   "files": {
+    ".gitignore": "secret.txt\n"
+   },
+   "paths": [
+    {
+     "path": "secret.txt",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/secret.txt",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b/secret.txt",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "secret.txt.bak",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "my-secret.txt",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "extension glob",
+   "files": {
+    ".gitignore": "*.log\n"
+   },
+   "paths": [
+    {
+     "path": "run.log",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "logs/run.log",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "run.logx",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "log",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "directory only",
+   "files": {
+    ".gitignore": "build/\n"
+   },
+   "paths": [
+    {
+     "path": "build",
+     "dir": true,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "build/out.js",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "src/build",
+     "dir": true,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "src/build/x",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "build",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "src/build",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "anchored with leading slash",
+   "files": {
+    ".gitignore": "/dist\n"
+   },
+   "paths": [
+    {
+     "path": "dist",
+     "dir": true,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "dist/a.js",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "src/dist",
+     "dir": true,
+     "ignored": null
+    },
+    {
+     "path": "src/dist/a.js",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "anchored by a slash in the middle",
+   "files": {
+    ".gitignore": "docs/tmp\n"
+   },
+   "paths": [
+    {
+     "path": "docs/tmp",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "docs/tmp/a",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "x/docs/tmp",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "docs/other",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "single star stays in one name",
+   "files": {
+    ".gitignore": "a/*.md\n"
+   },
+   "paths": [
+    {
+     "path": "a/x.md",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b/x.md",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "a/x.txt",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "question mark",
+   "files": {
+    ".gitignore": "f?.txt\n"
+   },
+   "paths": [
+    {
+     "path": "fa.txt",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "f.txt",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "fab.txt",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "character classes",
+   "files": {
+    ".gitignore": "v[0-9].md\nw[!a-c].md\nx[^a-c].md\n"
+   },
+   "paths": [
+    {
+     "path": "v3.md",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "va.md",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "wd.md",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "wa.md",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "xz.md",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "xb.md",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "double star leading",
+   "files": {
+    ".gitignore": "**/cache\n"
+   },
+   "paths": [
+    {
+     "path": "cache",
+     "dir": true,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/cache",
+     "dir": true,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b/cache/x",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "cachefile",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "double star trailing",
+   "files": {
+    ".gitignore": "out/**\n"
+   },
+   "paths": [
+    {
+     "path": "out",
+     "dir": true,
+     "ignored": null
+    },
+    {
+     "path": "out/a",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "out/a/b",
+     "dir": false,
+     "ignored": "gitignore"
+    }
+   ]
+  },
+  {
+   "name": "double star in the middle",
+   "files": {
+    ".gitignore": "a/**/z\n"
+   },
+   "paths": [
+    {
+     "path": "a/z",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b/z",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b/c/z",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "b/a/z",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "a/y",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "negation re-includes a file",
+   "files": {
+    ".gitignore": "*.md\n!keep.md\n"
+   },
+   "paths": [
+    {
+     "path": "a.md",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "keep.md",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "sub/keep.md",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "sub/other.md",
+     "dir": false,
+     "ignored": "gitignore"
+    }
+   ]
+  },
+  {
+   "name": "order matters: last rule wins",
+   "files": {
+    ".gitignore": "!keep.md\n*.md\n"
+   },
+   "paths": [
+    {
+     "path": "keep.md",
+     "dir": false,
+     "ignored": "gitignore"
+    }
+   ]
+  },
+  {
+   "name": "a file inside an ignored directory stays ignored",
+   "files": {
+    ".gitignore": "vendor/\n!vendor/keep.md\n"
+   },
+   "paths": [
+    {
+     "path": "vendor/keep.md",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "vendor",
+     "dir": true,
+     "ignored": "gitignore"
+    }
+   ]
+  },
+  {
+   "name": "comments, blanks and escapes",
+   "files": {
+    ".gitignore": "# a comment\n\n\\#hash\n\\!bang\nspace\\ \ntrail   \n"
+   },
+   "paths": [
+    {
+     "path": "#hash",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "!bang",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "space ",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "trail",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "comment",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "windows line endings",
+   "files": {
+    ".gitignore": "a.tmp\r\nb.tmp\r\n"
+   },
+   "paths": [
+    {
+     "path": "a.tmp",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "b.tmp",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "c.tmp",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "ooignore is its own source",
+   "files": {
+    ".ooignore": "private/\n*.key\n"
+   },
+   "paths": [
+    {
+     "path": "private",
+     "dir": true,
+     "ignored": "ooignore"
+    },
+    {
+     "path": "private/a.md",
+     "dir": false,
+     "ignored": "ooignore"
+    },
+    {
+     "path": "a.key",
+     "dir": false,
+     "ignored": "ooignore"
+    },
+    {
+     "path": "a.md",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "ooignore beats gitignore in one directory",
+   "files": {
+    ".gitignore": "*.md\n",
+    ".ooignore": "!notes.md\n"
+   },
+   "paths": [
+    {
+     "path": "a.md",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "notes.md",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "gitignore re-included by ooignore then ignored again",
+   "files": {
+    ".gitignore": "*.md\n",
+    ".ooignore": "!notes.md\nsecret.md\n"
+   },
+   "paths": [
+    {
+     "path": "notes.md",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "secret.md",
+     "dir": false,
+     "ignored": "ooignore"
+    },
+    {
+     "path": "x.md",
+     "dir": false,
+     "ignored": "gitignore"
+    }
+   ]
+  },
+  {
+   "name": "a deeper file beats a shallower one",
+   "files": {
+    ".gitignore": "*.txt\n",
+    "sub/.gitignore": "!ok.txt\n"
+   },
+   "paths": [
+    {
+     "path": "a.txt",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "sub/ok.txt",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "sub/no.txt",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "other/ok.txt",
+     "dir": false,
+     "ignored": "gitignore"
+    }
+   ]
+  },
+  {
+   "name": "a nested file applies below its directory only",
+   "files": {
+    "pkg/.gitignore": "gen/\n*.tmp\n"
+   },
+   "paths": [
+    {
+     "path": "pkg/gen",
+     "dir": true,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "pkg/gen/a",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "gen",
+     "dir": true,
+     "ignored": null
+    },
+    {
+     "path": "other/gen",
+     "dir": true,
+     "ignored": null
+    },
+    {
+     "path": "pkg/sub/x.tmp",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "x.tmp",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "a nested anchored rule is relative to its own directory",
+   "files": {
+    "pkg/.gitignore": "/only-here\n"
+   },
+   "paths": [
+    {
+     "path": "pkg/only-here",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "pkg/deep/only-here",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "only-here",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "ooignore in a subdirectory",
+   "files": {
+    "app/.ooignore": "fixtures/\n"
+   },
+   "paths": [
+    {
+     "path": "app/fixtures",
+     "dir": true,
+     "ignored": "ooignore"
+    },
+    {
+     "path": "app/fixtures/data.json",
+     "dir": false,
+     "ignored": "ooignore"
+    },
+    {
+     "path": "fixtures/data.json",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "star at both ends",
+   "files": {
+    ".gitignore": "*test*\n"
+   },
+   "paths": [
+    {
+     "path": "test",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "mytests.py",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/contest.rs",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "tes",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "trailing slash with a path",
+   "files": {
+    ".gitignore": "a/b/\n"
+   },
+   "paths": [
+    {
+     "path": "a/b",
+     "dir": true,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b/c",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "x/a/b",
+     "dir": true,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "a rules file for nothing",
+   "files": {
+    ".gitignore": "\n# only comments\n   \n"
+   },
+   "paths": [
+    {
+     "path": "a.md",
+     "dir": false,
+     "ignored": null
+    },
+    {
+     "path": "src/x.ts",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "backslash escapes a star",
+   "files": {
+    ".gitignore": "a\\*b\n"
+   },
+   "paths": [
+    {
+     "path": "a*b",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "axb",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "dotfiles are ordinary names for the rules",
+   "files": {
+    ".gitignore": ".env\n.env.*\n"
+   },
+   "paths": [
+    {
+     "path": ".env",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": ".env.local",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "env",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  },
+  {
+   "name": "double star only matches whole segments",
+   "files": {
+    ".gitignore": "a**b\n"
+   },
+   "paths": [
+    {
+     "path": "axxb",
+     "dir": false,
+     "ignored": "gitignore"
+    },
+    {
+     "path": "a/b",
+     "dir": false,
+     "ignored": null
+    }
+   ]
+  }
+ ],
+ "defaults": [
+  {
+   "name": ".git",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".venv",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".next",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".cache",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".idea",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".vscode",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".DS_Store",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".env",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": ".~lock.a.docx#",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "node_modules",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "__pycache__",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "target",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "dist",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "build",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "venv",
+   "dir": true,
+   "skipped": true
+  },
+  {
+   "name": "node_modules",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "__pycache__",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "target",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "dist",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "build",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "venv",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "a.pyc",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "a.pyc",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "B.PYO",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "B.PYO",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "Thumbs.db",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "desktop.ini",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "~$a.docx",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "a.tmp",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "b.PART",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "c.crdownload",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "x.swp",
+   "dir": false,
+   "skipped": true
+  },
+  {
+   "name": "src",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "src",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "docs",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "docs",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "main.rs",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "main.rs",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "build.rs",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "build.rs",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "targets",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "targets",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "distance",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "distance",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "env",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "env",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "a.py",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "a.py",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "pyc",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "pyc",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "计划.md",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "计划.md",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "tmp",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "tmp",
+   "dir": true,
+   "skipped": false
+  },
+  {
+   "name": "partial.txt",
+   "dir": false,
+   "skipped": false
+  },
+  {
+   "name": "partial.txt",
+   "dir": true,
+   "skipped": false
+  }
+ ]
+}

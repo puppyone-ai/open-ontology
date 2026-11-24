@@ -1,0 +1,55 @@
+[
+  {
+    "confidence_bp": null,
+    "created_at": "2026-11-19T06:22:17.283538Z",
+    "decided_at": null,
+    "drive_id": "f8fdaa75-41e4-47ee-b9b9-ed4d17fcdcf5",
+    "evidence": [],
+    "id": "9fb5894b-1daa-4ba7-a961-a00a760d38fa",
+    "kind": "reprocess_diff",
+    "reason_code": "diff_over_30_percent",
+    "revision": 1,
+    "source": {
+      "file_id": "81c2e66b-4aa8-4ed4-933b-79a3bc25afd4",
+      "path": "Meetings/周会 参会=小王、小李.wav"
+    },
+    "status": "pending",
+    "subject": {
+      "added": [],
+      "gate": "DOC-G10",
+      "prior": 4,
+      "removed": [
+        "b70468217b8cd6839860edd56ba36aa1be80ac7ba16296b58b33b4790e29dcc6",
+        "c49d73cb81ec12285ef064e378f021330f3f644c345f0070a6961f297b146274"
+      ],
+      "share_used_removed": [],
+      "version_id": "0626e6a8-f18c-4e74-aa27-9868a46c9e7c"
+    }
+  },
+  {
+    "confidence_bp": null,
+    "created_at": "2026-11-19T06:22:25.873160Z",
+    "decided_at": null,
+    "drive_id": "f8fdaa75-41e4-47ee-b9b9-ed4d17fcdcf5",
+    "evidence": [],
+    "id": "9e27972d-85b7-4611-8d90-b67f64694214",
+    "kind": "reprocess_diff",
+    "reason_code": "diff_over_30_percent",
+    "revision": 1,
+    "source": {
+      "file_id": "a6a0de0d-65b0-4869-8dc3-057f4946a170",
+      "path": "Meetings/录屏.webm"
+    },
+    "status": "pending",
+    "subject": {
+      "added": [],
+      "gate": "DOC-G10",
+      "prior": 1,
+      "removed": [
+        "d2fcc98fa39f4863f185d4ecf14883d553a4a9a0ecbefc68b5815183ce40f2e0"
+      ],
+      "share_used_removed": [],
+      "version_id": "f3e3f87a-64fa-4408-a54a-a8b2ddde7298"
+    }
+  }
+]

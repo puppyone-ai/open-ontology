@@ -1,0 +1,120 @@
+{
+  "protocol": "oo.license-reviews/v1",
+  "scope": "tools/ocr-parser image (oo-docs-ocr-parser) and tools/media-parser image (oo-media-parser), spec 90 section 3 SBOM gate; supply-chain/policy.md section 2 written review of weak-copyleft obligations. Superset of doc-parser-license-reviews.json.",
+  "reviewed_on": "2026-11-17",
+  "reviewer_role": "engineering coordinator (Super Ontology integration thread). Not legal advice: every entry is listed for the D67 lawyer gate before any external release.",
+  "reviews": {
+    "certifi": {
+      "license": "MPL-2.0",
+      "use": "unmodified PyPI wheel; CA bundle data loaded at runtime by Python libraries",
+      "obligation": "MPL-2.0 is file-level copyleft: distributed Covered Software files must stay available in source form under MPL-2.0 and the notice must be kept",
+      "how_met": "files are shipped unmodified in their original source form (Python source and data); the licence text ships in the wheel's dist-info inside the image; the MPL-2.0 notice, the upstream source location and the MPL-2.0 text are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "tqdm": {
+      "license": "MPL-2.0 AND MIT",
+      "use": "unmodified PyPI wheel; progress helper pulled in by Docling dependencies",
+      "obligation": "same as certifi for the MPL-2.0 files; MIT notice for the rest",
+      "how_met": "unmodified Python source shipped as-is with its licence files; the MPL-2.0 notice, the upstream source location and the texts are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "glibc (vendored by auditwheel)": {
+      "license": "LGPL-2.1-or-later",
+      "use": "dynamic loader vendored by auditwheel inside a manylinux wheel; loaded as a shared object, not statically linked into our code",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice",
+      "how_met": "shared object, replaceable in the image; the written source offer (upstream release location, replaceability, release-artifact copy on request) and the LGPL-2.1 text are section 1 and section 6 of tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "libgfortran (GCC Fortran runtime)": {
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "use": "runtime library bundled in numpy/scipy wheels, dynamically linked",
+      "obligation": "the GCC Runtime Library Exception permits distributing the runtime with independent modules compiled by an eligible GCC compilation process without GPL obligations on those modules; keep the notice",
+      "how_met": "unmodified runtime from upstream wheels; the notice, the source offer, the GPL-3.0 text and the GCC Runtime Library Exception 3.1 text are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "libgomp (GCC OpenMP runtime)": {
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "use": "OpenMP runtime bundled in torch/numpy wheels, dynamically linked",
+      "obligation": "as for libgfortran (GCC Runtime Library Exception)",
+      "how_met": "unmodified runtime from upstream wheels; the notice, the source offer, the GPL-3.0 text and the GCC Runtime Library Exception 3.1 text are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "crc32c": {
+      "license": "LGPL-2.1-or-later",
+      "use": "compiled Python extension from the PyPI wheel; checksum helper of bce-python-sdk, a PaddleX dependency, not called by the OCR path",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice; our end-user terms must not forbid reverse engineering for debugging such modifications (90 section 4)",
+      "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "cssutils": {
+      "license": "LGPL-3.0-or-later",
+      "use": "pure Python from the PyPI wheel; pulled in by premailer, a PaddleX dependency, not called by the OCR path",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice; our end-user terms must not forbid reverse engineering for debugging such modifications (90 section 4)",
+      "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "encutils": {
+      "license": "LGPL-3.0-or-later",
+      "use": "pure Python from the PyPI wheel; dependency of cssutils",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice; our end-user terms must not forbid reverse engineering for debugging such modifications (90 section 4)",
+      "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "python-bidi": {
+      "license": "LGPL (PyPI classifier: GNU Library or Lesser General Public License)",
+      "use": "compiled Python extension from the PyPI wheel; PaddleOCR text ordering helper",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice; our end-user terms must not forbid reverse engineering for debugging such modifications (90 section 4)",
+      "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "libgeos (shapely)": {
+      "license": "LGPL-2.1-or-later",
+      "use": "GEOS shared object vendored in the shapely wheel; polygon geometry for text boxes",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice; our end-user terms must not forbid reverse engineering for debugging such modifications (90 section 4)",
+      "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "libgeos_c (shapely)": {
+      "license": "LGPL-2.1-or-later",
+      "use": "GEOS C API shared object vendored in the shapely wheel",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice; our end-user terms must not forbid reverse engineering for debugging such modifications (90 section 4)",
+      "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "libquadmath (GCC)": {
+      "license": "LGPL-2.1-or-later",
+      "use": "GCC runtime shared object vendored in the numpy and scipy wheels",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice; our end-user terms must not forbid reverse engineering for debugging such modifications (90 section 4)",
+      "how_met": "unmodified; shipped as a separate file (shared object or pure Python) that can be replaced in the image; the upstream source location, the replaceability statement and the LGPL texts are in THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, in the image under /usr/share/licenses/oo-docs-ocr-parser/); source tarball offered on request as a release artifact (90 section 4)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-ocr-parser.json; tools/ocr-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "ffmpeg-lgpl-own-build": {
+      "license": "LGPL-2.1-or-later",
+      "use": "decoding of Opus, Vorbis, FLAC, MP3, VP8, VP9 and PCM inside media-parser; no encoder but pcm_s16le and png; no H.264, HEVC or AAC decoder",
+      "obligation": "LGPL: dynamic linking, source and configure line offered, allow replacement and relinking, no EULA ban on debugging reverse engineering (90 section 4); patent questions for MP3 decode and decode-only use go to the lawyer gate (90 section 4, L6)",
+      "how_met": "shared objects under /opt/ffmpeg/lib replaceable by another build; LICENSE, COPYING.LGPLv2.1, configure line and the source tarball in /usr/share/licenses/ffmpeg/; CI runs ffmpeg_gate on every build (no gpl, nonfree, forbidden decoder)",
+      "evidence": "testing/super-ontology/evidence/L6/sbom-media-parser.json; tools/media-parser/media_parser/ffmpeg_gate.py",
+      "legal_gate": "D67"
+    },
+    "libasound (ALSA library, bundled by sherpa-onnx)": {
+      "license": "LGPL-2.1-or-later",
+      "use": "shared object vendored in the sherpa-onnx manylinux wheel (libasound.so.2), dynamically linked by the wheel's audio-capture code, which Super Ontology never calls (the recognizer reads files)",
+      "obligation": "LGPL-2.1: the library stays replaceable by a modified version, the licence text and a source offer travel with the image, and the work using it may not forbid reverse engineering for debugging such a replacement",
+      "how_met": "unmodified upstream shared object; dynamic linking, so another libasound.so.2 can be dropped in; the notice, the source location and the LGPL-2.1 text are in tools/media-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped at /usr/share/licenses/oo-docs-media-parser/); Super Ontology's own code is not combined with it",
+      "evidence": "testing/super-ontology/evidence/S22-convergence/sbom-media-parser.json; supply-chain/media-parser-license-reviews.json",
+      "legal_gate": "D67"
+    }
+  }
+}

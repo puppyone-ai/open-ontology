@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out/
+release/
+build/oo-bundle/
+build/generated/
+build/native/
+build/icon.iconset/
+/artifacts/
+test-results/

@@ -1,0 +1,34 @@
+{
+ "docx": {
+  "max": 6.21,
+  "n": 10,
+  "p50": 6.03,
+  "p95": 6.21,
+  "server_stored_to_published_p95": 0.0,
+  "target_p95": 30.0
+ },
+ "md/txt": {
+  "max": 6.33,
+  "n": 20,
+  "p50": 5.45,
+  "p95": 6.13,
+  "server_stored_to_published_p95": 0.0,
+  "target_p95": 5.0
+ },
+ "pdf": {
+  "max": 8.26,
+  "n": 10,
+  "p50": 8.04,
+  "p95": 8.26,
+  "server_stored_to_published_p95": 0.0,
+  "target_p95": 30.0
+ },
+ "xlsx": {
+  "max": 6.24,
+  "n": 10,
+  "p50": 6.06,
+  "p95": 6.24,
+  "server_stored_to_published_p95": 0.0,
+  "target_p95": 20.0
+ }
+}

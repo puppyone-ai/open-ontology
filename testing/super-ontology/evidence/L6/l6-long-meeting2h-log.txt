@@ -1,0 +1,11 @@
+# Super Ontology L6 long run meeting2h, run be2-l6long-2h-final
+meeting built: 2.0 h, 15.4 MB opus (58 s)
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-l6long-be2-l6long-2h-final-pn5pis18/state
+[PASS] meeting2h compose stack is up and healthy - HTTP 200
+[PASS] meeting2h the recording reached a final state - published 
+[PASS] meeting2h the recording is published - published 
+transcript blocks: 1064
+[PASS] meeting2h core type recall >= 0.6 through the real pipeline (names the golden meeting says that the engine's transcript carries) - 6/6 = 1.000; missed []
+[PASS] meeting2h INFO planted self introductions: how many the ASR heard correctly and how many of those became `owns` facts (rules only, no model) - facts 2/12 = 0.167; heard correctly 5/12, of those with a fact 2; heard but no fact ['星火计划', '银河计划', '晨曦计划']
+peak memory (MiB) per container: {"doc-parser-1": 34, "docs-db-1": 67, "docs-engine-1": 38, "media-parser-1": 1382, "ocr-parser-1": 34}
+[PASS] meeting2h peak memory recorded - {"doc-parser-1": 34, "docs-db-1": 67, "docs-engine-1": 38, "media-parser-1": 1382, "ocr-parser-1": 34}

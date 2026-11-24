@@ -1,0 +1,403 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oo:context-pack:v1",
+  "title": "oo.context-pack/v1 manifest.json and SHARE.json",
+  "description": "Spec 10 §7.4, 00 §6.3, G24, D66. Validate manifest.json with #/$defs/manifest and SHARE.json with #/$defs/share.",
+  "x-context-pack-version": "1.0-draft",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/manifest"
+    },
+    {
+      "$ref": "#/$defs/share"
+    }
+  ],
+  "$defs": {
+    "manifest": {
+      "type": "object",
+      "required": [
+        "protocol",
+        "compiler",
+        "token_estimator",
+        "version",
+        "drive_id",
+        "scope",
+        "snapshot_sha256",
+        "params_sha256",
+        "files",
+        "trimmed",
+        "blocked",
+        "aigc"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.context-pack.manifest/v1"
+        },
+        "compiler": {
+          "type": "string"
+        },
+        "token_estimator": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "drive_id": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "params_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256",
+              "bytes",
+              "tokens"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "section_digests": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          }
+        },
+        "trimmed": {
+          "type": "object"
+        },
+        "blocked": {
+          "type": "object",
+          "properties": {
+            "facts": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "entities": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        },
+        "guarantees": {
+          "$ref": "#/$defs/guarantees"
+        },
+        "aigc": {
+          "$ref": "#/$defs/aigc"
+        }
+      },
+      "description": "pack_digest = sha256(canonical_json(manifest)). Excludes SHARE.json and UPDATES.md."
+    },
+    "share": {
+      "type": "object",
+      "required": [
+        "protocol",
+        "share_id",
+        "pack_digest",
+        "role",
+        "scope",
+        "budget",
+        "ontology_version",
+        "drive",
+        "created_at",
+        "expires_at",
+        "grantor",
+        "blocked",
+        "refs",
+        "notice",
+        "aigc"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oo.context-pack.share/v1"
+        },
+        "share_id": {
+          "type": "string"
+        },
+        "pack_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "role": {
+          "enum": [
+            "viewer",
+            "suggester",
+            "editor"
+          ]
+        },
+        "scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "task": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "budget": {
+          "type": "integer"
+        },
+        "ontology_version": {
+          "type": "integer"
+        },
+        "drive": {
+          "type": "object",
+          "required": [
+            "id",
+            "backend",
+            "snapshot_sha256"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "backend": {
+              "enum": [
+                "fs",
+                "s3",
+                "oss",
+                "cos",
+                "r2"
+              ]
+            },
+            "snapshot_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "drive_rev": {
+          "type": "integer"
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        },
+        "group": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "refresh_policy": {
+          "enum": [
+            "manual",
+            "at-checkpoint",
+            "pinned"
+          ]
+        },
+        "guarantees": {
+          "$ref": "#/$defs/guarantees"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "grantor": {
+          "type": "string"
+        },
+        "blocked": {
+          "type": "object",
+          "properties": {
+            "facts": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "entities": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "refs": {
+          "type": "object",
+          "required": [
+            "endpoint",
+            "credential",
+            "expires_at"
+          ],
+          "properties": {
+            "endpoint": {
+              "type": "string"
+            },
+            "credential": {
+              "type": "string",
+              "pattern": "^oodr_"
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "notice": {
+          "type": "string"
+        },
+        "aigc": {
+          "$ref": "#/$defs/aigc"
+        }
+      },
+      "x-nondeterministic-fields": [
+        "share_id",
+        "created_at",
+        "expires_at",
+        "refs"
+      ]
+    },
+    "aigc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Label",
+        "ContentProducer",
+        "ProduceID",
+        "ReservedCode1",
+        "ContentPropagator",
+        "PropagateID",
+        "ReservedCode2"
+      ],
+      "description": "D66 / 90 §7 implicit AI-generated label; no timestamps so packs stay byte-replayable. ContentProducer is the placeholder <COMPANY> until the company name is provided.",
+      "properties": {
+        "Label": {
+          "const": "1"
+        },
+        "ContentProducer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ProduceID": {
+          "type": "string"
+        },
+        "ReservedCode1": {
+          "type": "string"
+        },
+        "ContentPropagator": {
+          "type": "string"
+        },
+        "PropagateID": {
+          "type": "string"
+        },
+        "ReservedCode2": {
+          "type": "string"
+        }
+      }
+    },
+    "guarantees": {
+      "type": "object",
+      "required": [
+        "pack_consistent",
+        "freshness_floor",
+        "change_delivery",
+        "group_same_version",
+        "constraint_free"
+      ],
+      "properties": {
+        "pack_consistent": {
+          "type": "boolean"
+        },
+        "freshness_floor": {
+          "type": "boolean"
+        },
+        "change_delivery": {
+          "type": "boolean"
+        },
+        "group_same_version": {
+          "type": "boolean"
+        },
+        "constraint_free": {
+          "type": "boolean"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "drive_rev",
+        "covered_rev",
+        "in_scope",
+        "processed"
+      ],
+      "properties": {
+        "drive_rev": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "covered_rev": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "in_scope": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "processed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "state"
+            ]
+          }
+        },
+        "failed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "state_code"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

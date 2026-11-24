@@ -1,0 +1,72 @@
+{
+ "duration_ms": 30951,
+ "speakers": [
+  "S1",
+  "S2"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 68,
+   "t_end_ms": 4878,
+   "text": "Good morning everyone,let's start the weekly project meeting with last week's progress.The",
+   "word_start": 0,
+   "word_end": 15
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 4878,
+   "t_end_ms": 9178,
+   "text": "progotype has finished and through testing starts on Monday with three people.Who will set",
+   "word_start": 16,
+   "word_end": 31
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 9218,
+   "t_end_ms": 13668,
+   "text": "up the test environment and is the budget still fine?I will",
+   "word_start": 32,
+   "word_end": 44
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 13668,
+   "t_end_ms": 18658,
+   "text": "set up the environment and the budget is enough,no extra money is needed.One",
+   "word_start": 45,
+   "word_end": 61
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 18658,
+   "t_end_ms": 23438,
+   "text": "more point,the supplier growth has confirmed until every test went to 1-3.",
+   "word_start": 62,
+   "word_end": 76
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 23438,
+   "t_end_ms": 26398,
+   "text": "Then we send the test plan to everyone before Friday.",
+   "word_start": 77,
+   "word_end": 87
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 26848,
+   "t_end_ms": 30498,
+   "text": "Understood.I will send it Thursday evening when we meet again next Tuesday.",
+   "word_start": 88,
+   "word_end": 102
+  }
+ ]
+}

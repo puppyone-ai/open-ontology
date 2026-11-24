@@ -1,0 +1,147 @@
+$ cargo build --locked -p oo-cli --features docs
+     Compiling sqlx-core v0.9.0 (<repo>/crates/oo-connectors/vendor/sqlx-core)
+     Compiling rustls-platform-verifier v0.7.0
+     Compiling oracledb v26.0.0-beta.4
+     Compiling hyper-rustls v0.27.10
+     Compiling tiberius v0.13.0
+     Compiling reqwest v0.13.5
+     Compiling oo-sdk v0.1.0 (<repo>/crates/oo-sdk)
+     Compiling sqlx-postgres v0.9.0 (<repo>/crates/oo-connectors/vendor/sqlx-postgres)
+     Compiling sqlx v0.9.0
+     Compiling oo-connectors v0.1.0 (<repo>/crates/oo-connectors)
+     Compiling oo-cli v0.2.1 (<repo>/crates/oo-cli)
+      Finished `dev` profile [unoptimized + debuginfo] target(s) in 49.87s
+
+## 1. start the compose runtime
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/state --deploy-dir <repo>/deploy/docs
+  {"api_version": "1.0", "engine": {"images": {"doc-parser": "sha256:b2e73279cccac62b13e58cccd02993699bb07595d4607a1a520ae1bdc66a756b", "docs-db": "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f", "docs-engine": "sha256:027d260ca862df07f0d4a52c2f06500190c8e4e5eba0d18d5a10a625344dbf77"}, "mode": "compose", "port": 56842, "project": "oo-docs-61a6a28ec8b1"}, "pid": 21145, "port": 56859, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-18T16:06:12Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+[PASS] 1 oo serve --runtime compose prints its address and the compose project - {"port": 56859}
+$ oo docs health --json  -> exit 0
+[PASS] 1 oo docs health exits 0 and the engine is up - exit 0 status ok
+$ oo serve --status  -> exit 0
+[PASS] 1 oo serve --status says it is running - oo serve is running (pid 21145, port 56859)
+
+## 2. register the sample Drive and watch the states
+$ oo docs drive add --name acceptance --root /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/drive --json  -> exit 0
+[PASS] 2 oo docs drive add exits 0 - exit 0
+$ oo docs files ls --drive acceptance --json  -> exit 0
+[PASS] 2 every readable sample file is published or waits for review (md, txt, csv, xlsx, docx, pptx, pdf) - 64s {"encrypted": 1, "indexed": 1, "published": 23, "unsupported": 1}
+[PASS] 2 the two broken files say why (encrypted, legacy office) - {"legacy.doc": ["unsupported", "DOCS_PARSE_LEGACY_OFFICE"], "pdf-encrypted.pdf": ["encrypted", "DOCS_PARSE_ENCRYPTED"]}
+  states seen: [[0.0, []], [3.1, ["encrypted", "indexed", "queued", "unsupported"]], [6.1, ["encrypted", "published", "queued", "unsupported"]], [33.3, ["encrypted", "indexed", "parsing", "published", "queued", "unsupported"]], [36.3, ["encrypted", "published", "queued", "unsupported"]], [63.5, ["encrypted", "indexed", "published", "unsupported"]]]
+
+## 3. read commands
+$ oo docs drive ls --json  -> exit 0
+[PASS] 3 oo docs drive ls lists the Drive
+$ oo docs drive show acceptance --json  -> exit 0
+[PASS] 3 oo docs drive show has drive_rev and freshness - drive_rev 26
+$ oo docs files ls --drive acceptance --state published --json  -> exit 0
+$ oo docs files ls --drive acceptance --state indexed --json  -> exit 0
+[PASS] 3 oo docs files ls --state published - 23 published, 1 indexed of 24 (the file of the conflict waits in indexed)
+$ oo docs files show 9a8b4bf4-1545-46e7-8670-fa3085c45346 --json  -> exit 0
+[PASS] 3 oo docs files show gives the reason of the encrypted pdf - encrypted DOCS_PARSE_ENCRYPTED
+$ oo docs files show 82a24c00-44ce-4130-ac40-9600501cefab --json  -> exit 0
+[PASS] 3 oo docs files show names the docx and its state - state published
+$ oo docs usage --json  -> exit 0
+[PASS] 3 oo docs usage answers (model not configured: 0 calls) - {"status": "not_configured"}
+
+## 4. review queue
+$ oo docs review ls --status pending --json  -> exit 0
+[PASS] 4 oo docs review ls shows the real owner conflict of the sample (one project, two owners) - 1 pending {"constraint_conflict": 1}
+[PASS] 4 the conflict names the facts that disagree - 2 facts
+$ oo docs review decide accept 45346658-5e77-4145-bd66-f785a104efd3 --json  -> exit 0
+[PASS] 4 oo docs review decide accept without --winner is refused for a conflict - {"accepted": 0, "protocol": "oo.docs-decide/v1", "publish_pending": false, "rejected": 0, "results": [{"code": "DOCS_REVIEW_CONSTRAINT_CONFLICT", "id": "4534665
+$ oo docs review decide accept 45346658-5e77-4145-bd66-f785a104efd3 --winner 3c27d5d0-9b42-4107-aab8-f9f5341f9ad8 --json  -> exit 0
+[PASS] 4 oo docs review decide accept --winner settles it - {"accepted": 1, "protocol": "oo.docs-decide/v1", "publish_pending": true, "rejected": 0, "results": [{"id": "45346658-5e77-4145-bd66-f785a104efd3", "status": "o
+$ oo docs review accept-source 8505461f-53a1-43e7-b335-8f0b82efc23a --json  -> exit 0
+[PASS] 4 oo docs review accept-source answers (it touches low-confidence items only) - {"accepted": 0, "protocol": "oo.docs-decide/v1", "publish_pending": false, "rejected": 0, "results": []}
+$ oo docs review ls --status pending --json  -> exit 0
+[PASS] 4 the queue is empty afterwards - 0 pending
+
+## 5. entity correction
+$ oo docs entity search 林远舟 --type Person --json  -> exit 0
+[PASS] 5 oo docs entity search finds 林远舟 - 1 hits
+$ oo docs entity show person:0fe33753fbab8f8dd3b6d22c --history --json  -> exit 0
+$ oo docs entity search 老林 --json  -> exit 0
+[PASS] 5 an alias (老林) resolves to the same person - 1 hits
+[PASS] 5 oo docs entity show --history lists facts with evidence - 19 facts
+$ oo docs entity split person:0fe33753fbab8f8dd3b6d22c --groups [{"aliases": ["老林", "林总"]}, {"aliases": ["Evan Lin"]}] --json  -> exit 0
+[PASS] 5 oo docs entity split creates a new entity - exit 0 {"protocol": "oo.docs-split/v1", "results": [{"id": "person:f3f149ed1b4955f67386dcd1", "status": "ok"}]}
+$ oo docs entity merge --into person:0fe33753fbab8f8dd3b6d22c person:f3f149ed1b4955f67386dcd1 --json  -> exit 0
+[PASS] 5 oo docs entity merge puts it back - exit 0 {"aliases": [], "facts": [], "id": "6be66aae-bc38-4bb4-817b-917e44be07ad", "identity": {}, "key": "person:0fe33753fbab8f8dd3b6d22c", "label": null, "merged_into
+$ oo docs entity show person:0fe33753fbab8f8dd3b6d22c --json  -> exit 0
+$ oo docs entity correct c393a211-445c-4ee6-8462-f9aa5148c1ed --mark-wrong --reason acceptance --entity person:0fe33753fbab8f8dd3b6d22c --json  -> exit 0
+[PASS] 5 oo docs entity correct --mark-wrong - exit 0 retracted
+
+## 6. retry and sync
+$ oo docs files retry 2d12cac5-2cd5-4e30-96f3-bea3b89f846e --json  -> exit 0
+[PASS] 6 oo docs files retry answers per file (a published file is not retryable) - {"code": "state:published", "id": "2d12cac5-2cd5-4e30-96f3-bea3b89f846e", "status": "not_retryable"}
+$ oo docs files retry fcbd04fc-2399-4991-8a07-2ee330b79f8a 9a8b4bf4-1545-46e7-8670-fa3085c45346 --json  -> exit 0
+[PASS] 6 oo docs files retry on the two unreadable files says why or requeues them - [{"code": "state:unsupported", "id": "fcbd04fc-2399-4991-8a07-2ee330b79f8a", "status": "not_retryable"}, {"code": "state:encrypted", "id": "9a8b4bf4-1545-46e7-8670-fa3085c45346", "status": "not_retryable"}]
+$ oo docs drive sync acceptance --json  -> exit 0
+[PASS] 6 oo docs drive sync answers with the generation - {"added": 0, "changed": 0, "drive_rev": 29, "error_code": null, "finished_at": null, "generation": 5, "protocol": "oo.docs-sync/v1", "removed": 0, "renamed": 0,
+[PASS] 6 the new file shows up in oo docs files ls after the sync
+$ oo docs drive sync acceptance --path Notes/刚放进去.md --json  -> exit 0
+[PASS] 6 oo docs drive sync --path (targeted) exits 0 - {"added": 0, "changed": 1, "drive_rev": 29, "error_code": null, "finished_at": "2026-11-18T16:07:24.005598Z", "generation": 5, "maybe_deleted": [], "protocol": 
+
+## 7. mount a context pack
+$ oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work --scope Decisions --scope Projects --for 星图看板用什么图表方案 --json  -> exit 0
+[PASS] 7 oo context mount exits 0 - exit 0
+[PASS] 7 BRIEF has coverage in its header and every content line has [src: - 5 content lines
+[PASS] 7 BRIEF ends with the blocked section: a count, no names
+$ oo context list --json  -> exit 0
+[PASS] 7 oo context list shows the share active
+[PASS] 7 oo context mount (human output) exits 0 - mounted /private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work-human/.context (share 28f924a0-d77f-4dd2-be44-11d0ad6b546b, B
+
+## 8. the P21 scenario
+$ oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a --scope Decisions --scope Projects --group TICKET-P21 --for 星图看板用什么图表方案 --refresh-policy manual --json  -> exit 0
+$ oo context mount --to /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b --scope Decisions --scope People --group TICKET-P21 --for 林远舟的决定 --json  -> exit 0
+[PASS] 8 two mounts of one task group
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context  -> exit 0
+[PASS] 8 oo context check in agent-a exits 0 before the correction - exit 0
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context  -> exit 0
+[PASS] 8 oo context check in agent-b exits 0 before the correction - exit 0
+$ oo docs entity search 开源图表库 --type Decision --json  -> exit 0
+$ oo docs entity show decision:8752aa38cd80070d66db95eb --json  -> exit 0
+$ oo docs entity correct ed65de87-c029-4190-a130-f70c41f06d90 --mark-wrong --reason 决定被推翻 --entity decision:8752aa38cd80070d66db95eb --json  -> exit 0
+[PASS] 8 the decision's fact is marked wrong - exit 0
+[PASS] 8 UPDATES.md of agent-a has the block entry - 0.5s from the correction
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context  -> exit 20
+[PASS] 8 oo context check exits 20 (do not commit) - exit 20
+$ oo context refresh --group TICKET-P21 --json  -> exit 0
+[PASS] 8 the group refreshes together - {"protocol": "oo.context-refresh/v1", "shares": [{"mounted": true, "old": "0ec2d5d6-67dc-442a-9907-6cb3d67e91e3", "path": "/private/tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context", "share_id": 
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-a/.context  -> exit 0
+[PASS] 8 oo context check in agent-a exits 0 after the refresh - exit 0
+$ oo context check --dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/agent-b/.context  -> exit 0
+[PASS] 8 oo context check in agent-b exits 0 after the refresh - exit 0
+[PASS] 8 the Drive's files are unchanged
+
+## 9. stop and start again: everything is still there
+$ oo docs files ls --drive acceptance --state published --json  -> exit 0
+[PASS] 9 SIGTERM: oo serve exits 0 - exit 0
+[PASS] 9 the containers are stopped, not removed - {"doc-parser": "exited", "docs-db": "exited", "docs-engine": "exited"}
+$ <repo>/target/debug/oo serve --runtime compose --json --port 0 --state-dir /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/state --deploy-dir <repo>/deploy/docs
+  {"api_version": "1.0", "engine": {"images": {"doc-parser": "sha256:b2e73279cccac62b13e58cccd02993699bb07595d4607a1a520ae1bdc66a756b", "docs-db": "docker.io/library/postgres@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f", "docs-engine": "sha256:027d260ca862df07f0d4a52c2f06500190c8e4e5eba0d18d5a10a625344dbf77"}, "mode": "compose", "port": 58149, "project": "oo-docs-61a6a28ec8b1"}, "pid": 58131, "port": 58163, "protocol": "oo.docs.serve/v1", "started_at": "2026-11-18T16:08:00Z", "state_dir": "<state>", "token_file": "<state>/serve.token"}
+$ oo docs drive show acceptance --json  -> exit 0
+[PASS] 9 the Drive survived the restart - exit 0
+$ oo docs files ls --drive acceptance --state published --json  -> exit 0
+[PASS] 9 its files are still published - 25 files after the restart, 25 before
+$ oo docs share ls --json  -> exit 0
+[PASS] 9 the shares are still listed - 6 shares (L4 run: 6)
+[PASS] 9 the mounted directories were not touched
+
+## 10. revoke and remove
+$ oo context revoke /tmp/oo-cliacc-v4b-2f6a14f29-tbatmclk/work --json  -> exit 0
+[PASS] 10 oo context revoke deletes the mount and says so - {"local_removed": true, "notice_code": "DOCS_SHARE_READ_CONTENT_IRREVOCABLE", "protocol": "oo.context-revoke/v1", "share_id": "5c0791ad-2cd0-4deb-993a-6bd7af120
+$ oo docs share ls --json  -> exit 0
+[PASS] 10 oo docs share ls shows the revoked share
+$ oo docs share show 5c0791ad-2cd0-4deb-993a-6bd7af1208fd --json  -> exit 0
+[PASS] 10 oo docs share show - state revoked
+$ oo docs drive rm acceptance --json  -> exit 0
+[PASS] 10 oo docs drive rm starts the deletion - {"backend": "fs", "bytes_total": 59085, "config": {"root": "/drives/021443726bb94826"}, "counts": {"encrypted": 1, "published": 25, "unsupported": 1}, "created_
+[PASS] 10 the Drive is gone from oo docs drive ls
+
+## 11. stop
+$ oo serve --stop  -> exit 0
+[PASS] 11 oo serve --stop: it says stopped and the daemon exits 0 - oo serve stopped / exit 0
+[PASS] 11 the containers are stopped - {"doc-parser": "exited", "docs-db": "exited", "docs-engine": "exited"}
+[PASS] cleanup left nothing - 0 left

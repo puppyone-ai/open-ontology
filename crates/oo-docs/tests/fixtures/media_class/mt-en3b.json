@@ -1,0 +1,82 @@
+{
+ "duration_ms": 38997,
+ "speakers": [
+  "S1",
+  "S2",
+  "S3"
+ ],
+ "items": [
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 30,
+   "t_end_ms": 2580,
+   "text": "The project is over,everyone.Let's",
+   "word_start": 0,
+   "word_end": 7
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 2580,
+   "t_end_ms": 4520,
+   "text": "start the weekly project with last",
+   "word_start": 8,
+   "word_end": 13
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 4520,
+   "t_end_ms": 7350,
+   "text": "week's progress!The prototype has finished and entered",
+   "word_start": 14,
+   "word_end": 22
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 7360,
+   "t_end_ms": 16560,
+   "text": "a testing start on Monday.We need three people.Who will get the test in Lyreland?And is the budget still fine?",
+   "word_start": 23,
+   "word_end": 48
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 16560,
+   "t_end_ms": 23290,
+   "text": "I will set up the environment.And the budget is enough.No extra money is needed.One",
+   "word_start": 49,
+   "word_end": 68
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S3",
+   "t_start_ms": 23290,
+   "t_end_ms": 32486,
+   "text": "more point.The supplier code has confirmed that delivery takes 21 days.Great,then we send the test plan to everyone before",
+   "word_start": 69,
+   "word_end": 93
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S2",
+   "t_start_ms": 32486,
+   "t_end_ms": 33116,
+   "text": "Friday.",
+   "word_start": 94,
+   "word_end": 95
+  },
+  {
+   "kind": "utterance",
+   "speaker": "S1",
+   "t_start_ms": 33116,
+   "t_end_ms": 38546,
+   "text": "Understood.I will send it Thursday evening,until we look at next Tuesday.",
+   "word_start": 96,
+   "word_end": 111
+  }
+ ]
+}

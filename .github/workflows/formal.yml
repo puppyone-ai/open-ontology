@@ -1,0 +1,349 @@
+# Formal verification jobs (spec 80 section 6). Dev and CI tools only; nothing
+# here ships in a product artifact. Pins and checksums: formal/TOOLCHAIN.md.
+# actions/checkout 7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1 (2026-07-17)
+# actions/upload-artifact 7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a (2026-04-10)
+# dtolnay/rust-toolchain @ 02cb101ec7c40f2c49e1d9714d64511d8e1b74de (2026-09-12)
+# rustc is pinned to 1.98.1. Node and Temurin 21 come preinstalled on ubuntu-24.04.
+# Repository credentials stay unset. Forks receive none.
+# A green job is not phase sign-off and is not branch protection.
+
+name: formal
+
+on:
+  pull_request:
+    paths:
+      - "formal/**"
+      - "crates/oo-docs/**"
+      - "crates/oo-core/src/docir/**"
+      - "crates/oo-connectors/src/objectstore/**"
+      - "crates/oo-pipeline/migrations/**"
+      - ".github/workflows/formal.yml"
+  schedule:
+    - cron: "43 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QUINT_VERSION: "0.33.1"
+  APALACHE_JAR_SHA256: "e5223915507b65cc5f1638bd037ede60f8a4fc1644aff46355779f9b05df9262"
+  FORMAL_JAVA_HOME: "/usr/lib/jvm/temurin-21-jdk-amd64"
+
+jobs:
+  formal-typecheck:
+    name: formal-typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: typecheck every model
+        run: formal/scripts/formal-typecheck
+
+  formal-simulate:
+    name: formal-simulate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: fetch the Quint Rust evaluator once, with retries
+        # Quint fetches the evaluator from the GitHub API without credentials on the first
+        # `quint run`; a shared runner address can be rate limited. One serial fetch with
+        # backoff keeps the four parallel simulation shards from racing for it.
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if quint run formal/quint/jobs.qnt --main=jobs --max-samples=1 --max-steps=1 >/dev/null; then exit 0; fi
+            echo "evaluator fetch attempt ${attempt} failed" >&2
+            sleep $((attempt * 60))
+          done
+          exit 1
+      - name: random simulation, 10000 traces per model, fixed seed
+        run: formal/scripts/formal-simulate
+
+  formal-verify-fast:
+    # One (model, invariant) per job, at the FAST bound (`verify-steps` in the model header, chosen so
+    # that every pair fits 12 minutes on a quiet machine; formal/reviews/FM*.md have the measured times).
+    # The 80 section 6 budget is 15 minutes per job. On the shared hosted runners, with the whole matrix
+    # running at once, the review_decide pairs measured 13 to 20 minutes (invOrphanQueued took 14 minutes
+    # on a Mac with 8 GB heap and passes with no violation), so the hard stop is 30 minutes. review_decide invOrphanQueued alone
+    # ran past 30 minutes there (14 minutes on a Mac; an equivalent set-membership encoding of the
+    # invariant was measured at 12 minutes, no real gain) and gets 75. The bound and the invariants are unchanged.
+    name: formal-verify-fast (${{ matrix.model }} ${{ matrix.invariant }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.model == 'review_decide' && matrix.invariant == 'invOrphanQueued' && 75 || 30 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { model: constraints, invariant: invBanHolds }
+          - { model: constraints, invariant: invNoCurrentViolation }
+          - { model: constraints, invariant: invHeldHaveConflict }
+          - { model: constraints, invariant: invPartialBlocking }
+          - { model: constraints, invariant: invHeldHaveViolation }
+          - { model: constraints, invariant: invCertainNotViolation }
+          - { model: constraints, invariant: invPackNeverHeld }
+          - { model: constraints, invariant: invWellFormed }
+          - { model: event_stream, invariant: invNoStrandedClient }
+          - { model: event_stream, invariant: invOutboxGapFree }
+          - { model: event_stream, invariant: invViewMatchesCursor }
+          - { model: event_stream, invariant: invCaughtUpEqualsServer }
+          - { model: event_stream, invariant: invTransientHasNoSeq }
+          - { model: file_lifecycle, invariant: invResultFromCurrentLease }
+          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
+          - { model: file_lifecycle, invariant: invPublishedFromLatest }
+          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
+          - { model: file_lifecycle, invariant: invDuplicateSameHash }
+          - { model: file_lifecycle, invariant: invNoDeadEnd }
+          - { model: file_lifecycle, invariant: invQuarantineShape }
+          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: freshness_token, invariant: invRevGapFree }
+          - { model: freshness_token, invariant: invCoversMonotone }
+          - { model: freshness_token, invariant: invLiveCoversSound }
+          - { model: freshness_token, invariant: invCoversSound }
+          - { model: freshness_token, invariant: invCoversMax }
+          - { model: freshness_token, invariant: invCompileWaits }
+          - { model: freshness_token, invariant: invCoverageHonest }
+          - { model: freshness_token, invariant: invCoverageInScope }
+          - { model: freshness_token, invariant: invRequireComplete }
+          - { model: freshness_token, invariant: invOverlayAdvances }
+          - { model: jobs, invariant: invLeaseShape }
+          - { model: jobs, invariant: invSingleLiveLease }
+          - { model: jobs, invariant: invGenerationMonotone }
+          - { model: jobs, invariant: invStaleRejected }
+          - { model: jobs, invariant: invTerminalAbsorbing }
+          - { model: jobs, invariant: invCancelTerminal }
+          - { model: jobs, invariant: invCancelProvenance }
+          - { model: jobs, invariant: invQuarantineAfterCrashes }
+          - { model: jobs, invariant: invNoLostJob }
+          - { model: jobs, invariant: invAtMostOnceSuccess }
+          - { model: review_decide, invariant: invEvidenceGate }
+          - { model: review_decide, invariant: invBySourceAsOf }
+          - { model: review_decide, invariant: invNoDoubleDecide }
+          - { model: review_decide, invariant: invIfMatch }
+          - { model: review_decide, invariant: invRevMonotone }
+          - { model: review_decide, invariant: invLlmNeverAuto }
+          - { model: review_decide, invariant: invInUseNotice }
+          - { model: review_decide, invariant: invRejectWins }
+          - { model: review_decide, invariant: invOrphanQueued }
+          - { model: share_lifecycle, invariant: invCredentialDead }
+          - { model: share_lifecycle, invariant: invRefreshAtomic }
+          - { model: share_lifecycle, invariant: invPackBytesImmutable }
+          - { model: share_lifecycle, invariant: invDriftMarked }
+          - { model: share_lifecycle, invariant: invChangeDelivered }
+          - { model: share_lifecycle, invariant: invCheckCodes }
+          - { model: share_lifecycle, invariant: invCheckFailClosed }
+          - { model: share_lifecycle, invariant: invGroupSameVersion }
+          - { model: share_lifecycle, invariant: invGroupAllOrNothing }
+          - { model: share_lifecycle, invariant: invRefreshPolicy }
+          - { model: share_lifecycle, invariant: invRetention }
+          - { model: share_lifecycle, invariant: invExtendKeepsContent }
+          - { model: share_lifecycle, invariant: invTerminalAbsorbing }
+          - { model: sync_reconcile, invariant: invOnlySweepKills }
+          - { model: sync_reconcile, invariant: invSweepOnlyUnseen }
+          - { model: sync_reconcile, invariant: invMassHold }
+          - { model: sync_reconcile, invariant: invGenerationMonotone }
+          - { model: sync_reconcile, invariant: invHeldAfterMassOnly }
+          - { model: sync_reconcile, invariant: invRenameCarries }
+          - { model: sync_reconcile, invariant: invConverged }
+          - { model: visibility, invariant: invFactsInScope }
+          - { model: visibility, invariant: invEvidenceOnlyInScope }
+          - { model: visibility, invariant: invEntitiesSupported }
+          - { model: visibility, invariant: invAliasesInScope }
+          - { model: visibility, invariant: invNoLeakAliases }
+          - { model: visibility, invariant: invNoLeakFactEnds }
+          - { model: visibility, invariant: invHumanNoBackdoor }
+          - { model: visibility, invariant: invBlockedFactCount }
+          - { model: visibility, invariant: invScopeMonotone }
+          - { model: visibility, invariant: invOutputWithinInput }
+          - { model: visibility, invariant: invBlockedFactsNotVisible }
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: apalache bounded check at the fast bound
+        run: formal/scripts/formal-verify-fast "${{ matrix.model }}" "${{ matrix.invariant }}"
+      - name: apalache jar digest
+        run: |
+          echo "${APALACHE_JAR_SHA256}  ${HOME}/.quint/apalache-dist-0.62.4/apalache/lib/apalache.jar" | sha256sum --check
+
+  formal-conformance:
+    name: formal-conformance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: postgres (digest pinned, throwaway)
+        run: |
+          docker run -d --name oo-fv-pg --label oo.lane=super-ontology-fv \
+            -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_PASSWORD=unused \
+            -p 127.0.0.1:55432:5432 \
+            postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5 \
+            -c track_commit_timestamp=on -c fsync=off -c max_connections=200
+          for i in $(seq 1 30); do docker exec oo-fv-pg pg_isready -U postgres && break; sleep 1; done
+      - name: replay committed ITF traces (FM1 SQL functions, FM2 state machine, FM3 reconcile, FM4 event log and SSE, FM5 review, FM8 visibility, FM10 freshness, FM11 constraints) and the FM6 share scenarios
+        env:
+          OO_DOCS_TEST_PG_PORT: "55432"
+        run: |
+          cargo test -p oo-docs --locked --test conformance_state --test conformance_visibility --test conformance_review_d51
+          cargo test -p oo-docs --locked --test conformance_jobs --test conformance_state --test conformance_sync --test conformance_events --test conformance_review --test conformance_constraints --test conformance_freshness -- --ignored --nocapture --test-threads=1
+          cargo test -p oo-docs --locked --test conformance_share -- --ignored --nocapture --test-threads=1
+      - name: remove postgres
+        if: always()
+        run: docker rm -f oo-fv-pg
+
+  formal-verify-deep:
+    # Nightly only (80 section 6): the same pairs at the larger `deep-steps` bound of each model header.
+    # invNoLostJob alone needs 40 minutes at 10 steps. Own runners, no PR trigger.
+    if: github.event_name == 'schedule'
+    name: formal-verify-deep (${{ matrix.model }} ${{ matrix.invariant }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { model: constraints, invariant: invBanHolds }
+          - { model: constraints, invariant: invNoCurrentViolation }
+          - { model: constraints, invariant: invHeldHaveConflict }
+          - { model: constraints, invariant: invPartialBlocking }
+          - { model: constraints, invariant: invHeldHaveViolation }
+          - { model: constraints, invariant: invCertainNotViolation }
+          - { model: constraints, invariant: invPackNeverHeld }
+          - { model: constraints, invariant: invWellFormed }
+          - { model: event_stream, invariant: invNoStrandedClient }
+          - { model: event_stream, invariant: invOutboxGapFree }
+          - { model: event_stream, invariant: invViewMatchesCursor }
+          - { model: event_stream, invariant: invCaughtUpEqualsServer }
+          - { model: event_stream, invariant: invTransientHasNoSeq }
+          - { model: file_lifecycle, invariant: invResultFromCurrentLease }
+          - { model: file_lifecycle, invariant: invOnlyTableTransitions }
+          - { model: file_lifecycle, invariant: invPublishedFromLatest }
+          - { model: file_lifecycle, invariant: invNoStaleOverwrite }
+          - { model: file_lifecycle, invariant: invDuplicateSameHash }
+          - { model: file_lifecycle, invariant: invNoDeadEnd }
+          - { model: file_lifecycle, invariant: invQuarantineShape }
+          - { model: file_lifecycle, invariant: invQuarantinePoison }
+          - { model: freshness_token, invariant: invRevGapFree }
+          - { model: freshness_token, invariant: invCoversMonotone }
+          - { model: freshness_token, invariant: invLiveCoversSound }
+          - { model: freshness_token, invariant: invCoversSound }
+          - { model: freshness_token, invariant: invCoversMax }
+          - { model: freshness_token, invariant: invCompileWaits }
+          - { model: freshness_token, invariant: invCoverageHonest }
+          - { model: freshness_token, invariant: invCoverageInScope }
+          - { model: freshness_token, invariant: invRequireComplete }
+          - { model: freshness_token, invariant: invOverlayAdvances }
+          - { model: jobs, invariant: invLeaseShape }
+          - { model: jobs, invariant: invSingleLiveLease }
+          - { model: jobs, invariant: invGenerationMonotone }
+          - { model: jobs, invariant: invStaleRejected }
+          - { model: jobs, invariant: invTerminalAbsorbing }
+          - { model: jobs, invariant: invCancelTerminal }
+          - { model: jobs, invariant: invCancelProvenance }
+          - { model: jobs, invariant: invQuarantineAfterCrashes }
+          - { model: jobs, invariant: invNoLostJob }
+          - { model: jobs, invariant: invAtMostOnceSuccess }
+          - { model: review_decide, invariant: invEvidenceGate }
+          - { model: review_decide, invariant: invBySourceAsOf }
+          - { model: review_decide, invariant: invNoDoubleDecide }
+          - { model: review_decide, invariant: invIfMatch }
+          - { model: review_decide, invariant: invRevMonotone }
+          - { model: review_decide, invariant: invLlmNeverAuto }
+          - { model: review_decide, invariant: invInUseNotice }
+          - { model: review_decide, invariant: invRejectWins }
+          - { model: review_decide, invariant: invOrphanQueued }
+          - { model: share_lifecycle, invariant: invCredentialDead }
+          - { model: share_lifecycle, invariant: invRefreshAtomic }
+          - { model: share_lifecycle, invariant: invPackBytesImmutable }
+          - { model: share_lifecycle, invariant: invDriftMarked }
+          - { model: share_lifecycle, invariant: invChangeDelivered }
+          - { model: share_lifecycle, invariant: invCheckCodes }
+          - { model: share_lifecycle, invariant: invCheckFailClosed }
+          - { model: share_lifecycle, invariant: invGroupSameVersion }
+          - { model: share_lifecycle, invariant: invGroupAllOrNothing }
+          - { model: share_lifecycle, invariant: invRefreshPolicy }
+          - { model: share_lifecycle, invariant: invRetention }
+          - { model: share_lifecycle, invariant: invExtendKeepsContent }
+          - { model: share_lifecycle, invariant: invTerminalAbsorbing }
+          - { model: sync_reconcile, invariant: invOnlySweepKills }
+          - { model: sync_reconcile, invariant: invSweepOnlyUnseen }
+          - { model: sync_reconcile, invariant: invMassHold }
+          - { model: sync_reconcile, invariant: invGenerationMonotone }
+          - { model: sync_reconcile, invariant: invHeldAfterMassOnly }
+          - { model: sync_reconcile, invariant: invRenameCarries }
+          - { model: sync_reconcile, invariant: invConverged }
+          - { model: visibility, invariant: invFactsInScope }
+          - { model: visibility, invariant: invEvidenceOnlyInScope }
+          - { model: visibility, invariant: invEntitiesSupported }
+          - { model: visibility, invariant: invAliasesInScope }
+          - { model: visibility, invariant: invNoLeakAliases }
+          - { model: visibility, invariant: invNoLeakFactEnds }
+          - { model: visibility, invariant: invHumanNoBackdoor }
+          - { model: visibility, invariant: invBlockedFactCount }
+          - { model: visibility, invariant: invScopeMonotone }
+          - { model: visibility, invariant: invOutputWithinInput }
+          - { model: visibility, invariant: invBlockedFactsNotVisible }
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: quint
+        run: npm install --global "@informalsystems/quint@${QUINT_VERSION}"
+      - name: apalache bounded check at the deep bound
+        run: formal/scripts/formal-verify-deep "${{ matrix.model }}" "${{ matrix.invariant }}"
+
+  kani-fast:
+    # KP harnesses of the changed crates (80 section 6, budget 20 minutes). Kani 0.68.0, formal/TOOLCHAIN.md.
+    # The hosted runner needed 44 minutes in one run and was stopped at 45 in the next (every harness
+    # passed up to the one running), so the hard stop is 90. The harnesses are unchanged.
+    name: kani-fast
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: kani
+        run: |
+          cargo install --locked kani-verifier --version 0.68.0
+          cargo kani setup
+      - name: KP1 KP7 KP8 and KP5 KP6 KP10 (oo-docs)
+        run: cargo kani -p oo-docs
+      - name: KP2 (oo-core)
+        run: cargo kani -p oo-core

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "template": false,
+  "audited": true,
+  "record_status": "executor-audit-for-coordinator-review",
+  "package": {
+    "ecosystem": "npm",
+    "name": "electron-builder",
+    "version": "26.18.1",
+    "official_source": "https://registry.npmjs.org/electron-builder/26.18.1",
+    "repository": "https://github.com/electron-userland/electron-builder",
+    "manifests": [
+      "apps/super-ontology-desktop/package.json",
+      "pnpm-lock.yaml"
+    ],
+    "publication_date": "2026-10-26T12:34:16.990Z",
+    "adoption_date": "2026-11-19T11:50:00Z",
+    "age_days_at_adoption": 23,
+    "seven_day_rule": "pass",
+    "msrv": "Not a Rust crate. npm engines: node >= 14.",
+    "license_spdx": "MIT",
+    "license_evidence": [
+      {
+        "spdx": "MIT",
+        "source": "licenses/super-ontology-app/electron-builder-26.18.1-LICENSE",
+        "sha256": "bed8d0ab3e6031817f775a641ff37313b0f5591bc8ba0ed79b978dafbd4231ce"
+      }
+    ],
+    "digest": "sha512-uA3To9X/D4ozwP8k/o/MCfKi/xETyPV0FkhTaqdgIT679uexsQ8QFE+PhF8x6PY8W1jIJrw9/yadTuOWTpmAew==",
+    "features_enabled": [],
+    "native_build": false,
+    "upstream_manifest_license": "MIT",
+    "dual_license_choice": null,
+    "relied_on_license": "MIT",
+    "license_obligations": [
+      {
+        "spdx": "MIT",
+        "obligations": [
+          "Retain the copyright and permission notice in copies or substantial portions (build tool; nothing of it is shipped in the DMG)."
+        ]
+      }
+    ],
+    "prohibited_license": false,
+    "weak_copyleft_review": null,
+    "default_features_disabled": null,
+    "native_transitive": [],
+    "note": "Build-time tool only: it packs the DMG and is not part of the shipped app. Its tree (about 330 packages, see supply-chain/super-ontology-app-dependency-delta.md) is MIT, ISC, BSD, Apache-2.0, BlueOak-1.0.0, 0BSD and three WTFPL-licensed utility packages that are flagged for owner review there."
+  },
+  "exception": null,
+  "advisories": {
+    "scan_recorded": true,
+    "scanner": "pnpm audit --json (2026-11-19, workspace lockfile; filtered to paths under apps__super-ontology-desktop)",
+    "evidence": "two moderate minimatch denial-of-service advisories on the build tool path (patterns come from this repository's own electron-builder.yml, no untrusted input); no high or critical advisory on electron-builder or its build-time dependencies",
+    "disposition": "resolved-before-adoption",
+    "known_exploitable_high_severity": false
+  },
+  "reviewer_roles": [
+    "supply-chain-owner",
+    "security-owner"
+  ],
+  "reviewers_assigned": []
+}

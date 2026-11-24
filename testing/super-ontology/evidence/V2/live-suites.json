@@ -1,0 +1,432 @@
+{
+  "run_id": "live-a9b",
+  "lane": "super-ontology-a9",
+  "targets": 53,
+  "passed": 52,
+  "failed": 0,
+  "skipped": 1,
+  "rows": [
+    {
+      "target": "api_live",
+      "kind": "pg",
+      "seconds": 10,
+      "tests_passed": 11,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "audit",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "bench_compile",
+      "kind": "bench",
+      "seconds": 119,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "bench_scale",
+      "kind": "bench",
+      "seconds": 28,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_constraints",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_events",
+      "kind": "pg",
+      "seconds": 2,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_freshness",
+      "kind": "pg",
+      "seconds": 3,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_jobs",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_review",
+      "kind": "pg",
+      "seconds": 2,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_share",
+      "kind": "pg",
+      "seconds": 35,
+      "tests_passed": 4,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_state",
+      "kind": "pg",
+      "seconds": 3,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "conformance_sync",
+      "kind": "pg",
+      "seconds": 3,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "consistency_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "constraints_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "contract",
+      "kind": "pg",
+      "seconds": 5,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "correct_api_live",
+      "kind": "pg",
+      "seconds": 6,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "coverage_scope_live",
+      "kind": "pg",
+      "seconds": 4,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "disk_guard_live",
+      "kind": "pg",
+      "seconds": 6,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "download",
+      "kind": "s3",
+      "status": "skipped",
+      "reason": "needs an S3 store; rerun with --with-s3"
+    },
+    {
+      "target": "eval_live",
+      "kind": "eval",
+      "seconds": 226,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "events_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "extract_llm_stage_live",
+      "kind": "pg",
+      "seconds": 20,
+      "tests_passed": 5,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "faults",
+      "kind": "faults",
+      "seconds": 245,
+      "tests_passed": 9,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "files_api_live",
+      "kind": "pg",
+      "seconds": 12,
+      "tests_passed": 6,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "freshness_live",
+      "kind": "pg",
+      "seconds": 6,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "gates_live",
+      "kind": "pg",
+      "seconds": 6,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "ingest_fs",
+      "kind": "pg",
+      "seconds": 6,
+      "tests_passed": 15,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "install",
+      "kind": "pg",
+      "seconds": 2,
+      "tests_passed": 9,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "jobs_live",
+      "kind": "pg",
+      "seconds": 4,
+      "tests_passed": 11,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "l3_routing",
+      "kind": "docker",
+      "seconds": 232,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "latency",
+      "kind": "pg",
+      "seconds": 4,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "llm_live",
+      "kind": "pg",
+      "seconds": 19,
+      "tests_passed": 4,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "log_redaction",
+      "kind": "pg",
+      "seconds": 8,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "pipeline_live",
+      "kind": "pg",
+      "seconds": 18,
+      "tests_passed": 5,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "policy_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "prefix_sync",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "projection_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "promotion_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "publish_live",
+      "kind": "pg",
+      "seconds": 3,
+      "tests_passed": 5,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "rebuild_live",
+      "kind": "pg",
+      "seconds": 5,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "refresh_changes_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "reprocess",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 4,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "resolve_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 5,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "retention_live",
+      "kind": "pg",
+      "seconds": 1,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "review_api_live",
+      "kind": "pg",
+      "seconds": 5,
+      "tests_passed": 1,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "review_live",
+      "kind": "pg",
+      "seconds": 2,
+      "tests_passed": 5,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "share_live",
+      "kind": "pg",
+      "seconds": 8,
+      "tests_passed": 10,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "sidecar_formats",
+      "kind": "docker",
+      "seconds": 187,
+      "tests_passed": 7,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "sidecar_supervision",
+      "kind": "docker",
+      "seconds": 51,
+      "tests_passed": 6,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "speaker_live",
+      "kind": "pg",
+      "seconds": 2,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "state_live",
+      "kind": "pg",
+      "seconds": 16,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "suggest_live",
+      "kind": "pg",
+      "seconds": 2,
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    {
+      "target": "temporal_live",
+      "kind": "pg",
+      "seconds": 3,
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "status": "passed"
+    }
+  ]
+}

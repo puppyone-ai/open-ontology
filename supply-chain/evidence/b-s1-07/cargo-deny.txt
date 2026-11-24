@@ -1,0 +1,219 @@
+warning[license-exception-not-encountered]: license exception was not encountered
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/ci/deny.toml:33:15
+   │
+33 │     { name = "tiny-keccak", allow = ["CC0-1.0"] },
+   │               ━━━━━━━━━━━ unmatched license exception
+
+warning[duplicate]: found 2 duplicate entries for crate 'base64'
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:31:1
+   │
+31 │ ╭ base64 0.22.1 registry+https://github.com/rust-lang/crates.io-index
+32 │ │ base64 0.23.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰───────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'block-buffer'
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:41:1
+   │
+41 │ ╭ block-buffer 0.10.4 registry+https://github.com/rust-lang/crates.io-index
+42 │ │ block-buffer 0.12.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'const-oid'
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:70:1
+   │
+70 │ ╭ const-oid 0.9.6 registry+https://github.com/rust-lang/crates.io-index
+71 │ │ const-oid 0.10.2 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰──────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'constant_time_eq'
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:72:1
+   │
+72 │ ╭ constant_time_eq 0.4.2 registry+https://github.com/rust-lang/crates.io-index
+73 │ │ constant_time_eq 0.6.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰────────────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'cpufeatures'
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:77:1
+   │
+77 │ ╭ cpufeatures 0.2.17 registry+https://github.com/rust-lang/crates.io-index
+78 │ │ cpufeatures 0.3.1 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰───────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'crypto-common'
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:86:1
+   │
+86 │ ╭ crypto-common 0.1.6 registry+https://github.com/rust-lang/crates.io-index
+87 │ │ crypto-common 0.2.2 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'der'
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:98:1
+   │
+98 │ ╭ der 0.7.10 registry+https://github.com/rust-lang/crates.io-index
+99 │ │ der 0.8.2 registry+https://github.com/rust-lang/crates.io-index
+   │ ╰───────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'digest'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:103:1
+    │
+103 │ ╭ digest 0.10.7 registry+https://github.com/rust-lang/crates.io-index
+104 │ │ digest 0.11.3 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰───────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'generic-array'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:151:1
+    │
+151 │ ╭ generic-array 0.14.9 registry+https://github.com/rust-lang/crates.io-index
+152 │ │ generic-array 1.4.5 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 3 duplicate entries for crate 'getrandom'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:153:1
+    │
+153 │ ╭ getrandom 0.2.17 registry+https://github.com/rust-lang/crates.io-index
+154 │ │ getrandom 0.3.4 registry+https://github.com/rust-lang/crates.io-index
+155 │ │ getrandom 0.4.3 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'hashbrown'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:162:1
+    │
+162 │ ╭ hashbrown 0.16.1 registry+https://github.com/rust-lang/crates.io-index
+163 │ │ hashbrown 0.17.1 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰──────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 3 duplicate entries for crate 'itertools'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:197:1
+    │
+197 │ ╭ itertools 0.10.5 registry+https://github.com/rust-lang/crates.io-index
+198 │ │ itertools 0.14.0 registry+https://github.com/rust-lang/crates.io-index
+199 │ │ itertools 0.15.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰──────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'linux-raw-sys'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:214:1
+    │
+214 │ ╭ linux-raw-sys 0.4.15 registry+https://github.com/rust-lang/crates.io-index
+215 │ │ linux-raw-sys 0.12.1 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰──────────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'num-bigint'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:239:1
+    │
+239 │ ╭ num-bigint 0.4.8 registry+https://github.com/rust-lang/crates.io-index
+240 │ │ num-bigint 0.5.1 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰──────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'phf'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:282:1
+    │
+282 │ ╭ phf 0.12.1 registry+https://github.com/rust-lang/crates.io-index
+283 │ │ phf 0.13.1 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'phf_shared'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:284:1
+    │
+284 │ ╭ phf_shared 0.12.1 registry+https://github.com/rust-lang/crates.io-index
+285 │ │ phf_shared 0.13.1 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰───────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'rustix'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:329:1
+    │
+329 │ ╭ rustix 0.38.44 registry+https://github.com/rust-lang/crates.io-index
+330 │ │ rustix 1.1.6 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰──────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'sha2'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:354:1
+    │
+354 │ ╭ sha2 0.10.9 registry+https://github.com/rust-lang/crates.io-index
+355 │ │ sha2 0.11.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'shlex'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:358:1
+    │
+358 │ ╭ shlex 1.3.0 registry+https://github.com/rust-lang/crates.io-index
+359 │ │ shlex 2.0.1 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'spki'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:370:1
+    │
+370 │ ╭ spki 0.7.3 registry+https://github.com/rust-lang/crates.io-index
+371 │ │ spki 0.8.1 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'syn'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:386:1
+    │
+386 │ ╭ syn 2.0.119 registry+https://github.com/rust-lang/crates.io-index
+387 │ │ syn 3.0.6 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰───────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'synstructure'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:389:1
+    │
+389 │ ╭ synstructure 0.13.2 registry+https://github.com/rust-lang/crates.io-index
+390 │ │ synstructure 0.14.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰─────────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'thiserror'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:392:1
+    │
+392 │ ╭ thiserror 1.0.69 registry+https://github.com/rust-lang/crates.io-index
+393 │ │ thiserror 2.0.21 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰──────────────────────────────────────────────────────────────────────┘ lock entries
+
+warning[duplicate]: found 2 duplicate entries for crate 'thiserror-impl'
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:394:1
+    │
+394 │ ╭ thiserror-impl 1.0.69 registry+https://github.com/rust-lang/crates.io-index
+395 │ │ thiserror-impl 2.0.21 registry+https://github.com/rust-lang/crates.io-index
+    │ ╰───────────────────────────────────────────────────────────────────────────┘ lock entries
+
+error[unmaintained]: chrono is unmaintained
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:61:1
+   │
+61 │ chrono 0.4.45 registry+https://github.com/rust-lang/crates.io-index
+   │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmaintained advisory detected
+   │
+   ├ ID: RUSTSEC-2026-0543
+   ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0543
+   ├ The chrono crate is unmaintained; all versions are affected.
+
+     Recommended alternatives:
+
+     - [jiff](https://crates.io/crates/jiff)
+     - [time](https://crates.io/crates/time)
+   ├ Announcement: https://github.com/chronotope/chrono/issues/1768
+   ├ Solution: No safe upgrade is available!
+
+error[unmaintained]: chrono-tz is unmaintained
+   ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:62:1
+   │
+62 │ chrono-tz 0.10.4 registry+https://github.com/rust-lang/crates.io-index
+   │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmaintained advisory detected
+   │
+   ├ ID: RUSTSEC-2026-0555
+   ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0555
+   ├ The chrono-tz crate is unmaintained; all versions are affected.
+   ├ Announcement: https://github.com/chronotope/chrono/issues/1768
+   ├ Solution: No safe upgrade is available!
+
+error[unmaintained]: humantime is unmaintained
+    ┌─ /Users/redux/puppy-one/oo-v02/so-B-S1-07/Cargo.lock:176:1
+    │
+176 │ humantime 2.4.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ unmaintained advisory detected
+    │
+    ├ ID: RUSTSEC-2026-0542
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0542
+    ├ Because chrono is now unmaintained and humantime wraps chrono, it is also unmaintained; all
+      versions are affected.
+    ├ Announcement: https://github.com/chronotope/chrono/issues/1768
+    ├ Solution: No safe upgrade is available!
+
+advisories FAILED, bans ok, licenses ok, sources ok

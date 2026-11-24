@@ -1,0 +1,48 @@
+{
+  "protocol": "oo.license-reviews/v1",
+  "scope": "tools/doc-parser image (oo-docs-parser), spec 90 §3 SBOM gate; supply-chain/policy.md §2 written review of weak-copyleft obligations",
+  "reviewed_on": "2026-11-17",
+  "reviewer_role": "engineering coordinator (Super Ontology integration thread). Not legal advice: every entry is listed for the D67 lawyer gate before any external release.",
+  "reviews": {
+    "certifi": {
+      "license": "MPL-2.0",
+      "use": "unmodified PyPI wheel; CA bundle data loaded at runtime by Python libraries",
+      "obligation": "MPL-2.0 is file-level copyleft: distributed Covered Software files must stay available in source form under MPL-2.0 and the notice must be kept",
+      "how_met": "files are shipped unmodified in their original source form (Python source and data); the licence text ships in the wheel's dist-info inside the image; the MPL-2.0 notice, the upstream source location and the MPL-2.0 text are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "tqdm": {
+      "license": "MPL-2.0 AND MIT",
+      "use": "unmodified PyPI wheel; progress helper pulled in by Docling dependencies",
+      "obligation": "same as certifi for the MPL-2.0 files; MIT notice for the rest",
+      "how_met": "unmodified Python source shipped as-is with its licence files; the MPL-2.0 notice, the upstream source location and the texts are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "glibc (vendored by auditwheel)": {
+      "license": "LGPL-2.1-or-later",
+      "use": "dynamic loader vendored by auditwheel inside a manylinux wheel; loaded as a shared object, not statically linked into our code",
+      "obligation": "LGPL: allow the user to replace or relink the library, provide or offer the corresponding source, keep the notice",
+      "how_met": "shared object, replaceable in the image; the written source offer (upstream release location, replaceability, release-artifact copy on request) and the LGPL-2.1 text are section 1 and section 6 of tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "libgfortran (GCC Fortran runtime)": {
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "use": "runtime library bundled in numpy/scipy wheels, dynamically linked",
+      "obligation": "the GCC Runtime Library Exception permits distributing the runtime with independent modules compiled by an eligible GCC compilation process without GPL obligations on those modules; keep the notice",
+      "how_met": "unmodified runtime from upstream wheels; the notice, the source offer, the GPL-3.0 text and the GCC Runtime Library Exception 3.1 text are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    },
+    "libgomp (GCC OpenMP runtime)": {
+      "license": "GPL-3.0-or-later WITH GCC-exception-3.1",
+      "use": "OpenMP runtime bundled in torch/numpy wheels, dynamically linked",
+      "obligation": "as for libgfortran (GCC Runtime Library Exception)",
+      "how_met": "unmodified runtime from upstream wheels; the notice, the source offer, the GPL-3.0 text and the GCC Runtime Library Exception 3.1 text are in tools/doc-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped in the image at /usr/share/licenses/oo-docs-parser/THIRD_PARTY_NOTICES.md)",
+      "evidence": "testing/super-ontology/evidence/L3/sbom-doc-parser.json; tools/doc-parser/THIRD_PARTY_NOTICES.md",
+      "legal_gate": "D67"
+    }
+  }
+}

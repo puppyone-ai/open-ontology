@@ -1,0 +1,13 @@
+{
+  "document_entities": 34104,
+  "files": 34104,
+  "index_seconds": 1626.63651175,
+  "merged_without_a_person": 0,
+  "model_facts_planted": 1200,
+  "publish_seconds": 635.809996333,
+  "queued_at_index": 2,
+  "review_by_kind_reason_status": {
+    "entity_merge/shared_alias/pending": 2
+  },
+  "review_pending": 2
+}

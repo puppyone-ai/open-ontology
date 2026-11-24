@@ -1,0 +1,868 @@
+//! Database sources for `oo source` (D83): `oo source add <kind>` for every database kind (postgres, mysql,
+//! mariadb, tidb, oceanbase, polardb, opengauss, kingbase, sqlserver, oracle, db2, dm8,
+//! clickhouse, doris, starrocks, mongodb, opensearch)
+//! registers the database in the stack file the existing pipeline reads
+//! (`stack.yaml`, `oo.stack/v1`), without touching how that pipeline works. Only
+//! the `sources` list changes, through the pipeline's own parser and validator;
+//! the model, deploy and gateway parts stay as `oo init` wrote them, so the
+//! file must exist first. The password is a `0600` file in the oo secrets
+//! directory and the stack file carries only `secret_ref: file:<path>`.
+
+use std::io::IsTerminal;
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::{Path, PathBuf};
+
+use oo_stack::stack::{self, SecretRef, Snapshot, Source, Stack};
+use serde_json::{Value, json};
+
+use super::client::{CliError, exit};
+use super::docs_cmd::{Parsed, bad, out};
+use super::source::{
+    env_value, own_secret_file_of, prompt_hidden, read_stdin_text, slug, store_secret,
+};
+
+/// How a kind treats the trust anchor (`tls_ca`), as its connector does.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Tls {
+    /// Verified TLS only: the CA is required.
+    Required,
+    /// A CA is required except for this machine's own loopback address.
+    LoopbackPlain,
+    /// The transport takes no CA through the stack file (the driver owns TLS).
+    Driver,
+    /// A CA is optional (the isolated worker mounts it).
+    Optional,
+}
+
+struct Kind {
+    name: &'static str,
+    /// The `engine` written to the stack file; the pipeline's family selector.
+    engine: &'static str,
+    port: u16,
+    tls: Tls,
+    /// The explicit scope the kind needs: `schema.table`, or the unit below.
+    unit: &'static str,
+}
+
+const fn kind(
+    name: &'static str,
+    engine: &'static str,
+    port: u16,
+    tls: Tls,
+    unit: &'static str,
+) -> Kind {
+    Kind {
+        name,
+        engine,
+        port,
+        tls,
+        unit,
+    }
+}
+
+const TABLE: &str = "schema.table";
+const TABLES: &[Kind] = &[
+    kind("postgres", "postgres", 5432, Tls::Required, TABLE),
+    kind("mysql", "mysql", 3306, Tls::Required, TABLE),
+    kind("mariadb", "mariadb", 3306, Tls::Required, TABLE),
+    kind("tidb", "tidb", 4000, Tls::Required, TABLE),
+    kind("oceanbase", "oceanbase", 2881, Tls::Required, TABLE),
+    // PolarDB MySQL is a deployment variant of the MySQL family, not a family.
+    kind("polardb", "mysql-polardb", 3306, Tls::Required, TABLE),
+    kind("opengauss", "opengauss", 5432, Tls::Required, TABLE),
+    kind("kingbase", "kingbase", 54321, Tls::Required, TABLE),
+    kind("sqlserver", "sqlserver", 1433, Tls::Required, TABLE),
+    kind("oracle", "oracle", 1521, Tls::Driver, TABLE),
+    kind("db2", "db2", 50000, Tls::Optional, TABLE),
+    kind("dm8", "dm8", 5236, Tls::Driver, TABLE),
+    // ClickHouse, Doris and StarRocks are read over the MySQL wire (D88).
+    kind("clickhouse", "clickhouse", 9004, Tls::LoopbackPlain, TABLE),
+    kind("doris", "doris", 9030, Tls::LoopbackPlain, TABLE),
+    kind("starrocks", "starrocks", 9030, Tls::LoopbackPlain, TABLE),
+    kind(
+        "mongodb",
+        "mongodb",
+        27017,
+        Tls::LoopbackPlain,
+        "database.collection",
+    ),
+    kind(
+        "opensearch",
+        "opensearch",
+        9200,
+        Tls::LoopbackPlain,
+        "schema.index",
+    ),
+];
+
+fn kind_of(name: &str) -> Option<&'static Kind> {
+    TABLES.iter().find(|k| k.name == name)
+}
+
+pub fn is_db_kind(kind: &str) -> bool {
+    kind_of(kind).is_some()
+}
+
+/// Every database kind `oo source add` takes, in documentation order.
+#[cfg(test)]
+fn kinds() -> impl Iterator<Item = &'static str> {
+    TABLES.iter().map(|k| k.name)
+}
+
+fn spec_port(kind: &str) -> u16 {
+    kind_of(kind).map_or(5432, |k| k.port)
+}
+
+fn loopback(host: &str) -> bool {
+    matches!(host, "127.0.0.1" | "::1" | "localhost")
+}
+
+fn err(code: &str, msg: impl Into<String>) -> CliError {
+    CliError::new(exit::ARGS, code, msg)
+}
+
+/// The stack file named by `--config` (default `stack.yaml` in the directory).
+pub fn config_path(p: &Parsed) -> PathBuf {
+    PathBuf::from(p.opt("--config").unwrap_or("stack.yaml"))
+}
+
+/// Read and validate the stack file. `Ok(None)` when it does not exist.
+pub fn load(path: &Path) -> Result<Option<Stack>, CliError> {
+    match std::fs::symlink_metadata(path) {
+        Err(_) => return Ok(None),
+        Ok(m) if !m.is_file() => {
+            return Err(err(
+                "SO_SOURCE_BAD_STACK",
+                format!("{} is not a regular file", path.display()),
+            ));
+        }
+        Ok(_) => {}
+    }
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| err("SO_SOURCE_BAD_STACK", format!("{}: {e}", path.display())))?;
+    stack::parse_draft(&text).map(Some).map_err(|c| {
+        err(
+            "SO_SOURCE_BAD_STACK",
+            format!("{} is not a valid stack file ({c})", path.display()),
+        )
+    })
+}
+
+/// Write the stack file as JSON, atomically, mode 0600 (the pipeline's own `init --config` normal form).
+fn save(path: &Path, s: &Stack) -> Result<(), CliError> {
+    stack::validate_draft(s).map_err(|c| {
+        err(
+            "SO_SOURCE_BAD_STACK",
+            format!("the result is not a valid stack ({c})"),
+        )
+    })?;
+    let text = serde_json::to_string_pretty(s)
+        .map_err(|_| err("SO_SOURCE_BAD_STACK", "cannot serialize"))?;
+    let tmp = path.with_extension(format!("tmp{}", std::process::id()));
+    {
+        use std::io::Write;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&tmp)
+            .map_err(|e| {
+                CliError::new(
+                    exit::OTHER,
+                    "SO_SOURCE_BAD_STACK",
+                    format!("{}: {e}", tmp.display()),
+                )
+            })?;
+        f.write_all(text.as_bytes())
+            .and_then(|()| f.write_all(b"\n"))
+            .and_then(|()| f.sync_all())
+            .map_err(|e| CliError::new(exit::OTHER, "SO_SOURCE_BAD_STACK", e.to_string()))?;
+    }
+    std::fs::rename(&tmp, path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        CliError::new(
+            exit::OTHER,
+            "SO_SOURCE_BAD_STACK",
+            format!("{}: {e}", path.display()),
+        )
+    })
+}
+
+fn file_ref(path: &str, what: &str) -> Result<String, CliError> {
+    let abs =
+        std::fs::canonicalize(path).map_err(|_| bad(format!("{what} {path} does not exist")))?;
+    let r = format!("file:{}", abs.display());
+    if stack::secret_reference(&r) {
+        Ok(r)
+    } else {
+        Err(bad(format!("{what} is not a usable path")))
+    }
+}
+
+/// Where the password comes from.
+enum Pw {
+    Reference(String),
+    Stdin,
+    Env(String),
+    Prompt,
+}
+
+fn password_source(p: &Parsed, interactive: bool) -> Result<Pw, CliError> {
+    let given = [
+        p.opt("--password-ref").is_some(),
+        p.has("--password-stdin"),
+        p.opt("--password-env").is_some(),
+        p.opt("--password-file").is_some(),
+    ]
+    .iter()
+    .filter(|b| **b)
+    .count();
+    if given > 1 {
+        return Err(bad(
+            "choose one: --password-stdin, --password-env, --password-file or --password-ref",
+        ));
+    }
+    if let Some(r) = p.opt("--password-ref") {
+        if !stack::secret_reference(r) {
+            return Err(bad(
+                "--password-ref is env:NAME, file:/absolute/path or a secret name",
+            ));
+        }
+        return Ok(Pw::Reference(r.to_owned()));
+    }
+    if let Some(f) = p.opt("--password-file") {
+        return Ok(Pw::Reference(file_ref(f, "--password-file")?));
+    }
+    if p.has("--password-stdin") {
+        return Ok(Pw::Stdin);
+    }
+    if let Some(v) = p.opt("--password-env") {
+        return Ok(Pw::Env(v.to_owned()));
+    }
+    if interactive {
+        return Ok(Pw::Prompt);
+    }
+    Err(bad(
+        "no password given and no terminal to ask: use --password-stdin, --password-env, --password-file or --password-ref",
+    ))
+}
+
+/// `(secret_ref, created file)`.
+fn acquire_password(src: Pw, file_name: &str) -> Result<(String, Option<PathBuf>), CliError> {
+    let text = match src {
+        Pw::Reference(r) => return Ok((r, None)),
+        Pw::Stdin => read_stdin_text()?.trim_end_matches(['\n', '\r']).to_owned(),
+        Pw::Env(v) => env_value(&v)?,
+        Pw::Prompt => prompt_hidden("Database password").unwrap_or_default(),
+    };
+    if text.is_empty() {
+        return Err(err("SO_SOURCE_BAD_CREDENTIAL", "the password was empty"));
+    }
+    let (reference, path) = store_secret(file_name, &text)?;
+    Ok((reference, Some(path)))
+}
+
+/// Build the stack source from the flags (the password reference is given).
+pub fn build_source(
+    p: &Parsed,
+    kind: &str,
+    name: &str,
+    password_ref: String,
+) -> Result<Source, CliError> {
+    let host = p.opt("--host").ok_or_else(|| bad("--host is required"))?;
+    let database = p
+        .opt("--database")
+        .ok_or_else(|| bad("--database is required (the service name for oracle)"))?;
+    let user = p.opt("--user").ok_or_else(|| bad("--user is required"))?;
+    let port = match p.opt("--port") {
+        Some(v) => v.parse::<u16>().map_err(|_| bad("--port is a number"))?,
+        None => spec_port(kind),
+    };
+    let tls_ca = match (p.opt("--tls-ca-file"), p.opt("--tls-ca-ref")) {
+        (Some(_), Some(_)) => return Err(bad("choose --tls-ca-file or --tls-ca-ref")),
+        (Some(f), None) => Some(file_ref(f, "--tls-ca-file")?),
+        (None, Some(r)) if stack::secret_reference(r) => Some(r.to_owned()),
+        (None, Some(_)) => {
+            return Err(bad(
+                "--tls-ca-ref is env:NAME, file:/absolute/path or a secret name",
+            ));
+        }
+        (None, None) => None,
+    };
+    let include: Vec<String> = p.all("--include").iter().map(|s| (*s).to_owned()).collect();
+    let spec = kind_of(kind).ok_or_else(|| bad(format!("{kind} is not a database kind")))?;
+    let needs_ca = match spec.tls {
+        Tls::Required => true,
+        Tls::LoopbackPlain => !loopback(host),
+        Tls::Driver | Tls::Optional => false,
+    };
+    if needs_ca && tls_ca.is_none() {
+        return Err(bad(format!(
+            "{kind} sources need a trust anchor: --tls-ca-file <pem> or --tls-ca-ref{}",
+            if spec.tls == Tls::LoopbackPlain {
+                " (plain text is only for 127.0.0.1)"
+            } else {
+                ""
+            }
+        )));
+    }
+    if tls_ca.is_some() && spec.tls == Tls::Driver {
+        return Err(bad(format!(
+            "{kind} takes no trust anchor through the stack file; its transport owns TLS"
+        )));
+    }
+    if include.is_empty() && !matches!(kind, "oracle") {
+        return Err(bad(format!(
+            "{kind} sources need an explicit scope: --include <{}> (repeatable)",
+            spec.unit
+        )));
+    }
+    let mut scope = stack::Scope::default();
+    if !include.is_empty() {
+        scope.include = include;
+    }
+    scope.exclude = p.all("--exclude").iter().map(|s| (*s).to_owned()).collect();
+    Ok(Source {
+        id: name.to_owned(),
+        engine: spec.engine.to_owned(),
+        host: host.to_owned(),
+        port,
+        database: database.to_owned(),
+        user: user.to_owned(),
+        password: SecretRef {
+            secret_ref: password_ref,
+        },
+        tls_ca: tls_ca.map(|secret_ref| SecretRef { secret_ref }),
+        ssh: None,
+        scope,
+        sync: stack::Sync::default(),
+        snapshot: Snapshot::default(),
+    })
+}
+
+/// What may be shown of one stack source.
+pub fn public(s: &Source) -> Value {
+    json!({
+        "name": s.id,
+        "backend": s.engine,
+        "kind": "database",
+        "status": "configured",
+        "files_total": Value::Null,
+        "config": {
+            "host": s.host, "port": s.port, "database": s.database, "user": s.user,
+            "secret_ref": "(set)",
+            "tls_ca": s.tls_ca.is_some(),
+            "include": s.scope.include, "exclude": s.scope.exclude,
+        }
+    })
+}
+
+/// The database sources of the stack file at `--config` (none when it is absent).
+pub fn list(p: &Parsed) -> Result<Vec<Value>, CliError> {
+    Ok(load(&config_path(p))?
+        .map(|s| s.sources.iter().map(public).collect())
+        .unwrap_or_default())
+}
+
+/// Is `name` a source of the stack file?
+pub fn exists(p: &Parsed, name: &str) -> bool {
+    load(&config_path(p))
+        .ok()
+        .flatten()
+        .is_some_and(|s| s.sources.iter().any(|x| x.id == name))
+}
+
+pub fn add(p: &Parsed, kind: &str) -> Result<(), CliError> {
+    let name = p.opt("--name").ok_or_else(|| bad("--name is required"))?;
+    if !stack::secret_name(name) {
+        return Err(bad("--name is letters, digits, - and _ (at most 64)"));
+    }
+    let path = config_path(p);
+    let mut s = load(&path)?.ok_or_else(|| {
+        err(
+            "SO_SOURCE_NO_STACK",
+            format!("{} does not exist; `oo init` creates it (the model the database pipeline needs is set there), or pass --config <file>", path.display()),
+        )
+    })?;
+    if s.sources.iter().any(|x| x.id == name) {
+        return Err(err(
+            "SO_SOURCE_EXISTS",
+            format!("a source named `{name}` is already in {}", path.display()),
+        ));
+    }
+    // build first with a placeholder to fail on bad flags before any secret is written
+    build_source(p, kind, name, "env:OO_PLACEHOLDER".into())?;
+    let interactive = std::io::stdin().is_terminal() && !p.has("--non-interactive");
+    let src = password_source(p, interactive)?;
+    let (reference, created) = acquire_password(src, &format!("src_{}_pw", slug(name)))?;
+    let result = build_source(p, kind, name, reference).and_then(|src| {
+        let shown = public(&src);
+        s.sources.push(src);
+        save(&path, &s).map(|()| shown)
+    });
+    match result {
+        Ok(mut shown) => {
+            shown["credential_file_created"] = json!(created.is_some());
+            shown["stack_file"] = json!(path.display().to_string());
+            let human = format!(
+                "added {kind} source {name} to {} (run `oo doctor` to probe it)",
+                path.display()
+            );
+            out(p, "oo.source/v1", shown, human);
+            super::live::source_changed(
+                super::docs_cmd::state_of(p).ok().as_deref(),
+                name,
+                "added",
+                &path,
+            );
+            Ok(())
+        }
+        Err(e) => {
+            if let Some(f) = created {
+                let _ = std::fs::remove_file(f);
+            }
+            Err(e)
+        }
+    }
+}
+
+pub fn show(p: &Parsed, name: &str) -> Result<(), CliError> {
+    let s = load(&config_path(p))?.ok_or_else(|| bad("no stack file"))?;
+    let src = s
+        .sources
+        .iter()
+        .find(|x| x.id == name)
+        .ok_or_else(|| bad(format!("no source {name}")))?;
+    let v = public(src);
+    let human = format!(
+        "{} {} {}:{}/{}",
+        src.id, src.engine, src.host, src.port, src.database
+    );
+    out(p, "oo.source/v1", v, human);
+    Ok(())
+}
+
+pub fn rm(p: &Parsed, name: &str) -> Result<(), CliError> {
+    let path = config_path(p);
+    let mut s = load(&path)?.ok_or_else(|| bad("no stack file"))?;
+    let idx = s
+        .sources
+        .iter()
+        .position(|x| x.id == name)
+        .ok_or_else(|| bad(format!("no source {name}")))?;
+    if s.sources.len() == 1 {
+        return Err(err(
+            "SO_SOURCE_LAST",
+            "a stack needs at least one database source; edit the file or run `oo init` instead",
+        ));
+    }
+    let removed = s.sources.remove(idx);
+    save(&path, &s)?;
+    let mut gone = false;
+    if !p.has("--keep-secret")
+        && let Some(f) = own_secret_file_of(&removed.password.secret_ref)
+    {
+        gone = std::fs::remove_file(f).is_ok();
+    }
+    out(
+        p,
+        "oo.source/v1",
+        json!({"name": name, "removed": true, "credential_file_removed": gone}),
+        format!(
+            "removed {name}{}",
+            if gone {
+                "; its credential file was deleted"
+            } else {
+                ""
+            }
+        ),
+    );
+    super::live::source_changed(
+        super::docs_cmd::state_of(p).ok().as_deref(),
+        name,
+        "removed",
+        &path,
+    );
+    Ok(())
+}
+
+/// A cheap reachability check; the full read-only probe is `oo doctor`.
+pub fn test(p: &Parsed, name: &str) -> Result<(), CliError> {
+    use std::net::ToSocketAddrs;
+    let s = load(&config_path(p))?.ok_or_else(|| bad("no stack file"))?;
+    let src = s
+        .sources
+        .iter()
+        .find(|x| x.id == name)
+        .ok_or_else(|| bad(format!("no source {name}")))?;
+    let reach = (src.host.as_str(), src.port)
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut a| a.next())
+        .is_some_and(|a| {
+            std::net::TcpStream::connect_timeout(&a, std::time::Duration::from_secs(5)).is_ok()
+        });
+    let report = json!({"name": name, "backend": src.engine, "reachable": reach, "ok": reach,
+        "note": "TCP reachability only; `oo doctor` signs in and reads the catalog"});
+    out(
+        p,
+        "oo.source-test/v1",
+        report,
+        format!(
+            "{} {name}: {}",
+            if reach { "ok" } else { "FAILED" },
+            if reach { "reachable" } else { "unreachable" }
+        ),
+    );
+    if reach {
+        Ok(())
+    } else {
+        Err(CliError::new(
+            exit::OTHER,
+            "SO_SOURCE_TEST_FAILED",
+            "the database host did not accept a connection",
+        ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parsed(args: &[&str]) -> Parsed {
+        let a: Vec<String> = args.iter().map(|s| (*s).to_owned()).collect();
+        super::super::docs_cmd::parse(
+            &a,
+            super::super::source::VALUED,
+            super::super::source::SWITCHES,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_stack_without_sources_loads_so_the_first_source_can_be_added() {
+        let dir = std::env::temp_dir().join(format!("oo-nosrc-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("stack.yaml");
+        std::fs::write(
+            &file,
+            "version: oo.stack/v1\nmodel: {provider: openai-compatible, base_url: \"https://api.example.com/v1\", model: m, key: {secret_ref: model-key}}\n",
+        )
+        .unwrap();
+        let loaded = load(&file).unwrap().unwrap();
+        assert!(loaded.sources.is_empty());
+        // Saving the draft back keeps it loadable; the strict readers still say what to run.
+        save(&file, &loaded).unwrap();
+        assert!(load(&file).unwrap().unwrap().sources.is_empty());
+        let strict = stack::parse(&std::fs::read_to_string(&file).unwrap())
+            .err()
+            .unwrap();
+        assert!(strict.starts_with("STACK_NO_SOURCES") && strict.contains("oo source add"));
+        std::fs::write(&file, "").unwrap();
+        let empty = load(&file).err().unwrap();
+        assert!(empty.message.contains("STACK_EMPTY") && empty.message.contains("oo init"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn postgres_needs_trust_anchor_and_scope() {
+        let base = [
+            "--name",
+            "erp",
+            "--host",
+            "db.local",
+            "--database",
+            "app",
+            "--user",
+            "ro",
+        ];
+        let e = build_source(&parsed(&base), "postgres", "erp", "x".into())
+            .err()
+            .unwrap();
+        assert!(e.message.contains("trust anchor"), "{}", e.message);
+        let mut a = base.to_vec();
+        a.extend(["--tls-ca-ref", "env:CA"]);
+        let e = build_source(&parsed(&a), "postgres", "erp", "x".into())
+            .err()
+            .unwrap();
+        assert!(e.message.contains("explicit scope"), "{}", e.message);
+        a.extend(["--include", "public.orders"]);
+        let s = build_source(&parsed(&a), "postgres", "erp", "file:/s/p".into())
+            .ok()
+            .unwrap();
+        assert_eq!((s.port, s.engine.as_str()), (5432, "postgres"));
+        assert_eq!(s.scope.include, vec!["public.orders"]);
+    }
+
+    #[test]
+    fn oracle_defaults_and_public_hides_the_reference() {
+        let a = [
+            "--name",
+            "ora",
+            "--host",
+            "h",
+            "--database",
+            "SVC",
+            "--user",
+            "u",
+        ];
+        let s = build_source(&parsed(&a), "oracle", "ora", "file:/secret/path".into())
+            .ok()
+            .unwrap();
+        assert_eq!(s.port, 1521);
+        let v = public(&s);
+        assert_eq!(v["config"]["secret_ref"], "(set)");
+        assert!(!v.to_string().contains("/secret/path"));
+    }
+
+    const BASE: [&str; 8] = [
+        "--name",
+        "src",
+        "--host",
+        "db.local",
+        "--database",
+        "app",
+        "--user",
+        "ro",
+    ];
+
+    fn with(extra: &[&'static str]) -> Parsed {
+        let mut a = BASE.to_vec();
+        a.extend_from_slice(extra);
+        parsed(&a)
+    }
+
+    #[test]
+    fn every_kind_maps_to_the_pipeline_family_and_default_port() {
+        let want = [
+            ("postgres", "postgres", 5432),
+            ("mysql", "mysql", 3306),
+            ("mariadb", "mariadb", 3306),
+            ("tidb", "tidb", 4000),
+            ("oceanbase", "oceanbase", 2881),
+            ("polardb", "mysql-polardb", 3306),
+            ("opengauss", "opengauss", 5432),
+            ("kingbase", "kingbase", 54321),
+            ("sqlserver", "sqlserver", 1433),
+            ("oracle", "oracle", 1521),
+            ("db2", "db2", 50000),
+            ("dm8", "dm8", 5236),
+            ("clickhouse", "clickhouse", 9004),
+            ("doris", "doris", 9030),
+            ("starrocks", "starrocks", 9030),
+            ("mongodb", "mongodb", 27017),
+            ("opensearch", "opensearch", 9200),
+        ];
+        assert_eq!(kinds().count(), want.len());
+        for (kind, engine, port) in want {
+            let extra: &[&'static str] = if matches!(kind, "oracle" | "dm8") {
+                &["--include", "S.T"]
+            } else {
+                &["--tls-ca-ref", "env:CA", "--include", "S.T"]
+            };
+            let s = build_source(&with(extra), kind, "src", "env:P".into())
+                .ok()
+                .unwrap_or_else(|| panic!("{kind} builds"));
+            assert_eq!((s.engine.as_str(), s.port), (engine, port), "{kind}");
+            assert_eq!(s.scope.include, vec!["S.T"], "{kind}");
+        }
+    }
+
+    #[test]
+    fn verified_tls_kinds_refuse_a_missing_trust_anchor() {
+        for kind in [
+            "postgres",
+            "mysql",
+            "mariadb",
+            "tidb",
+            "oceanbase",
+            "polardb",
+            "opengauss",
+            "kingbase",
+            "sqlserver",
+            "clickhouse",
+            "doris",
+            "starrocks",
+            "mongodb",
+            "opensearch",
+        ] {
+            let e = build_source(&with(&["--include", "S.T"]), kind, "src", "x".into())
+                .err()
+                .unwrap_or_else(|| panic!("{kind} needs a CA"));
+            assert!(e.message.contains("trust anchor"), "{kind}: {}", e.message);
+        }
+    }
+
+    #[test]
+    fn plain_text_is_for_loopback_analytic_and_document_kinds_only() {
+        for kind in ["clickhouse", "doris", "starrocks", "mongodb", "opensearch"] {
+            let a = [
+                "--name",
+                "src",
+                "--host",
+                "127.0.0.1",
+                "--database",
+                "app",
+                "--user",
+                "ro",
+                "--include",
+                "S.T",
+            ];
+            assert!(
+                build_source(&parsed(&a), kind, "src", "x".into()).is_ok(),
+                "{kind} on loopback"
+            );
+        }
+        let a = [
+            "--name",
+            "src",
+            "--host",
+            "127.0.0.1",
+            "--database",
+            "app",
+            "--user",
+            "ro",
+            "--include",
+            "S.T",
+        ];
+        let e = build_source(&parsed(&a), "mariadb", "src", "x".into())
+            .err()
+            .unwrap();
+        assert!(e.message.contains("trust anchor"));
+    }
+
+    #[test]
+    fn scope_is_explicit_and_names_the_unit_of_each_kind() {
+        for (kind, unit) in [
+            ("mariadb", "schema.table"),
+            ("mongodb", "database.collection"),
+            ("opensearch", "schema.index"),
+        ] {
+            let e = build_source(&with(&["--tls-ca-ref", "env:CA"]), kind, "src", "x".into())
+                .err()
+                .unwrap();
+            assert!(e.message.contains(unit), "{kind}: {}", e.message);
+        }
+    }
+
+    #[test]
+    fn oracle_and_dm8_take_no_trust_anchor_but_db2_may() {
+        for kind in ["oracle", "dm8"] {
+            let e = build_source(
+                &with(&["--tls-ca-ref", "env:CA", "--include", "S.T"]),
+                kind,
+                "s",
+                "x".into(),
+            )
+            .err()
+            .unwrap();
+            assert!(e.message.contains("owns TLS"), "{kind}");
+        }
+        assert!(
+            build_source(
+                &with(&["--tls-ca-ref", "env:CA", "--include", "S.T"]),
+                "db2",
+                "s",
+                "x".into()
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn adding_and_removing_a_source_tells_the_running_serve() {
+        use std::io::{Read, Write};
+        let root = std::env::temp_dir().join(format!("oo-src-live-{}", std::process::id()));
+        let state = root.join("state");
+        super::super::secrets::ensure_state_dir(&state).unwrap();
+        let token = state.join("control.token");
+        super::super::secrets::write_secret_file(&token, "oodt_t\n").unwrap();
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let doc = json!({"protocol": super::super::secrets::SERVE_PROTOCOL,
+            "port": l.local_addr().unwrap().port(), "token_file": token.display().to_string()});
+        super::super::secrets::write_secret_file(&state.join("serve.json"), &doc.to_string())
+            .unwrap();
+        let seen = std::thread::spawn(move || {
+            let mut bodies = Vec::new();
+            for _ in 0..3 {
+                let (mut s, _) = l.accept().unwrap();
+                let mut buf = [0u8; 4096];
+                let n = s.read(&mut buf).unwrap();
+                let text = String::from_utf8_lossy(&buf[..n]).into_owned();
+                bodies.push(text.split("\r\n\r\n").nth(1).unwrap_or("").to_owned());
+                let _ = s.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 9\r\n\r\n{\"seq\":1}");
+            }
+            bodies
+        });
+        let file = root.join("stack.yaml");
+        std::fs::write(
+            &file,
+            "version: oo.stack/v1\nmodel: {provider: openai-compatible, base_url: \"https://api.example.com/v1\", model: m, key: {secret_ref: model-key}}\n",
+        )
+        .unwrap();
+        let (f, st) = (file.display().to_string(), state.display().to_string());
+        let args = |name: &'static str| -> Vec<String> {
+            [
+                "--name",
+                name,
+                "--host",
+                "db.local",
+                "--database",
+                "app",
+                "--user",
+                "ro",
+                "--tls-ca-ref",
+                "env:CA",
+                "--include",
+                "public.t",
+                "--password-ref",
+                "env:P",
+                "--non-interactive",
+                "--json",
+            ]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .chain([
+                "--config".into(),
+                f.clone(),
+                "--state-dir".into(),
+                st.clone(),
+            ])
+            .collect()
+        };
+        let p = |a: Vec<String>| {
+            super::super::docs_cmd::parse(
+                &a,
+                super::super::source::VALUED,
+                super::super::source::SWITCHES,
+            )
+            .unwrap()
+        };
+        add(&p(args("one")), "postgres").unwrap();
+        add(&p(args("two")), "postgres").unwrap();
+        let rm_args: Vec<String> = ["--config", &f, "--state-dir", &st, "--json"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        rm(&p(rm_args), "two").unwrap();
+        let bodies = seen.join().unwrap();
+        let events: Vec<Value> = bodies
+            .iter()
+            .map(|b| serde_json::from_str(b).unwrap())
+            .collect();
+        let want = std::fs::canonicalize(&file).unwrap().display().to_string();
+        for (e, (name, action)) in
+            events
+                .iter()
+                .zip([("one", "added"), ("two", "added"), ("two", "removed")])
+        {
+            assert_eq!(e["type"], "db.source_changed");
+            assert_eq!(
+                e["data"],
+                json!({"name": name, "action": action, "stack": want})
+            );
+        }
+        assert_eq!(super::super::live::read_stacks(&state).len(), 1);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}

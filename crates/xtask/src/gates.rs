@@ -1738,7 +1738,10 @@ fn scan_workflows(repo: &Path) -> (Vec<Issue>, BTreeMap<String, String>) {
         // S6-B-01: publishing the offline runtime bundles to a GitHub Release
         // needs contents: write. Only lite-bundle-release.yml, only when
         // dispatched by hand, and in exactly one job.
-        let release_exception = name == "lite-bundle-release.yml"
+        // SO-F-S19-05: the desktop DMG workflow attaches the built DMG to an
+        // existing release page the same way: hand-dispatched, one job.
+        let release_exception = (name == "lite-bundle-release.yml"
+            || name == "super-ontology-desktop.yml")
             && dispatch_only(&text)
             && text.matches("contents: write").count() == 1;
         for token in [
@@ -4252,6 +4255,12 @@ mod workflow_tests {
                 workflow("workflow_dispatch", 2),
                 true,
             ),
+            (
+                "super-ontology-desktop.yml",
+                workflow("workflow_dispatch", 1),
+                false,
+            ),
+            ("super-ontology-desktop.yml", workflow("push", 1), true),
             ("release.yml", workflow("workflow_dispatch", 1), true),
             ("lite-images.yml", workflow("workflow_dispatch", 1), true),
             ("cli-binaries.yml", workflow("workflow_dispatch", 0), false),

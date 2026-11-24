@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "scanner": "pnpm audit --json (pnpm 12.10.1) on the workspace pnpm-lock.yaml",
+  "run_date_utc": "2026-11-19",
+  "working_tree": "so/app-E-craft2",
+  "scope_note": "Only advisories whose dependency path starts at the importer apps/super-ontology-desktop are kept here; the full run also reports apps/web (storybook, zod) and packages/design-system rows that are outside this app.",
+  "full_run_totals": {
+    "info": 0,
+    "low": 0,
+    "moderate": 6,
+    "high": 6,
+    "critical": 1
+  },
+  "prod_run_totals": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 1,
+    "critical": 0
+  },
+  "prod_run_note": "pnpm audit --prod reports one advisory (zod 4.6.5, high) and its only path is apps/web > zod; no advisory with a path from apps/super-ontology-desktop exists in the production dependency set.",
+  "advisories_for_this_importer": [
+    {
+      "id": 1244623,
+      "ghsa": "GHSA-g3hv-75wg-m249",
+      "severity": "moderate",
+      "module": "minimatch",
+      "vulnerable": ">=7.0.0 <11.0.1",
+      "patched": ">=11.0.1",
+      "title": "minimatch has potential denial of service via globparts amplification",
+      "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "versions_found": [
+        "10.2.6",
+        "9.0.9"
+      ],
+      "first_hops": [
+        "@eslint/js",
+        "electron-builder",
+        "eslint",
+        "eslint-plugin-react-hooks",
+        "eslint-plugin-react-refresh",
+        "typescript-eslint"
+      ],
+      "example_path": "eslint>minimatch"
+    },
+    {
+      "id": 1243077,
+      "ghsa": "GHSA-4qv8-2p9j-2685",
+      "severity": "moderate",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici vulnerable to Denial of Service via unbounded memory in the EventSource parser",
+      "url": "https://github.com/advisories/GHSA-4qv8-2p9j-2685",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243080,
+      "ghsa": "GHSA-f72v-6w45-q472",
+      "severity": "moderate",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici vulnerable to Subresource Integrity bypass via non-lowercase algorithm tokens",
+      "url": "https://github.com/advisories/GHSA-f72v-6w45-q472",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243112,
+      "ghsa": "GHSA-xjj6-f33q-929c",
+      "severity": "high",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici vulnerable to Denial of Service via unhandled error on excessive content-encodings",
+      "url": "https://github.com/advisories/GHSA-xjj6-f33q-929c",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243472,
+      "ghsa": "GHSA-4w7w-5xrc-9h26",
+      "severity": "high",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici vulnerable to cache poisoning and cross-user disclosure via cross-origin redirects",
+      "url": "https://github.com/advisories/GHSA-4w7w-5xrc-9h26",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243474,
+      "ghsa": "GHSA-2m5v-pch6-74hx",
+      "severity": "high",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici vulnerable to TLS certificate validation bypass via dropped tls options in Agent",
+      "url": "https://github.com/advisories/GHSA-2m5v-pch6-74hx",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243477,
+      "ghsa": "GHSA-qrxm-fqhp-jwvm",
+      "severity": "high",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici vulnerable to Denial of Service via TLS 1.2 certificate-changing renegotiation",
+      "url": "https://github.com/advisories/GHSA-qrxm-fqhp-jwvm",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243480,
+      "ghsa": "GHSA-9fm3-97px-rjf6",
+      "severity": "moderate",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici WebSocket client vulnerable to Denial of Service via unbounded automatic PONG buffering",
+      "url": "https://github.com/advisories/GHSA-9fm3-97px-rjf6",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243483,
+      "ghsa": "GHSA-55wc-3pg8-jfw6",
+      "severity": "moderate",
+      "module": "undici",
+      "vulnerable": ">=8.0.0 <8.12.2",
+      "patched": ">=8.12.2",
+      "title": "undici vulnerable to Denial of Service via unhandled exception in the decompress interceptor",
+      "url": "https://github.com/advisories/GHSA-55wc-3pg8-jfw6",
+      "versions_found": [
+        "8.11.2"
+      ],
+      "first_hops": [
+        "@testing-library/jest-dom",
+        "jsdom",
+        "vitest"
+      ],
+      "example_path": "jsdom>undici"
+    },
+    {
+      "id": 1243066,
+      "ghsa": "GHSA-mrhx-c7xc-m3w5",
+      "severity": "high",
+      "module": "zod",
+      "vulnerable": "<4.6.6",
+      "patched": ">=4.6.6",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+      "versions_found": [
+        "4.6.5"
+      ],
+      "first_hops": [
+        "eslint-plugin-react-hooks"
+      ],
+      "example_path": "eslint-plugin-react-hooks>zod"
+    }
+  ],
+  "dispositions": {
+    "zod (high, GHSA-mrhx-c7xc-m3w5)": "Reached only as eslint-plugin-react-hooks > zod and zod-validation-error > zod (lint time). zod validates the plugin's own rule options read from the repository's eslint.config.mjs; no attacker input and no oversized collection reaches it. Not shipped (absent from app.asar). Patched in zod >= 4.6.6; the owner may bump eslint-plugin-react-hooks or override zod.",
+    "undici 8.x (several high, moderate)": "Reached only as jsdom > undici (jsdom is a devDependency, also pulled in as an optional peer of vitest). vitest runs with environment node (config/vitest.config.ts) and no test or script imports jsdom, so undici is never loaded; it makes no network request. Not shipped (absent from app.asar). Patched in undici >= 8.12.2.",
+    "minimatch (moderate, GHSA-g3hv-75wg-m249)": "Reached through eslint, typescript-eslint, electron-builder and app-builder-lib; patterns are the repository's own globs, no untrusted pattern input. Build and lint time only; not shipped."
+  }
+}

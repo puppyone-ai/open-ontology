@@ -1,0 +1,11 @@
+{
+  "scopes": [
+    "all-main",
+    "projects-only",
+    "people-and-prefs",
+    "decisions-only"
+  ],
+  "files_scanned": 176,
+  "hits": 0,
+  "forbidden_words": 13
+}

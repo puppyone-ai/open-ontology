@@ -1,0 +1,228 @@
+{
+  "run_id": "a7-l7rem",
+  "checks": [
+    {
+      "check": "S11-01 oss, cos and r2 against look-alike stores, the compat table, and the s3 mock suite",
+      "ok": true,
+      "detail": "206 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 events: duplicates, out of order delivery, sequencer order, formats of S3, R2, OSS",
+      "ok": true,
+      "detail": "27 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 pull adapters for SQS, Cloudflare Queues and Alibaba MNS against local fakes and a local socket (SigV4 vectors, ack after handling, redelivery absorbed)",
+      "ok": true,
+      "detail": "11 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 event formats of S3, R2, OSS and COS (COS from fixtures: public documentation, unconfirmed against a real bucket)",
+      "ok": true,
+      "detail": "5 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 first level scopes of the fs backend partition the listing",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 bounded parallel listing: at most N scopes in flight, every result returned",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-01 the real bucket test (cloud_live, ignored, secret_ref only) builds and is ready for the owner",
+      "ok": true,
+      "detail": "built, not run: no real bucket"
+    },
+    {
+      "check": "S11-03 policy in ingest and the visible graph",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 parallel listing per first level prefix: own generation per prefix, a failed prefix is not swept and does not hold the others",
+      "ok": true,
+      "detail": "3 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 events over HTTP",
+      "ok": true,
+      "detail": "1 passed, 0 failed"
+    },
+    {
+      "check": "S11-04 projection and links to database rows",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S12-01 cloud tokens, cloud entry and audit",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 policy unit tests",
+      "ok": true,
+      "detail": "7 passed, 0 failed"
+    },
+    {
+      "check": "S11-04 projection unit tests",
+      "ok": true,
+      "detail": "3 passed, 0 failed"
+    },
+    {
+      "check": "S12-02 remote mount against a stand-in cloud entry",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "a: schema installed, docs-cloud-audit/1 among the migrations",
+      "ok": true,
+      "detail": "{\"addr\":\"127.0.0.1:56370\",\"event\":\"listening\",\"worker\":\"engi"
+    },
+    {
+      "check": "b: schema installed, docs-cloud-audit/1 among the migrations",
+      "ok": true,
+      "detail": "{\"addr\":\"127.0.0.1:56395\",\"event\":\"listening\",\"worker\":\"engi"
+    },
+    {
+      "check": "a: drive registered with policy deny Payroll",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "b: drive registered with policy deny Payroll",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "a S11-03: only the two allowed files are in the drive and published, Payroll was never listed",
+      "ok": true,
+      "detail": "{\"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\"}"
+    },
+    {
+      "check": "b S11-03: only the two allowed files are in the drive and published, Payroll was never listed",
+      "ok": true,
+      "detail": "{\"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\"}"
+    },
+    {
+      "check": "S11-03 a mount of the whole drive carries nothing of the denied Payroll file",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "S12-01 an oodc_ token is issued on the local entry",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "S12-01 the loopback entry refuses the cloud token",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "check": "S12-01 the cloud entry refuses the control token",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "check": "S12-01 the cloud token cannot list drives (route not allowed)",
+      "ok": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "check": "S12-01 a Drive outside the token's set is refused",
+      "ok": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "check": "S12-02 local mount on engine B (the engine behind the cloud entry)",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "S12-02 remote mount from engine B's cloud entry, the pack digest asked for is the local one",
+      "ok": true,
+      "detail": "exit 0 "
+    },
+    {
+      "check": "S12-02 the pack digests are equal",
+      "ok": true,
+      "detail": "43c3307e5f1ef2f6 == 43c3307e5f1ef2f6"
+    },
+    {
+      "check": "S12-02 every file of the pack is byte-identical to the local mount (SHARE.json differs by share id, times and credential only)",
+      "ok": true,
+      "detail": "15 files, differing: []"
+    },
+    {
+      "check": "S12-02 the cloud token is in no mounted file and no output",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "S11-02 the events were accepted: one look, the repeats counted",
+      "ok": true,
+      "detail": "{\"added\": 1, \"changed\": 0, \"denied_by_policy\": 0, \"duplicates\": 2, \"fresh\": 1, \"looked_at\": 1, \"maybe_deleted\": [], \"received\": 3, \"rejected\": 0, \"stale\": 0}"
+    },
+    {
+      "check": "S11-02 the new file is published through the event, with the poll off",
+      "ok": true,
+      "detail": "4.6 s"
+    },
+    {
+      "check": "S11-02 an older event delivered late is dropped (stale)",
+      "ok": true,
+      "detail": "{\"added\": 0, \"changed\": 0, \"denied_by_policy\": 0, \"duplicates\": 0, \"fresh\": 0, \"looked_at\": 0, \"maybe_deleted\": [], \"received\": 1, \"rejected\": 0, \"stale\": 1}"
+    },
+    {
+      "check": "S12-01 the audit answers who shared what to which agent, and when (agent-7 through the cloud entry of tenant acme)",
+      "ok": true,
+      "detail": "[{\"actor\": \"cloud:50b8d8b1-0d29-4503-93e5-197922b38eeb\", \"agent\": \"agent-7\", \"at\": \"2026-11-18 11:27:49.271919+00\", \"drive_id\": \"417db64b-870d-4b92-ad36-8e55b09dcf01\", \"grantor\": \"owner\", \"refs_reads\": 0, \"revoked_at\": null, \"role\": \"suggester\", \"scope\": [\"Projects\", \"People\"], \"seq\": 3, \"share_id\":"
+    },
+    {
+      "check": "S12-01 the share is revoked through the cloud entry",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "S12-01 the revocation is part of the answer",
+      "ok": true,
+      "detail": "{\"actor\": \"cloud:50b8d8b1-0d29-4503-93e5-197922b38eeb\", \"agent\": \"agent-7\", \"at\": \"2026-11-18 11:27:49.271919+00\", \"drive_id\": \"417db64b-870d-4b92-ad36-8e55b09dcf01\", \"grantor\": \"owner\", \"refs_reads\":"
+    },
+    {
+      "check": "S12-01 the audit chain is intact",
+      "ok": true,
+      "detail": "{\"intact\": true, \"rows\": 4}"
+    },
+    {
+      "check": "S12-01 audit rows exist for the token issue, the share and its revocation",
+      "ok": true,
+      "detail": "4 rows"
+    },
+    {
+      "check": "S12-01 the audit table cannot be deleted from, even by the database owner",
+      "ok": true,
+      "detail": "ERROR:  insert-only table\nCONTEXT:  PL/pgSQL function _oo_docs.reject_mutation()"
+    }
+  ],
+  "timings": {
+    "engine_a_vs_b_differing_files": [
+      "BRIEF.md",
+      "INDEX.md",
+      "decisions.md",
+      "manifest.json",
+      "people/林川-5666dae9.md",
+      "projects/星火计划-3b1d6411.md",
+      "refs/0001.md",
+      "refs/0002.md",
+      "refs/0003.md",
+      "refs/0004.md",
+      "refs/0005.md",
+      "refs/0006.md",
+      "terms.md"
+    ],
+    "event_to_published_seconds": 4.64
+  }
+}

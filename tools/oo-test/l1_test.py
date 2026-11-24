@@ -15,22 +15,33 @@ class CleanProbeTests(unittest.TestCase):
             root = Path(directory)
             env = l1_clean.clean_env(root, root / "tools", root / "npm")
             self.assertEqual(env["HOME"], directory)
+            # The clean environment is exactly the user-level variables plus the lane label and Docker Desktop's own
+            # per-user CLI configuration (plugin directory, no credentials); no product override leaks in.
             self.assertEqual(set(env), {"HOME", "PATH", "TERM", "LANG", "TMPDIR",
-                                        "npm_config_cache", "npm_config_update_notifier"})
+                                        "npm_config_cache", "npm_config_update_notifier",
+                                        "OO_LITE_LANE", "DOCKER_CONFIG"})
+            self.assertEqual(env["DOCKER_CONFIG"], str(root / "tools" / "docker-config"))
             self.assertNotIn("OO_LITE_RUNTIME_IMAGE", env)
 
     def test_secret_scan_detects_bytes_without_returning_value(self):
         with tempfile.TemporaryDirectory(dir=l1_clean.ROOT / "evidence") as directory:
             path = Path(directory) / "terminal.raw"
             path.write_bytes(b"prefix private-value suffix")
-            self.assertEqual(l1_clean.secret_hits([path], [b"private-value"]),
-                             ["terminal.raw"])
-            self.assertEqual(l1_clean.secret_hits([path], [b"absent"]), [])
+            self.assertEqual(l1_clean.secret_scan([path], [b"private-value"], raw=[path]),
+                             [{"file": "terminal.raw", "kind": "generated_secret"}])
+            # A hit in a raw sample empties the file so evidence never keeps the value.
+            self.assertNotIn(b"private-value", path.read_bytes())
+            path.write_bytes(b"prefix private-value suffix")
+            self.assertEqual(l1_clean.secret_scan([path], [b"absent"]), [])
 
     def test_ca_prompt_handles_terminal_cursor_spacing(self):
-        self.assertTrue(l1_clean.reached_ca_prompt(b"TLS CA\x1b[1Csecret_ref"))
-        self.assertTrue(l1_clean.reached_ca_prompt(b"TLS CA secret_ref"))
-        self.assertFalse(l1_clean.reached_ca_prompt(b"Engine: postgres"))
+        # ratatui moves right with CSI C instead of printing a space; the screen model must still read the label.
+        screen = l1_clean.Screen(5, 80)
+        screen.feed(b"TLS CA\x1b[1Csecret_ref")
+        self.assertIn("TLS CA secret_ref", screen.text())
+        screen = l1_clean.Screen(5, 80)
+        screen.feed(b"Engine: postgres")
+        self.assertNotIn("TLS CA", screen.text())
 
     def test_gold_subset_only_uses_scalar_customers_orders(self):
         import re

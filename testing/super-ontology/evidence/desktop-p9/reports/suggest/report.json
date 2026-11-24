@@ -1,0 +1,80 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "steps": [
+    {
+      "name": "01-digest",
+      "status": ""
+    },
+    {
+      "name": "02-revision",
+      "status": ""
+    },
+    {
+      "name": "03-conflict",
+      "status": ""
+    },
+    {
+      "name": "04-done",
+      "status": ""
+    }
+  ],
+  "error": null,
+  "checks": [
+    {
+      "name": "the digest lists three waiting suggestions in one source and one already in effect",
+      "ok": true,
+      "detail": "4 suggestions today · 3 waiting for you"
+    },
+    {
+      "name": "the old line is struck through and the new one added",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the view says accepting writes the file",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "accept writes the suggestion into the file within 2 s",
+      "ok": true,
+      "detail": "138 ms"
+    },
+    {
+      "name": "nothing else in the file changed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the engine got the accept",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no temporary file is left behind",
+      "ok": true,
+      "detail": "decisions.md"
+    },
+    {
+      "name": "the write is journaled with the suggestion, the Share and the evidence",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "a changed file is a conflict and is not overwritten",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "one rejection decided the rest of the source",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "an item accepted by rule can be undone",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

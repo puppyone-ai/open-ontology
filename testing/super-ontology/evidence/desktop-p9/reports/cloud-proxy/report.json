@@ -1,0 +1,71 @@
+{
+  "ok": true,
+  "skipped": null,
+  "title": "Super Drive Cloud proxy mode",
+  "nativeInput": false,
+  "started": "2026-11-19T01:51:21.321Z",
+  "checks": [
+    {
+      "check": "settings start in local mode, with the Cloud host named and no URL shown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the data statement is the local one",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Cloud mode says where Shares go and that the files stay here",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the data statement turns to the Cloud wording",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "without a Cloud session the panel says to sign in instead of asking for a project",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the choice is saved by the main process",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "and it is still Cloud after the page reloads",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "a Share in Cloud mode is refused with 'sign in'",
+      "ok": true,
+      "detail": "Sign in to puppyone Cloud to continue"
+    },
+    {
+      "check": "and nothing of it reached the local engine or the Cloud host",
+      "ok": true,
+      "detail": "engine: [], cloud: []"
+    },
+    {
+      "check": "in local mode the Share goes to the local engine",
+      "ok": true,
+      "detail": "[{\"method\":\"POST\",\"url\":\"/v1/docs/context-packs:compile\"},{\"method\":\"POST\",\"url\":\"/v1/docs/shares\"},{\"method\":\"POST\",\"url\":\"/v1/docs/shares/00000000-0000-4000-8000-0000000000e1:revoke\"}]"
+    },
+    {
+      "check": "and the Cloud host still saw no request",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "timings": {},
+  "error": null,
+  "notRun": [
+    "a Share through a real puppyone Cloud session",
+    "a Cloud scope in a real project",
+    "oo context mount --remote from a second machine (OO L7 evidence covers it on two engines)"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "protocol": "oo.advisory-exceptions/v1",
+  "policy": "Only cargo-deny `unmaintained` advisories can be excepted. Each record names one advisory and one crate, is decided by the owner or the owner's delegate, and expires at most 120 days after review. Vulnerability, unsound, yanked, licence and ban findings are never excepted. ci/deny.toml still has advisories.ignore = [] and unmaintained = \"all\", so every run still reports these crates.",
+  "exceptions": [
+    {
+      "id": "RUSTSEC-2026-0543",
+      "crate": "chrono",
+      "kind": "unmaintained",
+      "reason": "Upstream declared chrono unmaintained (all versions); no fixed release exists. It reaches the build through arrow-array 60.1.0 (latest, hard dependency) and directly through oo-core date/time handling. No known vulnerability is open against 0.4.45.",
+      "decided_by": "owner delegate (Super Ontology coordinator), 2026-11-17",
+      "exit_plan": "Move oo-core date/time handling to jiff or time; arrow-array stays until arrow drops chrono. Re-review before expiry.",
+      "reviewed_on": "2026-11-17",
+      "expires_on": "2027-02-15"
+    },
+    {
+      "id": "RUSTSEC-2026-0555",
+      "crate": "chrono-tz",
+      "kind": "unmaintained",
+      "reason": "Unmaintained together with chrono; used only by oo-core for the IANA zone table. No known vulnerability.",
+      "decided_by": "owner delegate (Super Ontology coordinator), 2026-11-17",
+      "exit_plan": "Replace with jiff's bundled tzdb in the same oo-core migration. Re-review before expiry.",
+      "reviewed_on": "2026-11-17",
+      "expires_on": "2027-02-15"
+    },
+    {
+      "id": "RUSTSEC-2026-0542",
+      "crate": "humantime",
+      "kind": "unmaintained",
+      "reason": "Marked unmaintained because it wraps chrono; reached only as a dev-dependency through object_store 0.14.2 in oo-control tests, not in any shipped artifact.",
+      "decided_by": "owner delegate (Super Ontology coordinator), 2026-11-17",
+      "exit_plan": "Drop when object_store releases without humantime or when the oo-control test dependency is replaced. Re-review before expiry.",
+      "reviewed_on": "2026-11-17",
+      "expires_on": "2027-02-15"
+    }
+  ]
+}

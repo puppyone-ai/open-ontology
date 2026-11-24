@@ -180,8 +180,52 @@ def oracle_free():
         raise
 
 
+DOCS_CELLS = ("docs-rustfs", "docs-minio")
+L6_CELLS = ("docs-ocr", "docs-media")  # B-S9-01, B-S10-05: super_ontology_l6.py
+
+
+def run_docs_cells(root, args):
+    """Super Ontology S3 cells (B-S4-04): a labelled RustFS or MinIO container
+    and the real-store tests of the S3 backend (super_ontology_s3.py)."""
+    names = sorted(c for c in args.cells if c in DOCS_CELLS)
+    evidence = ROOT / "testing/super-ontology/evidence/L1"
+    command = ["python3", "-B", str(HERE / "super_ontology_s3.py"), "--cells", ",".join(names),
+               "--run-id", args.run_id, "--evidence-dir", str(evidence)]
+    result = timed_command("super-ontology-s3", command, root, 3600, lane=False)
+    entry = dict(suite="super-ontology", cells=names, **result, evidence=str(evidence.relative_to(ROOT)))
+    runner.write_json(root / "l1-results.json", [entry])
+    print(json.dumps(entry), flush=True)
+    return [entry]
+
+
+def run_l6_cells(root, args):
+    names = sorted(c for c in args.cells if c in L6_CELLS)
+    evidence = ROOT / "testing/super-ontology/evidence/L6"
+    command = ["python3", "-B", str(HERE / "super_ontology_l6.py"), "--cells", ",".join(names),
+               "--run-id", args.run_id, "--evidence-dir", str(evidence)]
+    result = timed_command("super-ontology-l6", command, root, 3600, lane=False)
+    entry = dict(suite="super-ontology", cells=names, **result, evidence=str(evidence.relative_to(ROOT)))
+    runner.write_json(root / "l1-results.json", [entry])
+    print(json.dumps(entry), flush=True)
+    return [entry]
+
+
 def run_l1(root, args):
     day = args.day
+    if args.cells and args.cells & set(L6_CELLS):
+        rest = args.cells - set(L6_CELLS)
+        rows = run_l6_cells(root, args)
+        if not rest:
+            return rows
+        args.cells = rest
+        return rows + run_l1(root, args)
+    if args.cells and args.cells & set(DOCS_CELLS):
+        rest = args.cells - set(DOCS_CELLS)
+        rows = run_docs_cells(root, args)
+        if not rest:
+            return rows
+        args.cells = rest
+        return rows + run_l1(root, args)
     engines = args.engines
     cells = layers.l1_cells(engines, ["T0", "T1", "T2", "T4", "T7", "T8"], day)
     if args.cells:
@@ -246,10 +290,41 @@ def run_l2(root, args):
     return results
 
 
+def run_super_ontology_s3_life(root, args):
+    """The s3 round of L3 acceptance 5 on RustFS and MinIO (B-S4-02, B-S4-04)."""
+    evidence = ROOT / "testing/super-ontology/evidence/L3"
+    results = []
+    for store in ("rustfs", "minio"):
+        command = ["python3", "-B", str(HERE / "super_ontology_s3_life.py"), "--store", store,
+                   "--run-id", f"{args.run_id}-{store}", "--evidence-dir", str(evidence)]
+        result = timed_command(f"super-ontology-s3-life-{store}", command, root, 1800, lane=False)
+        results.append(dict(suite="super-ontology", cell=f"s3-{store}", **result,
+                            evidence=str(evidence.relative_to(ROOT))))
+        print(json.dumps(results[-1]), flush=True)
+    runner.write_json(root / "l2-results.json", results)
+    return results
+
+
+def run_super_ontology_l2(root, args):
+    """Super Ontology L2 walking skeleton (real oo serve + engine + container PG)."""
+    if args.cells and "s3" in args.cells:
+        return run_super_ontology_s3_life(root, args)
+    evidence = ROOT / "testing/super-ontology/evidence/L2"
+    command = ["python3", "-B", str(HERE / "super_ontology_l2.py"), "--run-id", args.run_id,
+               "--evidence-dir", str(evidence)]
+    result = timed_command("super-ontology-l2", command, root, 1800, lane=False)
+    entry = dict(suite="super-ontology", **result, evidence=str(evidence.relative_to(ROOT)))
+    runner.write_json(root / "l2-results.json", [entry])
+    print(json.dumps(entry), flush=True)
+    return [entry]
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--layer", action="append", choices=("L0", "L1", "L2"), required=True)
     parser.add_argument("--run-id", required=True)
+    parser.add_argument("--suite", choices=("super-ontology",),
+                        help="run one named suite instead of the engine cells (L2 only)")
     parser.add_argument("--engines", default="postgres,mysql,oracle")
     parser.add_argument("--base", help="select L1/L2 engines by impact of BASE...HEAD")
     parser.add_argument("--coverage-export", action="append", default=[], metavar="ENGINE=PATH")
@@ -268,6 +343,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", args.run_id):
         parser.error("invalid run id")
+    if args.suite and args.layer != ["L2"]:
+        parser.error("--suite super-ontology runs on --layer L2 only")
     args.day = (datetime.date.fromisoformat(args.day) if args.day else layers.today())
     args.engines = [e for e in args.engines.split(",") if e]
     if set(args.engines) - set(layers.P0):
@@ -299,7 +376,8 @@ def main(argv=None):
         layer_root = root / layer
         layer_root.mkdir(exist_ok=True, mode=0o700)
         layer_started = time.monotonic()
-        rows = {"L0": run_l0, "L1": run_l1, "L2": run_l2}[layer](layer_root, args)
+        l2 = run_super_ontology_l2 if args.suite else run_l2
+        rows = {"L0": run_l0, "L1": run_l1, "L2": l2}[layer](layer_root, args)
         report["layers"][layer] = {"seconds": round(time.monotonic() - layer_started, 3),
                                    "results": rows}
         runner.write_json(root / "fast-report.json", report)

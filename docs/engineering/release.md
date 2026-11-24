@@ -80,3 +80,38 @@ master SHA
 
 - npm 11.19 起默认不运行安装脚本，安装时会提示 `allow-scripts`，但这不影响使用。自检可以手动跑：`oo install-check --json`。后续计划改为第一次运行时自检。
 - Linux 的 `oo-mysql-doctor` 静态链接了 OpenSSL。版本和 sha256 固定在 `ci/cli.Dockerfile` 中，审计记录在 `supply-chain/openssl-native-audit.json`。上游发布安全修复且满 7 天后就跟进升级。
+
+## 5. 发布 docs 运行时镜像（Publishing the docs runtime images）
+
+Super Ontology 的 docs 运行时镜像**只由 CI 发布，并且只在 PR 合入 master 之后**。本地构建的镜像（`deploy/docs/images.lock.json` 里 `local_only` 的那些）不推送，也不作为发布物。
+
+`docs-images.yml` 构建并发布五个镜像，名字和 lite 一致，放在 `ghcr.io/puppyone-ai/open-ontology/` 下：
+
+| 镜像 | 来源 | 说明 |
+|---|---|---|
+| `docs-engine` | `deploy/docs/Dockerfile.engine` | 引擎，带 `objectstore-s3` |
+| `docs-doc-parser` | `tools/doc-parser/Dockerfile` | Docling 解析器，OpenCV 从源码构建（无 FFmpeg） |
+| `docs-ocr-parser` | `tools/ocr-parser/Dockerfile` | PP-StructureV3 OCR |
+| `docs-media-parser` | `tools/media-parser/Dockerfile` | 音视频解析器，完整镜像（自编 LGPL FFmpeg、OpenCV、CAM++、Paraformer-zh、Whisper base） |
+| `docs-pgvector` | `deploy/docs/pgvector/Dockerfile` | 可选，只在派发时勾选 `pgvector` 才构建 |
+
+设计：
+
+- 只能手动派发（`workflow_dispatch`），所有 job 都带 `github.ref == 'refs/heads/master'` 守卫；输入是版本号（如 `0.2.1`）和是否构建 pgvector。
+- 构建和合并两类 job 使用受保护的 `docs-release` environment，只有这两类 job 有 `packages: write`；其余 job 只有 `contents: read`。action 都按 commit SHA 固定，checkout 不保留凭证。
+- amd64 和 arm64 各用原生机器（`ubuntu-24.04`、`ubuntu-24.04-arm`）构建，buildx 和 buildkit 按 digest 固定，附带 SBOM 和 `mode=max` 的 provenance，按 digest 推送。随后合并 job 把两个架构合成一个多架构索引，标签是版本号和 `sha-<提交>`，没有 `latest`。已存在的版本标签不会被覆盖，遇到就失败。
+- 每个 Dockerfile 只依赖仓库内容：FFmpeg 源码、Whisper 权重、OpenCV 源码包、pgvector 源码都在构建时下载并核对 sha256；CAM++ 的 ONNX 在 `campplus` 阶段用带哈希的环境（`campplus-export.lock`）导出，再与 `models.lock.json` 的 sha256 比对；Python 依赖都用 `--require-hashes`。
+- 最后一个 job 把摘要上传为 artifact `docs-images-release`：`digests.json`、`digests.md`，以及加了 `registry` 段（各镜像的索引和单架构 digest）的 `images.lock.json` 副本。工作流不开 PR：用 `GITHUB_TOKEN` 创建的 PR 不会触发检查，也要 `contents: write`，而这个权限在仓库里只对少数几个手动 job 开放。把 artifact 里的 `images.lock.json` 复制回 `deploy/docs/images.lock.json` 并提交，由 owner 评审。
+
+发布步骤（owner，PR 合入 master 之后）：
+
+1. 在仓库设置里创建 `docs-release` environment，设置必需的审批人，并把部署分支限制为 `master`。没有它，第一次运行会自动创建一个没有保护的同名 environment。
+2. 确认 master 上所有工作流最新一次运行是绿的。
+3. 派发：
+   ```bash
+   gh workflow run docs-images.yml --repo puppyone-ai/open-ontology --ref master -f version=0.2.1
+   # 需要 pgvector 时再加 -f pgvector=true
+   ```
+4. 审批 `docs-release`（构建和合并两个阶段）。构建里的 OpenCV 和 FFmpeg 从源码编译，每个镜像每个架构要几十分钟。
+5. 运行结束后下载 `docs-images-release`，核对 `digests.md`，把 `images.lock.json` 提交到 master。
+6. 包默认是私有的：第一次发布后，由组织 owner 在 Packages 里把这五个包改为公开（路径同 §3）。

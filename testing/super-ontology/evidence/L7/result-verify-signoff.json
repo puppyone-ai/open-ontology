@@ -1,0 +1,351 @@
+{
+  "run_id": "verify-l7-signoff",
+  "status": "pass_with_flake",
+  "git_head": "75c44714bedd2dabd84b93b630d03a70075fa97d",
+  "branch": "so/V1-signoff",
+  "date": "2026-11-18",
+  "signer": "verifier (Haiku 5.5), independent of the executor",
+  "binaries_sha256": {
+    "release": {
+      "oo": "aa512291722b0c5e3b5736c2b6276d91835633ce86cea3ad1b8738ac0d0ba625",
+      "oo-docs-engine": "f13a8c3d3b3684f3cc2a8289b7122941ac327fff59bb2ba04cd7721c3d279e54"
+    },
+    "debug_used_by_harness": {
+      "oo": "5dd656f8387b3185b4473df99c78dfd70e6ea4dda1da9140c67a462a28242254",
+      "oo-docs-engine": "92b03cf692968be85fa4abfac35ff3ce64151b79e815f870d41c30e02864b4e8"
+    }
+  },
+  "images": {
+    "postgres_lock_base": "sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+    "postgres_labelled_ignored_suites": "postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5",
+    "docs_engine": "sha256:027d260ca862df07f0d4a52c2f06500190c8e4e5eba0d18d5a10a625344dbf77",
+    "doc_parser": "sha256:b2e73279cccac62b13e58cccd02993699bb07595d4607a1a520ae1bdc66a756b"
+  },
+  "timings": {},
+  "counts": {
+    "pass": 62,
+    "fail": 0,
+    "flake_first_run": 1
+  },
+  "checks": [
+    {
+      "check": "S11-01 oss, cos and r2 against look-alike stores, the compat table, and the s3 mock suite",
+      "ok": true,
+      "detail": "206 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 events: duplicates, out of order delivery, sequencer order, formats of S3, R2, OSS",
+      "ok": true,
+      "detail": "27 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 pull adapters for SQS, Cloudflare Queues and Alibaba MNS against local fakes and a local socket (SigV4 vectors, ack after handling, redelivery absorbed)",
+      "ok": true,
+      "detail": "11 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 event formats of S3, R2, OSS and COS (COS from fixtures: public documentation, unconfirmed against a real bucket)",
+      "ok": true,
+      "detail": "5 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 first level scopes of the fs backend partition the listing",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 bounded parallel listing: at most N scopes in flight, every result returned",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-01 the real bucket test (cloud_live, ignored, secret_ref only) builds and is ready for the owner",
+      "ok": true,
+      "detail": "built, not run: no real bucket"
+    },
+    {
+      "check": "S11-03 policy in ingest and the visible graph",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 parallel listing per first level prefix: own generation per prefix, a failed prefix is not swept and does not hold the others",
+      "ok": true,
+      "detail": "3 passed, 0 failed"
+    },
+    {
+      "check": "S11-02 events over HTTP",
+      "ok": true,
+      "detail": "1 passed, 0 failed"
+    },
+    {
+      "check": "S11-04 projection and links to database rows",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S12-01 cloud tokens, cloud entry and audit",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "S11-03 policy unit tests",
+      "ok": true,
+      "detail": "7 passed, 0 failed"
+    },
+    {
+      "check": "S11-04 projection unit tests",
+      "ok": true,
+      "detail": "3 passed, 0 failed"
+    },
+    {
+      "check": "S12-02 remote mount against a stand-in cloud entry",
+      "ok": true,
+      "detail": "2 passed, 0 failed"
+    },
+    {
+      "check": "a: schema installed, docs-cloud-audit/1 among the migrations",
+      "ok": true,
+      "detail": "{\"addr\":\"127.0.0.1:49985\",\"event\":\"listening\",\"worker\":\"engi"
+    },
+    {
+      "check": "b: schema installed, docs-cloud-audit/1 among the migrations",
+      "ok": true,
+      "detail": "{\"addr\":\"127.0.0.1:50005\",\"event\":\"listening\",\"worker\":\"engi"
+    },
+    {
+      "check": "a: drive registered with policy deny Payroll",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "b: drive registered with policy deny Payroll",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "a S11-03: only the two allowed files are in the drive and published, Payroll was never listed",
+      "ok": true,
+      "detail": "{\"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\"}"
+    },
+    {
+      "check": "b S11-03: only the two allowed files are in the drive and published, Payroll was never listed",
+      "ok": true,
+      "detail": "{\"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\"}"
+    },
+    {
+      "check": "S11-03 a mount of the whole drive carries nothing of the denied Payroll file",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "S12-01 an oodc_ token is issued on the local entry",
+      "ok": true,
+      "detail": "HTTP 201"
+    },
+    {
+      "check": "S12-01 the loopback entry refuses the cloud token",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "check": "S12-01 the cloud entry refuses the control token",
+      "ok": true,
+      "detail": "HTTP 401"
+    },
+    {
+      "check": "S12-01 the cloud token cannot list drives (route not allowed)",
+      "ok": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "check": "S12-01 a Drive outside the token's set is refused",
+      "ok": true,
+      "detail": "HTTP 403"
+    },
+    {
+      "check": "S12-02 local mount on engine B (the engine behind the cloud entry)",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "S12-02 remote mount from engine B's cloud entry, the pack digest asked for is the local one",
+      "ok": true,
+      "detail": "exit 0"
+    },
+    {
+      "check": "S12-02 the pack digests are equal",
+      "ok": true,
+      "detail": "fac816b68ceff95d == fac816b68ceff95d"
+    },
+    {
+      "check": "S12-02 every file of the pack is byte-identical to the local mount (SHARE.json differs by share id, times and credential only)",
+      "ok": true,
+      "detail": "15 files, differing: []"
+    },
+    {
+      "check": "S12-02 the cloud token is in no mounted file and no output",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "S11-02 the events were accepted: one look, the repeats counted",
+      "ok": true,
+      "detail": "{\"added\": 1, \"changed\": 0, \"denied_by_policy\": 0, \"duplicates\": 2, \"fresh\": 1, \"looked_at\": 1, \"maybe_deleted\": [], \"received\": 3, \"rejected\": 0, \"stale\": 0}"
+    },
+    {
+      "check": "S11-02 the new file is published through the event, with the poll off",
+      "ok": true,
+      "detail": "4.6 s"
+    },
+    {
+      "check": "S11-02 an older event delivered late is dropped (stale)",
+      "ok": true,
+      "detail": "{\"added\": 0, \"changed\": 0, \"denied_by_policy\": 0, \"duplicates\": 0, \"fresh\": 0, \"looked_at\": 0, \"maybe_deleted\": [], \"received\": 1, \"rejected\": 0, \"stale\": 1}"
+    },
+    {
+      "check": "S12-01 the audit answers who shared what to which agent, and when (agent-7 through the cloud entry of tenant acme)",
+      "ok": true,
+      "detail": "[{\"actor\": \"cloud:46a81b00-aa1e-43f2-8bac-c9a781867bdb\", \"agent\": \"agent-7\", \"at\": \"2026-11-18 14:26:29.444943+00\", \"drive_id\": \"6ef2e974-e7db-4648-8e4b-cf8a3329a577\", \"grantor\": \"owner\", \"refs_reads\""
+    },
+    {
+      "check": "S12-01 the share is revoked through the cloud entry",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "check": "S12-01 the revocation is part of the answer",
+      "ok": true,
+      "detail": "{\"actor\": \"cloud:46a81b00-aa1e-43f2-8bac-c9a781867bdb\", \"agent\": \"agent-7\", \"at\": \"2026-11-18 14:26:29.444943+00\", \"drive_id\": \"6ef2e974-e7db-4648-8e4b-cf8a3329a577\", \"grantor\": \"owner\", \"refs_reads\":"
+    },
+    {
+      "check": "S12-01 the audit chain is intact",
+      "ok": true,
+      "detail": "{\"intact\": true, \"rows\": 4}"
+    },
+    {
+      "check": "S12-01 audit rows exist for the token issue, the share and its revocation",
+      "ok": true,
+      "detail": "4 rows"
+    },
+    {
+      "check": "S12-01 the audit table cannot be deleted from, even by the database owner",
+      "ok": true,
+      "detail": "ERROR:  insert-only table"
+    },
+    {
+      "check": "events_live::events_find_a_new_file_once_and_never_decide_deletions",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "projection_live::a_contract_is_linked_to_its_customer_row_and_the_projection_is_idempotent_and_rebuildable",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "projection_live::link_rules_cannot_reach_what_is_not_a_data_table",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "prefix_sync::a_failed_scope_is_not_swept_and_does_not_hold_the_others",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "prefix_sync::one_scope_or_no_parallelism_lists_the_drive_whole",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "prefix_sync::scopes_list_in_parallel_and_count_their_own_generations",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audit::a_cloud_token_is_bound_to_the_cloud_entry_and_its_drives",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audit::the_audit_says_who_shared_what_to_which_agent_when_and_cannot_be_edited",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "policy_live::ingest_never_lists_a_denied_path_and_sweeps_one_that_became_denied",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "policy_live::the_visible_graph_drops_a_denied_path_before_any_sweep",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::expiry_revocation_and_refs_credentials (rerun 1, alone)",
+      "ok": true,
+      "detail": "1 passed"
+    },
+    {
+      "check": "share_live full suite (rerun 2)",
+      "ok": true,
+      "detail": "10 passed"
+    },
+    {
+      "check": "share_live::a_real_constraint_violation_holds_the_fact_queues_a_conflict_and_the_pack_says_so",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::a_used_fact_marked_wrong_blocks_the_share_within_five_seconds",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::at_checkpoint_refreshes_on_a_passing_check_and_pins_are_counted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::create_records_uses_coverage_and_guarantees",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::expiry_revocation_and_refs_credentials",
+      "ok": false,
+      "detail": "first full run FAILED at share_live.rs:136 (mk_share status != 201, body not captured); flake: passes alone and in full rerun",
+      "flake": true
+    },
+    {
+      "check": "share_live::group_refresh_under_at_checkpoint_upgrades_the_group_together",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::patch_moves_the_expiry_and_nothing_else",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::reads_with_a_share_credential_use_the_share_version_and_its_scope",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::require_complete_fails_and_incomplete_is_named",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "share_live::task_groups_refresh_all_or_none",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "notes": [
+    "share_live: first full run had 1 failure (expiry_revocation_and_refs_credentials, share_live.rs:136), rerun alone and full suite both pass; not reproduced, not hidden"
+  ]
+}

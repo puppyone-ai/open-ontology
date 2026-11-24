@@ -1,0 +1,280 @@
+# Runtime containers of the document pipeline (10 §2.7): `docs-db`,
+# `docs-engine` and `doc-parser` on two networks. `oo serve --runtime compose`
+# drives this file with a generated override (Drive bind mounts, the engine's
+# loopback port and uid, the engine environment).
+#
+# Hardening is the lite x-runtime baseline. `docs-db` and `doc-parser` sit on
+# `docs-internal` only, which is `internal: true`: no route out, no published
+# port, so a hostile document cannot phone home (proved by
+# deploy/docs/test_no_egress.py) and the sidecar is reachable only from the
+# engine. `docs-engine` is on both networks: `docs-egress` carries its
+# loopback-published port (a published port needs a non-internal network).
+#
+# Project name: oo-docs-<first 12 hex of sha256(canonical state dir)>, set by
+# the daemon with `-p`, so it never collides with a lite project.
+name: ${OO_DOCS_PROJECT:-oo-docs}
+
+x-labels: &labels
+  oo.lane: "${OO_DOCS_LANE:-docs}"
+
+x-docs-runtime: &docs-runtime
+  pull_policy: never
+  labels: *labels
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  docs-db:
+    # lite's pinned postgres digest (deploy/lite/images.lock.json)
+    image: ${OO_DOCS_DB_IMAGE:?set to the postgres digest in deploy/docs/images.lock.json}
+    pull_policy: missing
+    labels: *labels
+    entrypoint: [/bin/sh, /ops/postgres.sh]
+    cap_drop: [ALL]
+    # initdb and the entrypoint chown/gosu the data directory
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 128
+    restart: unless-stopped
+    tmpfs: [/tmp, "/var/run/postgresql"]
+    environment:
+      OO_DB_IDENTITY: docs-db
+      POSTGRES_PASSWORD_FILE: /tmp/admin-password
+      POSTGRES_DB: oo_docs
+    volumes:
+      - docs-data:/var/lib/postgresql/data
+      - ${OO_DOCS_PKI:?pki directory}:/pki:ro
+      - ./postgres.sh:/ops/postgres.sh:ro
+    networks: [docs-internal]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d oo_docs"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+
+  docs-engine:
+    <<: *docs-runtime
+    image: ${OO_DOCS_ENGINE_IMAGE:?set to the digest in deploy/docs/images.lock.json}
+    user: "${OO_DOCS_UID:?host uid}:${OO_DOCS_GID:?host gid}"
+    mem_limit: ${OO_DOCS_ENGINE_MEM:-1536m}
+    cpus: 2
+    pids_limit: 256
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    environment:
+      OO_DOCS_LISTEN: 0.0.0.0:7480
+      OO_DOCS_STATE_DIR: /state
+      OO_DOCS_ENGINE_TOKEN_FILE: /run/oo/engine-token
+      OO_DOCS_PARSER_URL: http://doc-parser:7481
+      OO_DOCS_PARSER_TOKEN_FILE: /run/oo/parser-token
+      # The model's egress process runs inside this container (10 2.1, 2.7): it reaches the
+      # model through `docs-egress`, and reads the endpoint and key files the model
+      # configuration names (`file:` references), which the override binds read-only.
+      OO_DOCS_MODEL_EGRESS: /opt/oo/model_egress.py
+      OO_DOCS_PYTHON: python3
+      PYTHONDONTWRITEBYTECODE: "1"
+      # The two optional sidecars (10 17.1): set the URL when the `ocr` / `media` profile is started; empty
+      # means off. They share the parser token file. A media file is read into engine memory (D77: up to
+      # 4 GiB), so raise OO_DOCS_ENGINE_MEM with the `media` profile.
+      OO_DOCS_OCR_URL: ${OO_DOCS_OCR_URL:-}
+      OO_DOCS_OCR_TOKEN_FILE: ${OO_DOCS_OCR_URL:+/run/oo/parser-token}
+      OO_DOCS_MEDIA_URL: ${OO_DOCS_MEDIA_URL:-}
+      OO_DOCS_MEDIA_TOKEN_FILE: ${OO_DOCS_MEDIA_URL:+/run/oo/parser-token}
+      HOME: /tmp
+      # OO_DOCS_DATABASE_URL and OO_DOCS_ALLOWED_HOSTS come from the generated override.
+    volumes:
+      # <state>/engine: docs.json and cas/ (the only writable bind)
+      - ${OO_DOCS_ENGINE_STATE:?engine state directory}:/state
+      - ${OO_DOCS_STATE:?state directory}/engine-token:/run/oo/engine-token:ro
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      - ${OO_DOCS_PKI:?pki directory}/ca-cert:/run/oo/ca.crt:ro
+      # /drives/<id>: one read-only bind per local Drive, added by the override.
+    networks: [docs-internal, docs-egress]
+    # A Drive on an S3-compatible store on this host (RustFS, MinIO) is reached at
+    # http://host.docker.internal:<port>: `oo source add s3 --endpoint http://host.docker.internal:<port> --path-style ...`
+    # (the same name works from the host on Docker Desktop, which maps it in /etc/hosts).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:${OO_DOCS_ENGINE_PORT:?loopback port}:7480"
+    depends_on:
+      docs-db: {condition: service_healthy}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7480/livez', timeout=2).read()"
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # One-shot schema install with the admin login (profile `install`); run by
+  # `oo serve` before docs-engine starts. Never published, never egress.
+  docs-installer:
+    <<: *docs-runtime
+    profiles: [install]
+    image: ${OO_DOCS_ENGINE_IMAGE:?set to the digest in deploy/docs/images.lock.json}
+    user: "${OO_DOCS_UID:?host uid}:${OO_DOCS_GID:?host gid}"
+    entrypoint: [/usr/local/bin/oo-docs-install-schema]
+    restart: "no"
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 128
+    environment:
+      OO_DOCS_LISTEN: 127.0.0.1:0
+      OO_DOCS_STATE_DIR: /tmp/install-state
+      OO_DOCS_ENGINE_TOKEN_FILE: /run/oo/engine-token
+      HOME: /tmp
+      # OO_DOCS_DATABASE_URL / OO_DOCS_ADMIN_DATABASE_URL: generated override.
+    volumes:
+      - ${OO_DOCS_STATE:?state directory}/engine-token:/run/oo/engine-token:ro
+      - ${OO_DOCS_PKI:?pki directory}/ca-cert:/run/oo/ca.crt:ro
+      # long syntax: `compose run` splits the short tmpfs form on commas
+      - {type: tmpfs, target: /tmp, tmpfs: {size: 67108864, mode: 1023}}
+    networks: [docs-internal]
+    depends_on:
+      docs-db: {condition: service_healthy}
+
+  doc-parser:
+    image: ${OO_DOCS_PARSER_IMAGE:?set to the digest in deploy/docs/images.lock.json}
+    pull_policy: never
+    labels: *labels
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 3g
+    memswap_limit: 3g
+    cpus: 2
+    pids_limit: 128
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    environment:
+      OO_PARSER_TOKEN_FILE: /run/oo/parser-token
+      OO_PARSER_WORKERS: "2"
+      HOME: /tmp
+    volumes:
+      # Written by the daemon, mounted read-only into this container and into
+      # docs-engine (same file, two readers).
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      # A named volume, not tmpfs: 200 MB uploads must not eat memory. The
+      # sidecar keeps it below 2 GiB (LRU).
+      - docs-parser-scratch:/scratch
+    networks: [docs-internal]
+    expose: ["7481"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7481/healthz', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  # OCR sidecar for scanned pdf and images (B-S9-01, D69, D76). Profile `ocr`: started only when the
+  # configuration turns OCR on (OO_DOCS_OCR_URL on the engine). PP-StructureV3 needs about 7 GB per worker.
+  ocr-parser:
+    profiles: [ocr]
+    # optional: only the `ocr` profile starts it; the tag is the local build
+    image: ${OO_DOCS_OCR_IMAGE:-oo-docs-ocr-parser:dev}
+    pull_policy: never
+    labels: *labels
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 10g
+    memswap_limit: 10g
+    cpus: 4
+    pids_limit: 256
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+    environment:
+      OO_PARSER_TOKEN_FILE: /run/oo/parser-token
+      OO_PARSER_WORKERS: "1"
+      HOME: /tmp
+    volumes:
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      - docs-ocr-scratch:/scratch
+    networks: [docs-internal]
+    expose: ["7482"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7482/healthz', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  # Audio and video (B-S10-05, D69, D77). Profile `media`: one job at a time (concurrency.media), mem 4g, 2 cpus.
+  # /exchange is where the macOS Desktop host decode helper puts WAV and frames with a manifest (D65), read-only.
+  media-parser:
+    profiles: [media]
+    # optional: only the `media` profile starts it; the tag is the local build
+    image: ${OO_DOCS_MEDIA_IMAGE:-oo-docs-media-parser:dev}
+    pull_policy: never
+    labels: *labels
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 4g
+    memswap_limit: 4g
+    cpus: 2
+    pids_limit: 256
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    environment:
+      OO_PARSER_TOKEN_FILE: /run/oo/parser-token
+      OO_PARSER_WORKERS: "1"
+      OO_MEDIA_EXCHANGE: /exchange
+      PYANNOTE_METRICS_ENABLED: "0"
+      HOME: /tmp
+    volumes:
+      - ${OO_DOCS_STATE:?state directory}/parser-token:/run/oo/parser-token:ro
+      - docs-media-scratch:/scratch
+      - ${OO_DOCS_EXCHANGE:-/dev/null}:/exchange:ro
+    networks: [docs-internal]
+    expose: ["7483"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request as u; u.urlopen('http://127.0.0.1:7483/healthz', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+networks:
+  docs-internal:
+    internal: true
+    labels: *labels
+  docs-egress:
+    labels: *labels
+
+volumes:
+  docs-parser-scratch:
+    labels: *labels
+  docs-ocr-scratch:
+    labels: *labels
+  docs-media-scratch:
+    labels: *labels
+  docs-data:
+    labels: *labels

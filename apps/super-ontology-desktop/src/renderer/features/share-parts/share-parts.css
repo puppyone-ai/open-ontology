@@ -1,0 +1,103 @@
+@layer features {
+  .desktop-share-scope-option {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    height: var(--so-control-size);
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--so-text);
+    font: inherit;
+    font-size: var(--so-type-ui-body, 13px);
+    text-align: start;
+  }
+  .desktop-share-scope-option:hover {
+    background: var(--so-control-hover);
+  }
+  .desktop-share-scope-option.is-selected {
+    border-color: var(--so-divider);
+    background: color-mix(in srgb, var(--so-text) 5%, transparent);
+  }
+  .desktop-share-scope-option-icon {
+    display: inline-flex;
+    color: var(--so-text-muted);
+  }
+  .desktop-share-scope-option-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .desktop-share-copy-field {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--so-divider);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--so-text) 3%, transparent);
+  }
+  .desktop-share-copy-field.is-multiline {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+  .desktop-share-copy-field.is-multiline .desktop-share-copy-actions {
+    grid-column: 2;
+    justify-self: end;
+  }
+  .desktop-share-copy-label {
+    font-size: var(--so-type-ui-meta, 12px);
+    color: var(--so-text-muted);
+  }
+  .desktop-share-copy-value {
+    min-width: 0;
+    overflow: hidden;
+    font-family: var(--so-font-mono, ui-monospace, monospace);
+    font-size: var(--so-type-ui-caption, 12px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--so-text);
+  }
+  .desktop-share-copy-actions {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .desktop-share-copy-button,
+  .desktop-share-copy-toggle {
+    display: inline-flex;
+    gap: 5px;
+    align-items: center;
+    height: var(--so-control-size-compact);
+    padding: 0 8px;
+    border: 1px solid var(--so-divider);
+    border-radius: 6px;
+    background: var(--so-panel);
+    color: var(--so-text);
+    font: inherit;
+    font-size: var(--so-type-ui-meta, 12px);
+  }
+  .desktop-share-copy-toggle {
+    padding: 0 6px;
+  }
+  .desktop-share-copy-button:hover:not(:disabled),
+  .desktop-share-copy-toggle:hover {
+    background: var(--so-control-hover);
+  }
+  .desktop-share-copy-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .desktop-share-copy-button.is-copied {
+    border-color: var(--so-success, #16a34a);
+    color: var(--so-success, #16a34a);
+  }
+  .desktop-share-scope-list {
+    display: grid;
+    gap: 4px;
+    align-content: start;
+  }
+}

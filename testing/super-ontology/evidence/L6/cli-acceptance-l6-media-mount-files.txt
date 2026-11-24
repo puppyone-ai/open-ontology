@@ -1,0 +1,12 @@
+BRIEF.md
+INDEX.md
+SHARE.json
+decisions.md
+manifest.json
+people/小王-d654bb7a.md
+projects/星火计划-3b1d6411.md
+projects/星火计划好的我们-cbe07121.md
+refs/0001.md
+refs/0002.md
+suggest/README.md
+terms.md

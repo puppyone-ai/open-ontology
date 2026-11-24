@@ -285,6 +285,9 @@ jobs:
         with:
           toolchain: "1.98.1"
           components: rustfmt, clippy
+      - name: desktop contract drift
+        shell: bash
+        run: node apps/super-ontology-desktop/scripts/gen-contract.mjs --check
       - name: contracts
         id: record
         shell: bash
@@ -959,6 +962,42 @@ jobs:
             evidence/pr-l1l2-*-t2-*
           retention-days: 14
           if-no-files-found: ignore
+
+  super-ontology-gates:
+    name: super-ontology-gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de
+        with:
+          toolchain: "1.98.1"
+      - name: trailers and ledger (spec 50 §10)
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base="${BASE_SHA:-HEAD~1}"
+          python3 -B tools/super-ontology/check_trailers.py --base "${base}" --head HEAD
+          python3 -B tools/super-ontology/check_ledger.py --ref HEAD --base "${base}"
+      - name: golden set, contracts, eval smoke (spec 30 §L1)
+        shell: bash
+        run: |
+          python3 -B tools/super-ontology/golden/gen.py --check
+          cargo test --locked -p xtask --test super_ontology_schema
+          cargo test --locked -p oo-core --lib docir
+          cargo test --locked -p oo-connectors --features objectstore --lib objectstore::
+          cargo build --locked -p oo-cli --features docs
+          cargo run --locked -p oo-eval -- docs --golden testing/super-ontology/golden \
+            --predictions testing/super-ontology/golden/labels --out "${RUNNER_TEMP}/so-eval"
 
   aggregate:
     name: aggregate

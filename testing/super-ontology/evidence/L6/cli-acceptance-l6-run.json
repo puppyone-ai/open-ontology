@@ -1,0 +1,600 @@
+{
+ "run_id": "a7-l6cli",
+ "ok": true,
+ "checks": [
+  {
+   "check": "0 the sample script writes 8 synthetic files",
+   "ok": true,
+   "detail": "8 files"
+  },
+  {
+   "check": "1 oo serve --runtime compose prints its address",
+   "ok": true,
+   "detail": "{\"port\": 63343}"
+  },
+  {
+   "check": "1 ocr-parser and media-parser run beside the engine",
+   "ok": true,
+   "detail": "oo-docs-29e18bcfe923-docs-engine-1 oo-docs-29e18bcfe923-media-parser-1 oo-docs-29e18bcfe923-ocr-parser-1 oo-docs-29e18bcfe923-doc-parser-1 oo-docs-29e18bcfe923-docs-db-1 "
+  },
+  {
+   "check": "1 oo docs health is ok",
+   "ok": true,
+   "detail": "exit 0 status ok"
+  },
+  {
+   "check": "2 oo docs drive add exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "2 the two Markdown files, the scan (pdf, png), the meeting and the recording are published",
+   "ok": true,
+   "detail": "{\"Meetings/周会 参会=小王、小李.wav\": \"published\", \"Meetings/录屏.webm\": \"published\", \"Meetings/录屏h264.mp4\": \"unsupported\", \"Meetings/讲话.m4a\": \"unsupported\", \"People/林川.md\": \"published\", \"Projects/星火计划.md\": \"published\", \"Scans/扫描件.pdf\": \"published\", \"Scans/纪要.png\": \"published\"}"
+  },
+  {
+   "check": "3 oo context mount of Scans exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "3 refs/ carries the OCR text of the scanned pdf (#p1) and of the png (#img), every planted line",
+   "ok": true,
+   "detail": "4 refs of Scans"
+  },
+  {
+   "check": "3 the BRIEF names the project from the scan with a [src:Scans/..#p1] or #img source",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "4 oo docs review ls shows one speaker_identity item per speaker label",
+   "ok": true,
+   "detail": "4 items"
+  },
+  {
+   "check": "4 no Person 小王 exists before the confirmation",
+   "ok": true,
+   "detail": "0 hits"
+  },
+  {
+   "check": "4 the item of speaker S1 of the meeting is there",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "4 oo docs review decide accept --name confirms S1 as 小王",
+   "ok": true,
+   "detail": "{\"accepted\": 1, \"protocol\": \"oo.docs-decide/v1\", \"publish_pending\": true, \"rejected\": 0, \"results\": [{\"id\": \"b48a9127-19be-45ac-aa75-0b20291e45b0\", \"status\": \"o"
+  },
+  {
+   "check": "4 after the confirmation the Person 小王 exists",
+   "ok": true,
+   "detail": "[{\"counts\": {\"aliases\": 1, \"facts\": 0}, \"id\": \"be83253c-6082-441c-9d75-5380be4b7a71\", \"key\": \"person:d654bb7a63d462ed5e9caa4e\", \"label\": null, \"name\": \"小王\", \"su"
+  },
+  {
+   "check": "4 the Person 小王 owns the project the speaker named (the fact's subject is the Person)",
+   "ok": true,
+   "detail": "[[\"mentions\", \"published\"], [\"owns\", \"published\"]]"
+  },
+  {
+   "check": "4 the other speaker labels still wait for a person",
+   "ok": true,
+   "detail": "3 pending"
+  },
+  {
+   "check": "5 oo docs files show: the recording is published",
+   "ok": true,
+   "detail": "published None"
+  },
+  {
+   "check": "5 oo context mount of Meetings exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "5 refs/ carries the slide text of the recording with a #t= time range",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 the meeting's text has a #t= range with the speaker label (@S1)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "5 BRIEF and project files cite the recording as [src:Meetings/录屏.webm#t=..]",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "6 Meetings/录屏h264.mp4: unsupported, DOCS_PARSE_CODEC_UNAVAILABLE",
+   "ok": true,
+   "detail": "unsupported DOCS_PARSE_CODEC_UNAVAILABLE"
+  },
+  {
+   "check": "6 Meetings/讲话.m4a: unsupported, DOCS_PARSE_CODEC_UNAVAILABLE",
+   "ok": true,
+   "detail": "unsupported DOCS_PARSE_CODEC_UNAVAILABLE"
+  },
+  {
+   "check": "6 the BRIEF's coverage line names both files with DOCS_PARSE_CODEC_UNAVAILABLE",
+   "ok": true,
+   "detail": "> 覆盖：2/4 个文件已处理；未完成 2 个（Meetings/录屏h264.mp4 失败（DOCS_PARSE_CODEC_UNAVAILABLE）、Meetings/讲话.m4a 失败（DOCS_PARSE_CODEC_UNAVAILABLE））"
+  },
+  {
+   "check": "7 oo context mount before the change",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "7 oo context check tells the share drifted (exit 10 or 20)",
+   "ok": true,
+   "detail": "exit 20 after 6s: share 7eb11e43-235f-4fa8-a79d-66e21b761041: BLOCK, a fact you used was withdrawn or conflicts; do no"
+  },
+  {
+   "check": "7 oo docs share refresh makes a new share and mounts it in the same directory",
+   "ok": true,
+   "detail": "{\"protocol\": \"oo.context-refresh/v1\", \"shares\": [{\"mounted\": true, \"old\": \"7eb11e43-235f-4fa8-a79d-66e21b761041\", \"path\": \"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context\", \"share_id\": \"e4920fa6"
+  },
+  {
+   "check": "7 oo context check on the refreshed mount exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "7 the BRIEF lists the change after its head (自上次以来的变化, 已暂停)",
+   "ok": true,
+   "detail": "933 bytes"
+  },
+  {
+   "check": "8 the long recording is being processed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "8 the edit is in a BRIEF within 30 s while the media job runs",
+   "ok": true,
+   "detail": "5.7s; long recording state ['parsing']"
+  },
+  {
+   "check": "9 every share is revoked or refreshed away",
+   "ok": true,
+   "detail": "[\"revoked\", \"revoked\", \"revoked\", \"revoked\", \"revoked\", \"refreshed\", \"revoked\", \"revoked\"]"
+  },
+  {
+   "check": "9 oo docs drive rm starts the deletion",
+   "ok": true,
+   "detail": "{\"backend\": \"fs\", \"bytes_total\": 15296438, \"config\": {\"root\": \"/drives/e2b340d6068a3d92\"}, \"counts\": {\"parsing\": 1, \"pub"
+  },
+  {
+   "check": "9 oo serve --stop: stopped and the daemon exits 0",
+   "ok": true,
+   "detail": "oo serve stopped / exit 0"
+  },
+  {
+   "check": "cleanup left nothing",
+   "ok": true,
+   "detail": "0 left"
+  }
+ ],
+ "timings": {
+  "all_files_settled_seconds": 50.3,
+  "edit_to_brief_seconds": 5.7
+ },
+ "commands": [
+  {
+   "command": "oo docs health",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\n  \"api_version\": \"1.0\",\n  \"components\": {\n    \"cas\": {\n      \"status\": \"ok\"\n    },\n    \"db\": {\n      \"latency_ms\": 0,\n      \"status\": \"ok\"\n    },\n    \"engine\": {\n      \"status\": \"ok\"\n    },\n    \"model\": {\n      \"status\": \"not_configured\"\n    },\n    \"parser\": {\n      \"detail\": {\n        \"formats\": [\n          \"md\",\n          \"txt\",\n          \"csv\",\n          \"xlsx\",\n          \"pdf\",\n          \"docx\",\n          \"pptx\"\n        ],\n        \"kind\": \"local+sidecar\",\n        \"sidecar_formats\": [\n          \"pdf\",\n          \"docx\",\n          \"pptx\"\n        ]\n      },\n      \"status\": \"ok\"\n    }\n  },\n  \"disk\": {\n    \"cas_sample\": {\n      \"checked\": 0,\n      \"corrupt\": 0\n    },\n    \"cas_used_bytes\": 15,\n    \"free_bytes\": 63958077440,\n    \"original_cache_bytes\": 0\n  },\n  \"engine_version\": \"0.1.0\",\n  \"events_head\": 0,\n  \"freshness\": \"up_to_date\",\n  \"queue\": {\n    \"blocked\": 0,\n    \"failed_manual\": 0,\n    \"quarantined\": 0,\n    \"queued\": 0,\n    \"running\": 0,\n    \"stuck\": 0\n  },\n  \"schema_versions\": [\n    \"docs-bootstrap/1\",\n    \"docs-sources-jobs/1\",\n    \"docs-index/1\",\n    \"docs-packs-shares/1\",\n    \"docs-llm/1\",\n    \"docs-consistency/1\",\n    \"docs-suggest/1\",\n    \"docs-share-consistency/1\",\n    \"docs-parse-media/1\",\n    \"docs-cloud-audit/1\"\n  ],\n  \"status\": \"ok\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs health --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"api_version\":\"1.0\",\"components\":{\"cas\":{\"status\":\"ok\"},\"db\":{\"latency_ms\":0,\"status\":\"ok\"},\"engine\":{\"status\":\"ok\"},\"model\":{\"status\":\"not_configured\"},\"parser\":{\"detail\":{\"formats\":[\"md\",\"txt\",\"csv\",\"xlsx\",\"pdf\",\"docx\",\"pptx\"],\"kind\":\"local+sidecar\",\"sidecar_formats\":[\"pdf\",\"docx\",\"pptx\"]},\"status\":\"ok\"}},\"disk\":{\"cas_sample\":{\"checked\":0,\"corrupt\":0},\"cas_used_bytes\":15,\"free_bytes\":63958077440,\"original_cache_bytes\":0},\"engine_version\":\"0.1.0\",\"events_head\":0,\"freshness\":\"up_to_date\",\"protocol\":\"oo.docs-health/v1\",\"queue\":{\"blocked\":0,\"failed_manual\":0,\"quarantined\":0,\"queued\":0,\"running\":0,\"stuck\":0},\"schema_versions\":[\"docs-bootstrap/1\",\"docs-sources-jobs/1\",\"docs-index/1\",\"docs-packs-shares/1\",\"docs-llm/1\",\"docs-consistency/1\",\"docs-suggest/1\",\"docs-share-consistency/1\",\"docs-parse-media/1\",\"docs-cloud-audit/1\"],\"status\":\"ok\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive add --name l6 --root /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/drive --json",
+   "exit": 0,
+   "seconds": 6.0,
+   "stdout": "{\"backend\":\"fs\",\"bytes_total\":0,\"config\":{\"root\":\"/drives/e2b340d6068a3d92\"},\"counts\":{},\"created_at\":\"2026-11-18T11:55:15.254429Z\",\"drive_rev\":0,\"files_total\":0,\"freshness\":{\"as_of\":\"2026-11-18T11:55:15.255693Z\",\"covers_drive_rev\":0,\"ontology_version\":0,\"pending_review\":0,\"processing\":0,\"reason_code\":null,\"state\":\"up_to_date\"},\"id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"l6\",\"pending_review\":0,\"protocol\":\"oo.docs-drive/v1\",\"revision\":1,\"status\":\"active\",\"status_code\":null}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[],\"next_cursor\":null,\"protocol\":\"oo.docs-files/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"hash_ms\":406,\"llm_wait_ms\":0},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":0,\"retryable\":false,\"revision\":2,\"size\":358408,\"state\":\"queued\",\"state_since\":\"2026-11-18T11:55:15.880192Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"queue_ms\":590},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":0,\"progress\":{\"done\":0,\"total\":12008,\"unit\":\"ms\"},\"retryable\":false,\"revision\":3,\"size\":66330,\"state\":\"parsing\",\"state_since\":\"2026-11-18T11:55:16.466156Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_review\":0,\"retryable\":false,\"revision\":2,\"size\":36796,\"state\":\"queued\",\"state_since\":\"2026-11-18T11:55:15.876781Z\"},{\"b3\":\"d7fd94f3bdb78f559e9e103baffa6f5a9ec01151787378041cd1e146d6ed6aec\",\"drive_",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"hash_ms\":406,\"llm_wait_ms\":0},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":0,\"retryable\":false,\"revision\":2,\"size\":358408,\"state\":\"queued\",\"state_since\":\"2026-11-18T11:55:15.880192Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_review\":0,\"retryable\":false,\"revision\":5,\"size\":36796,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_CODEC_UNAVAILABL",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"hash_ms\":406,\"llm_wait_ms\":0,\"queue_ms\":10705},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":0,\"progress\":{\"done\":0,\"total\":11198,\"unit\":\"ms\"},\"retryable\":false,\"revision\":3,\"size\":358408,\"state\":\"parsing\",\"state_since\":\"2026-11-18T11:55:26.585492Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_review\":0,\"retryable\":false,\"revision\":5,\"size\":367",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "ca627081-f162-4680-9101-b1e5214fb03b  published      Meetings/周会 参会=小王、小李.wav\n2193f27f-b248-4161-a566-f2edba5043ef  published      Meetings/录屏.webm\n318eed9a-922d-466b-ab97-3e50654553a7  unsupported    Meetings/录屏h264.mp4\n239ebb2d-98f1-4c1d-a21a-501587561b45  unsupported    Meetings/讲话.m4a\n642787c6-876c-4b27-88cd-ca95a6352a10  published      People/林川.md\n9c068d33-723f-4d4d-bd6c-c0ab533392d0  published      Projects/星火计划.md\n22bda9ae-3dda-4639-bec7-5d67ff4d3431  published      Scans/扫描件.pdf\nadb61105-aa74-4f94-87c4-c0b11a70b23e  published      Scans/纪要.png\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":3,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/scan-mount --scope Scans --for 纪要 --json",
+   "exit": 0,
+   "seconds": 0.2,
+   "stdout": "{\"blocked\":{\"entities\":5,\"facts\":9},\"expires_at\":\"2026-11-25T11:56:05.559068Z\",\"pack_digest\":\"2716c359d98f0e448a878ec10c0c3cb4ac6871cb3223b27fc4a9d5ec8ec0f028\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/scan-mount/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"7b64bfc0-d02b-46ae-8fed-d36046f3d60b\",\"tokens\":{\"brief\":466,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review ls --kind speaker_identity --status pending --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"groups\":null,\"items\":[{\"confidence_bp\":null,\"created_at\":\"2026-11-18T11:55:23.023418Z\",\"decided_at\":null,\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"evidence\":[],\"id\":\"796e6cf7-6d9f-4bce-9379-a7486f60537c\",\"kind\":\"speaker_identity\",\"reason_code\":\"speaker_unconfirmed\",\"revision\":1,\"source\":{\"file_id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"path\":\"Meetings/录屏.webm\"},\"status\":\"pending\",\"subject\":{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"candidates\":[],\"placeholder\":\"说话人 S1 · a15243c4\",\"speaker\":\"S1\"}},{\"confidence_bp\":null,\"created_at\":\"2026-11-18T11:55:31.076384Z\",\"decided_at\":null,\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"evidence\":[],\"id\":\"b48a9127-19be-45ac-aa75-0b20291e45b0\",\"kind\":\"speaker_identity\",\"reason_code\":\"speaker_unconfirmed\",\"revision\":1,\"source\":{\"file_id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"path\":\"Meetings/周会 参会=小王、小李.wav\"},\"status\":\"pending\",\"subject\":{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"candidates\":[{\"block_id\":\"blk_8479b0a8cb6c40dc5f64\",\"name\":\"小李\",\"quote\":\"会小李你说一下进度我是小李\",\"source\":\"self_intro\"},{\"block_id\":\"blk_8d2f990c21f899512722\",\"name\":\"小王我\",\"quote\":\"大家好我是小王我负责星火计划好的我们\",\"source\":\"self_intro\"},{\"block_id\":null,\"name\":\"小李\",\"quote\":null,\"source\":\"attendees\"},{\"block_id\":null,\"name\":\"小王\",\"quote\":null,\"source\":\"attendees\"}],\"placeholder\":\"说话人 S1 · 056150c5\",\"speaker\":\"S1\"}},{\"confidence_bp\":null,\"created_at\":\"2026-11-18T11:55:31.076685Z\",\"decided_at\":null,\"drive_id\":\"26",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review ls --kind speaker_identity --status pending",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "796e6cf7-6d9f-4bce-9379-a7486f60537c  r1  speaker_identity       pending   Meetings/录屏.webm\nb48a9127-19be-45ac-aa75-0b20291e45b0  r1  speaker_identity       pending   Meetings/周会 参会=小王、小李.wav\nee941533-05dd-4087-9491-8f71c5e5add2  r1  speaker_identity       pending   Meetings/周会 参会=小王、小李.wav\n877d9838-d4aa-4e65-9505-45b5000ee1b6  r1  speaker_identity       pending   Meetings/周会 参会=小王、小李.wav\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity search 小王 --type Person --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"entities\":[],\"protocol\":\"oo.docs-entities/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review decide accept b48a9127-19be-45ac-aa75-0b20291e45b0 --name 小王 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"accepted\":1,\"protocol\":\"oo.docs-decide/v1\",\"publish_pending\":true,\"rejected\":0,\"results\":[{\"id\":\"b48a9127-19be-45ac-aa75-0b20291e45b0\",\"status\":\"ok\"}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity search 小王 --type Person --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"entities\":[{\"counts\":{\"aliases\":1,\"facts\":0},\"id\":\"be83253c-6082-441c-9d75-5380be4b7a71\",\"key\":\"person:d654bb7a63d462ed5e9caa4e\",\"label\":null,\"name\":\"小王\",\"subkind\":null,\"type\":\"Person\"}],\"protocol\":\"oo.docs-entities/v1\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show person:d654bb7a63d462ed5e9caa4e",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "person:d654bb7a63d462ed5e9caa4e  Person  小王 (r1)\n  alias 说话人 S1 · 056150c5\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show person:d654bb7a63d462ed5e9caa4e --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"aliases\":[{\"alias\":\"说话人 S1 · 056150c5\",\"confidence_bp\":9000,\"evidence\":[],\"origin\":\"human\",\"status\":\"draft\"}],\"facts\":[],\"files\":[],\"id\":\"be83253c-6082-441c-9d75-5380be4b7a71\",\"identity\":{},\"key\":\"person:d654bb7a63d462ed5e9caa4e\",\"label\":null,\"merged_into\":null,\"name\":\"小王\",\"protocol\":\"oo.docs-entity/v1\",\"redirect_from\":[\"person:1390d21091c322c7659007fb\"],\"revision\":1,\"status\":\"active\",\"subkind\":null,\"type\":\"Person\"}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show person:d654bb7a63d462ed5e9caa4e --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"aliases\":[{\"alias\":\"说话人 S1 · 056150c5\",\"confidence_bp\":9000,\"evidence\":[],\"origin\":\"human\",\"status\":\"draft\"}],\"facts\":[{\"confidence_bp\":9000,\"evidence\":[{\"anchor\":{\"kind\":\"media\",\"speaker\":\"S1\",\"t_end_ms\":4798,\"t_start_ms\":68,\"word_end\":17,\"word_start\":0},\"block_id\":\"blk_8d2f990c21f899512722\",\"file_id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"id\":\"6439f2f3-4d49-4054-801d-47a51bb1a8e1\",\"origin\":\"rule\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"src\":\"[src:Meetings/周会%20参会=小王、小李.wav#t=00:00:00-00:00:05@S1]\",\"version_id\":\"2ec2787d-eb30-4767-a9e7-bb5a1c01b92d\"}],\"fact_key\":\"b70468217b8cd6839860edd56ba36aa1be80ac7ba16296b58b33b4790e29dcc6\",\"id\":\"6136197b-13a5-4fef-8c8b-631fc527b40d\",\"object\":{\"id\":\"be83253c-6082-441c-9d75-5380be4b7a71\",\"key\":\"person:d654bb7a63d462ed5e9caa4e\",\"name\":\"小王\",\"type\":\"Person\"},\"origin\":\"rule\",\"predicate\":\"mentions\",\"published_in\":5,\"recorded_at\":\"2026-11-18T11:56:06.047424Z\",\"revision\":1,\"status\":\"published\",\"subject\":{\"id\":\"609479cb-8422-412c-81c6-7ef4f9e56467\",\"key\":\"document:9ab946804f0d4b88054b3506\",\"name\":\"Meetings/周会 参会=小王、小李.wav\",\"type\":\"Document\"}},{\"confidence_bp\":9000,\"evidence\":[{\"anchor\":{\"kind\":\"media\",\"speaker\":\"S1\",\"t_end_ms\":4798,\"t_start_ms\":68,\"word_end\":17,\"word_start\":0},\"block_id\":\"blk_8d2f990c21f899512722\",\"file_id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"id\":\"66a76aac-5333-4844-b2a4-ebdb50bcbf03\",\"origin\":\"rule\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"src\":\"[src:Meetings/周会%20参会=小王、小李.wav#t=00:00:00-00:00:05@S1]\",\"version_id\":\"2ec2787d-eb30-476",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs entity show person:d654bb7a63d462ed5e9caa4e --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"aliases\":[{\"alias\":\"说话人 S1 · 056150c5\",\"confidence_bp\":9000,\"evidence\":[],\"origin\":\"human\",\"status\":\"draft\"}],\"facts\":[{\"confidence_bp\":9000,\"evidence\":[{\"anchor\":{\"kind\":\"media\",\"speaker\":\"S1\",\"t_end_ms\":4798,\"t_start_ms\":68,\"word_end\":17,\"word_start\":0},\"block_id\":\"blk_8d2f990c21f899512722\",\"file_id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"id\":\"6439f2f3-4d49-4054-801d-47a51bb1a8e1\",\"origin\":\"rule\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"src\":\"[src:Meetings/周会%20参会=小王、小李.wav#t=00:00:00-00:00:05@S1]\",\"version_id\":\"2ec2787d-eb30-4767-a9e7-bb5a1c01b92d\"}],\"fact_key\":\"b70468217b8cd6839860edd56ba36aa1be80ac7ba16296b58b33b4790e29dcc6\",\"id\":\"6136197b-13a5-4fef-8c8b-631fc527b40d\",\"object\":{\"id\":\"be83253c-6082-441c-9d75-5380be4b7a71\",\"key\":\"person:d654bb7a63d462ed5e9caa4e\",\"name\":\"小王\",\"type\":\"Person\"},\"origin\":\"rule\",\"predicate\":\"mentions\",\"published_in\":5,\"recorded_at\":\"2026-11-18T11:56:06.047424Z\",\"revision\":1,\"status\":\"published\",\"subject\":{\"id\":\"609479cb-8422-412c-81c6-7ef4f9e56467\",\"key\":\"document:9ab946804f0d4b88054b3506\",\"name\":\"Meetings/周会 参会=小王、小李.wav\",\"type\":\"Document\"}},{\"confidence_bp\":9000,\"evidence\":[{\"anchor\":{\"kind\":\"media\",\"speaker\":\"S1\",\"t_end_ms\":4798,\"t_start_ms\":68,\"word_end\":17,\"word_start\":0},\"block_id\":\"blk_8d2f990c21f899512722\",\"file_id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"id\":\"66a76aac-5333-4844-b2a4-ebdb50bcbf03\",\"origin\":\"rule\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"src\":\"[src:Meetings/周会%20参会=小王、小李.wav#t=00:00:00-00:00:05@S1]\",\"version_id\":\"2ec2787d-eb30-476",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs review ls --kind speaker_identity --status pending --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"groups\":null,\"items\":[{\"confidence_bp\":null,\"created_at\":\"2026-11-18T11:55:23.023418Z\",\"decided_at\":null,\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"evidence\":[],\"id\":\"796e6cf7-6d9f-4bce-9379-a7486f60537c\",\"kind\":\"speaker_identity\",\"reason_code\":\"speaker_unconfirmed\",\"revision\":1,\"source\":{\"file_id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"path\":\"Meetings/录屏.webm\"},\"status\":\"pending\",\"subject\":{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"candidates\":[],\"placeholder\":\"说话人 S1 · a15243c4\",\"speaker\":\"S1\"}},{\"confidence_bp\":null,\"created_at\":\"2026-11-18T11:55:31.076685Z\",\"decided_at\":null,\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"evidence\":[],\"id\":\"ee941533-05dd-4087-9491-8f71c5e5add2\",\"kind\":\"speaker_identity\",\"reason_code\":\"speaker_unconfirmed\",\"revision\":1,\"source\":{\"file_id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"path\":\"Meetings/周会 参会=小王、小李.wav\"},\"status\":\"pending\",\"subject\":{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"candidates\":[{\"block_id\":null,\"name\":\"小李\",\"quote\":null,\"source\":\"attendees\"},{\"block_id\":null,\"name\":\"小王\",\"quote\":null,\"source\":\"attendees\"}],\"placeholder\":\"说话人 S2 · 056150c5\",\"speaker\":\"S2\"}},{\"confidence_bp\":null,\"created_at\":\"2026-11-18T11:55:31.076956Z\",\"decided_at\":null,\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"evidence\":[],\"id\":\"877d9838-d4aa-4e65-9505-45b5000ee1b6\",\"kind\":\"speaker_identity\",\"reason_code\":\"speaker_unconfirmed\",\"revision\":1,\"source\":{\"file_id\":\"ca627081-f16",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files show 2193f27f-b248-4161-a566-f2edba5043ef --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"history\":[{\"at\":\"2026-11-18T11:55:15.475249Z\",\"seq\":1,\"to\":\"stored\"},{\"at\":\"2026-11-18T11:55:15.875792Z\",\"duration_ms\":401,\"from\":\"stored\",\"seq\":2,\"to\":\"queued\",\"version_id\":\"29a82507-cf27-48df-bca7-508f539ed0f3\"},{\"at\":\"2026-11-18T11:55:16.466297Z\",\"attempt\":1,\"duration_ms\":591,\"from\":\"queued\",\"seq\":3,\"to\":\"parsing\",\"version_id\":\"29a82507-cf27-48df-bca7-508f539ed0f3\"},{\"at\":\"2026-11-18T11:55:22.559924Z\",\"attempt\":1,\"duration_ms\":6094,\"from\":\"parsing\",\"seq\":4,\"to\":\"parsed\",\"version_id\":\"29a82507-cf27-48df-bca7-508f539ed0f3\"},{\"at\":\"2026-11-18T11:55:23.017730Z\",\"attempt\":1,\"duration_ms\":458,\"from\":\"parsed\",\"seq\":5,\"to\":\"extracting\",\"version_id\":\"29a82507-cf27-48df-bca7-508f539ed0f3\"},{\"at\":\"2026-11-18T11:55:23.024444Z\",\"attempt\":1,\"duration_ms\":7,\"from\":\"extracting\",\"seq\":6,\"to\":\"indexed\",\"version_id\":\"29a82507-cf27-48df-bca7-508f539ed0f3\"},{\"at\":\"2026-11-18T11:55:24.122919Z\",\"duration_ms\":1098,\"from\":\"indexed\",\"seq\":7,\"to\":\"published\",\"version_id\":\"29a82507-cf27-48df-bca7-508f539ed0f3\"}],\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"llm\":{\"cache_hits\":0,\"calls\":0,\"status\":\"skipped_not_configured\"},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"parse\":{\"block_count\":5,\"page_",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/media-mount --scope Meetings --for 星火计划九月上线 --json",
+   "exit": 0,
+   "seconds": 0.2,
+   "stdout": "{\"blocked\":{\"entities\":5,\"facts\":14},\"expires_at\":\"2026-11-25T11:56:08.920181Z\",\"pack_digest\":\"aeb990fdff088b5748e7f73fd4b1a5d1a44b4a75e5a3526b034a33809e4006fe\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/media-mount/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"f1928445-7e2a-4d9c-85ae-89a88301ab52\",\"tokens\":{\"brief\":473,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files show 318eed9a-922d-466b-ab97-3e50654553a7 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"history\":[{\"at\":\"2026-11-18T11:55:15.475519Z\",\"seq\":1,\"to\":\"stored\"},{\"at\":\"2026-11-18T11:55:15.877039Z\",\"duration_ms\":402,\"from\":\"stored\",\"seq\":2,\"to\":\"queued\",\"version_id\":\"02bfe61b-6fed-4ced-87d0-3cfdcc42b718\"},{\"at\":\"2026-11-18T11:55:22.562508Z\",\"attempt\":1,\"duration_ms\":6685,\"from\":\"queued\",\"seq\":3,\"to\":\"parsing\",\"version_id\":\"02bfe61b-6fed-4ced-87d0-3cfdcc42b718\"},{\"at\":\"2026-11-18T11:55:24.569764Z\",\"code\":\"DOCS_PARSE_CODEC_UNAVAILABLE\",\"duration_ms\":2007,\"from\":\"parsing\",\"seq\":4,\"to\":\"queued\",\"version_id\":\"02bfe61b-6fed-4ced-87d0-3cfdcc42b718\"},{\"at\":\"2026-11-18T11:55:24.570414Z\",\"code\":\"DOCS_PARSE_CODEC_UNAVAILABLE\",\"duration_ms\":1,\"from\":\"queued\",\"seq\":5,\"to\":\"unsupported\",\"version_id\":\"02bfe61b-6fed-4ced-87d0-3cfdcc42b718\"}],\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"llm\":{\"cache_hits\":0,\"calls\":0,\"status\":\"skipped_not_configured\"},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"parse\":null,\"path\":\"Meetings/录屏h264.mp4\",\"pending_review\":0,\"protocol\":\"oo.docs-file/v1\",\"retryable\":false,\"revision\":5,\"size\":36796,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_CODEC_UNAVAILABLE\",\"state_since\":\"2026-11-18T11:55:24.570161Z\",\"versions\":[{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"created_at\":\"2026-11-18T11:55:15",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files show 239ebb2d-98f1-4c1d-a21a-501587561b45 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"b3\":\"d7fd94f3bdb78f559e9e103baffa6f5a9ec01151787378041cd1e146d6ed6aec\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"history\":[{\"at\":\"2026-11-18T11:55:15.475754Z\",\"seq\":1,\"to\":\"stored\"},{\"at\":\"2026-11-18T11:55:15.878850Z\",\"duration_ms\":403,\"from\":\"stored\",\"seq\":2,\"to\":\"queued\",\"version_id\":\"ae6f15e7-3822-4c72-89d1-374e15bb6a79\"},{\"at\":\"2026-11-18T11:55:24.573195Z\",\"attempt\":1,\"duration_ms\":8694,\"from\":\"queued\",\"seq\":3,\"to\":\"parsing\",\"version_id\":\"ae6f15e7-3822-4c72-89d1-374e15bb6a79\"},{\"at\":\"2026-11-18T11:55:26.582532Z\",\"code\":\"DOCS_PARSE_CODEC_UNAVAILABLE\",\"duration_ms\":2009,\"from\":\"parsing\",\"seq\":4,\"to\":\"queued\",\"version_id\":\"ae6f15e7-3822-4c72-89d1-374e15bb6a79\"},{\"at\":\"2026-11-18T11:55:26.583073Z\",\"code\":\"DOCS_PARSE_CODEC_UNAVAILABLE\",\"duration_ms\":1,\"from\":\"queued\",\"seq\":5,\"to\":\"unsupported\",\"version_id\":\"ae6f15e7-3822-4c72-89d1-374e15bb6a79\"}],\"id\":\"239ebb2d-98f1-4c1d-a21a-501587561b45\",\"latency_ms\":{\"hash_ms\":403,\"llm_wait_ms\":0,\"parse_ms\":2010,\"queue_ms\":8694},\"llm\":{\"cache_hits\":0,\"calls\":0,\"status\":\"skipped_not_configured\"},\"modified_at\":\"2026-11-18T11:54:58.051618Z\",\"name\":\"讲话.m4a\",\"parse\":null,\"path\":\"Meetings/讲话.m4a\",\"pending_review\":0,\"protocol\":\"oo.docs-file/v1\",\"retryable\":false,\"revision\":5,\"size\":37368,\"state\":\"unsupported\",\"state_code\":\"DOCS_PARSE_CODEC_UNAVAILABLE\",\"state_since\":\"2026-11-18T11:55:26.582906Z\",\"versions\":[{\"b3\":\"d7fd94f3bdb78f559e9e103baffa6f5a9ec01151787378041cd1e146d6ed6aec\",\"created_at\":\"2026-11-18T11:55:15.875502Z",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1 --scope Projects --for 星火计划 --json",
+   "exit": 0,
+   "seconds": 0.2,
+   "stdout": "{\"blocked\":{\"entities\":7,\"facts\":14},\"expires_at\":\"2026-11-25T11:56:09.179771Z\",\"pack_digest\":\"09e3eced3e642514f1253d64bb48862a821cf1e59a6d90518308dcc459b2fb92\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"7eb11e43-235f-4fa8-a79d-66e21b761041\",\"tokens\":{\"brief\":457,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "share 7eb11e43-235f-4fa8-a79d-66e21b761041: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "share 7eb11e43-235f-4fa8-a79d-66e21b761041: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "share 7eb11e43-235f-4fa8-a79d-66e21b761041: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context",
+   "exit": 20,
+   "seconds": 0.0,
+   "stdout": "share 7eb11e43-235f-4fa8-a79d-66e21b761041: BLOCK, a fact you used was withdrawn or conflicts; do not commit, refresh or ask a person\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context",
+   "exit": 20,
+   "seconds": 0.0,
+   "stdout": "share 7eb11e43-235f-4fa8-a79d-66e21b761041: BLOCK, a fact you used was withdrawn or conflicts; do not commit, refresh or ask a person\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs share refresh 7eb11e43-235f-4fa8-a79d-66e21b761041 --json",
+   "exit": 0,
+   "seconds": 0.2,
+   "stdout": "{\"protocol\":\"oo.context-refresh/v1\",\"shares\":[{\"mounted\":true,\"old\":\"7eb11e43-235f-4fa8-a79d-66e21b761041\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context\",\"share_id\":\"e4920fa6-0021-4fc6-94e5-a7d05f5cef49\",\"version\":6}]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context check --dir /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1/.context",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "share e4920fa6-0021-4fc6-94e5-a7d05f5cef49: up to date, continue\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive sync l6",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "sync running: generation 14, +0 ~0 -0, drive_rev 10\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":2,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8d8850\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"318eed9a-922d-466b-ab97-3e50654553a7\",\"latency_ms\":{\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":2007,\"queue_ms\":6686},\"modified_at\":\"2026-11-18T11:54:58.005543Z\",\"name\":\"录屏h264.mp4\",\"path\":\"Meetings/录屏h264.mp4\",\"pending_re",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":2,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"id\":\"1172c333-1c70-4919-af31-86292171ca8a\",\"latency_ms\":{\"llm_wait_ms\":0},\"name\":\"周会2 参会=小王、小李.wav\",\"path\":\"Meetings/周会2 参会=小王、小李.wav\",\"pending_review\":0,\"retryable\":false,\"revision\":1,\"state\":\"stored\",\"state_since\":\"2026-11-18T11:56:16.075247Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":2,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"id\":\"1172c333-1c70-4919-af31-86292171ca8a\",\"latency_ms\":{\"llm_wait_ms\":0},\"name\":\"周会2 参会=小王、小李.wav\",\"path\":\"Meetings/周会2 参会=小王、小李.wav\",\"pending_review\":0,\"retryable\":false,\"revision\":1,\"state\":\"stored\",\"state_since\":\"2026-11-18T11:56:16.075247Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\":false,\"revision\":7,\"size\":66330,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:24.122797Z\"},{\"b3\":\"658a8bb5a579b58d76b4c735a75a87267dbbfd2169ad62ff120ef50a3e8",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":2,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"d858c36c2fc7d022d046e83deb282587cb646e50c14cd32f7d18822a308e7451\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"1172c333-1c70-4919-af31-86292171ca8a\",\"latency_ms\":{\"hash_ms\":2390,\"llm_wait_ms\":0},\"modified_at\":\"2026-11-18T11:56:15.666799Z\",\"name\":\"周会2 参会=小王、小李.wav\",\"path\":\"Meetings/周会2 参会=小王、小李.wav\",\"pending_review\":0,\"retryable\":false,\"revision\":2,\"size\":14691608,\"state\":\"queued\",\"state_since\":\"2026-11-18T11:56:18.465728Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"录屏.webm\",\"path\":\"Meetings/录屏.webm\",\"pending_review\":1,\"retryable\"",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3 --scope Projects --for 星火计划 --json",
+   "exit": 0,
+   "seconds": 0.2,
+   "stdout": "{\"blocked\":{\"entities\":7,\"facts\":14},\"expires_at\":\"2026-11-25T11:56:18.801901Z\",\"pack_digest\":\"298e90637aa768411a16301b5149182f379bace4b931d07dd66749be41a315b6\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"083817f9-1e6b-4202-b367-12b682078090\",\"tokens\":{\"brief\":476,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "revoked 083817f9-1e6b-4202-b367-12b682078090; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3 --scope Projects --for 星火计划 --json",
+   "exit": 0,
+   "seconds": 0.2,
+   "stdout": "{\"blocked\":{\"entities\":7,\"facts\":14},\"expires_at\":\"2026-11-25T11:56:19.986330Z\",\"pack_digest\":\"298e90637aa768411a16301b5149182f379bace4b931d07dd66749be41a315b6\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"82b17fa9-d490-4709-a609-07ce0b797573\",\"tokens\":{\"brief\":476,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "revoked 82b17fa9-d490-4709-a609-07ce0b797573; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3 --scope Projects --for 星火计划 --json",
+   "exit": 0,
+   "seconds": 0.1,
+   "stdout": "{\"blocked\":{\"entities\":7,\"facts\":14},\"expires_at\":\"2026-11-25T11:56:21.171189Z\",\"pack_digest\":\"298e90637aa768411a16301b5149182f379bace4b931d07dd66749be41a315b6\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"15aa6bf5-cbe0-43eb-8575-77193d5025ae\",\"tokens\":{\"brief\":476,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "revoked 15aa6bf5-cbe0-43eb-8575-77193d5025ae; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context mount --to /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3 --scope Projects --for 星火计划 --json",
+   "exit": 0,
+   "seconds": 2.1,
+   "stdout": "{\"blocked\":{\"entities\":7,\"facts\":14},\"expires_at\":\"2026-11-25T11:56:24.314315Z\",\"pack_digest\":\"c3d1adbb262e5acd904d9d8550c8c11525c7d59bc3553f5ebe1db59ad37adfc4\",\"path\":\"/private/tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3/.context\",\"protocol\":\"oo.context-mount/v1\",\"share_id\":\"9bac0d18-5604-4b00-840d-2dadfdcc5840\",\"tokens\":{\"brief\":476,\"budget\":800},\"trimmed\":{},\"warnings\":[]}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs files ls --drive l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"files\":[{\"b3\":\"056150c5374c484856589fcf721a244b63ac79cdb5ad13ff5e5bcc9dadd08d44\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"ca627081-f162-4680-9101-b1e5214fb03b\",\"latency_ms\":{\"extract_ms\":10,\"extract_queue_ms\":472,\"hash_ms\":406,\"llm_wait_ms\":0,\"parse_ms\":4010,\"publish_wait_ms\":1152,\"queue_ms\":10705,\"total_ms\":16755},\"modified_at\":\"2026-11-18T11:54:57.794442Z\",\"name\":\"周会 参会=小王、小李.wav\",\"path\":\"Meetings/周会 参会=小王、小李.wav\",\"pending_review\":2,\"retryable\":false,\"revision\":7,\"size\":358408,\"state\":\"published\",\"state_since\":\"2026-11-18T11:55:32.229513Z\"},{\"b3\":\"d858c36c2fc7d022d046e83deb282587cb646e50c14cd32f7d18822a308e7451\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"audio\",\"id\":\"1172c333-1c70-4919-af31-86292171ca8a\",\"latency_ms\":{\"hash_ms\":2390,\"llm_wait_ms\":0,\"queue_ms\":549},\"modified_at\":\"2026-11-18T11:56:15.666799Z\",\"name\":\"周会2 参会=小王、小李.wav\",\"path\":\"Meetings/周会2 参会=小王、小李.wav\",\"pending_review\":0,\"progress\":{\"done\":0,\"total\":459110,\"unit\":\"ms\"},\"retryable\":false,\"revision\":3,\"size\":14691608,\"state\":\"parsing\",\"state_since\":\"2026-11-18T11:56:19.014943Z\"},{\"b3\":\"a15243c4acb2c28b544b28aaf6bd0a6f687245148a6bdc3341c3297a3f0c6af0\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"format\":\"video\",\"id\":\"2193f27f-b248-4161-a566-f2edba5043ef\",\"latency_ms\":{\"extract_ms\":6,\"extract_queue_ms\":458,\"hash_ms\":401,\"llm_wait_ms\":0,\"parse_ms\":6094,\"publish_wait_ms\":1099,\"queue_ms\":590,\"total_ms\":8648},\"modified_at\":\"2026-11-18T11:54:57.943149Z\",\"name\":\"",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m1",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "revoked e4920fa6-0021-4fc6-94e5-a7d05f5cef49; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/m3",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "revoked 9bac0d18-5604-4b00-840d-2dadfdcc5840; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/media-mount",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "revoked f1928445-7e2a-4d9c-85ae-89a88301ab52; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo context revoke /tmp/oo-cliacc6-a7-l6cli-iiqlkbp4/scan-mount",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "revoked 7b64bfc0-d02b-46ae-8fed-d36046f3d60b; local mount removed. Content already read cannot be taken back.\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs share ls --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"protocol\":\"oo.context-list/v1\",\"shares\":[{\"budget\":800,\"coverage\":{\"covered_rev\":10,\"drive_rev\":13,\"failed\":[],\"in_scope\":1,\"pending\":[],\"processed\":1},\"created_at\":\"2026-11-18T11:56:24.314315Z\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"expires_at\":\"2026-11-25T11:56:24.314315Z\",\"group_id\":null,\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":false,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"9bac0d18-5604-4b00-840d-2dadfdcc5840\",\"mount\":{\"present\":false},\"pack_digest\":\"c3d1adbb262e5acd904d9d8550c8c11525c7d59bc3553f5ebe1db59ad37adfc4\",\"pack_id\":\"aa51a6e1-bbb8-46b9-a23d-fad6822fe02a\",\"path\":null,\"refresh_policy\":\"manual\",\"refreshed_from\":null,\"revision\":2,\"revoked_at\":\"2026-11-18T11:56:24.485179Z\",\"role\":\"suggester\",\"scope\":[\"Projects\"],\"state\":\"revoked\",\"task\":\"星火计划\",\"version\":7},{\"budget\":800,\"coverage\":{\"covered_rev\":10,\"drive_rev\":11,\"failed\":[],\"in_scope\":1,\"pending\":[],\"processed\":1},\"created_at\":\"2026-11-18T11:56:21.171189Z\",\"drive_id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"expires_at\":\"2026-11-25T11:56:21.171189Z\",\"group_id\":null,\"guarantees\":{\"change_delivery\":true,\"constraint_free\":true,\"freshness_floor\":false,\"group_same_version\":true,\"pack_consistent\":true},\"id\":\"15aa6bf5-cbe0-43eb-8575-77193d5025ae\",\"mount\":{\"present\":false},\"pack_digest\":\"298e90637aa768411a16301b5149182f379bace4b931d07dd66749be41a315b6\",\"pack_id\":\"0e742c49-4080-4af7-ba36-34f3cc63109c\",\"path\":null,\"refresh_policy\":\"manual\",\"refreshed_from\":null,\"r",
+   "stderr": ""
+  },
+  {
+   "command": "oo docs drive rm l6 --json",
+   "exit": 0,
+   "seconds": 0.0,
+   "stdout": "{\"backend\":\"fs\",\"bytes_total\":15296438,\"config\":{\"root\":\"/drives/e2b340d6068a3d92\"},\"counts\":{\"parsing\":1,\"published\":6,\"unsupported\":2},\"created_at\":\"2026-11-18T11:55:15.254429Z\",\"drive_rev\":13,\"files_total\":9,\"freshness\":{\"as_of\":\"2026-11-18T11:56:24.254482Z\",\"covers_drive_rev\":10,\"ontology_version\":7,\"pending_review\":3,\"processing\":1,\"reason_code\":null,\"state\":\"processing\"},\"id\":\"26ef0272-906b-4972-890e-452115262e5e\",\"last_sync\":{\"added\":0,\"changed\":1,\"error_code\":null,\"finished_at\":\"2026-11-18T11:56:21.634704Z\",\"generation\":16,\"removed\":0,\"renamed\":0,\"started_at\":\"2026-11-18T11:56:21.631250Z\",\"status\":\"complete\",\"trigger\":\"poll\"},\"llm_daily_calls\":2000,\"model_enabled\":false,\"name\":\"l6\",\"pending_review\":3,\"protocol\":\"oo.docs-drive/v1\",\"revision\":2,\"status\":\"deleting\",\"status_code\":null}\n",
+   "stderr": ""
+  },
+  {
+   "command": "oo serve --stop",
+   "exit": 0,
+   "seconds": 20.2,
+   "stdout": "oo serve stopped\n",
+   "stderr": ""
+  }
+ ]
+}

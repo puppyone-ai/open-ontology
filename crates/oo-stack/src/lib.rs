@@ -6,7 +6,7 @@ pub mod secret;
 pub mod stack;
 pub mod status;
 
-pub use stack::{Stack, parse, validate};
+pub use stack::{Stack, parse, parse_draft, validate, validate_draft};
 
 /// Structural schema; run `validate` for the semantic security checks as well.
 pub const JSON_SCHEMA: &str = include_str!("../stack.schema.json");

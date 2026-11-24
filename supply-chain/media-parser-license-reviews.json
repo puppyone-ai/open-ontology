@@ -1,0 +1,27 @@
+{
+  "protocol": "oo.license-reviews/v1",
+  "scope": "tools/media-parser image oo-docs-media-parser:dev-asr (Whisper base weights and sherpa-onnx added in lane AL, D98), spec 90 §3 SBOM gate, D64; supply-chain/policy.md §2 written review of weak-copyleft obligations",
+  "reviewed_on": "2026-11-22",
+  "reviewer_role": "engineering coordinator (Super Ontology integration thread). Not legal advice: every entry is listed for the D67 lawyer gate before any external release.",
+  "sbom": "testing/super-ontology/evidence/S22-convergence/sbom-media-parser.json",
+  "gate": "testing/super-ontology/evidence/S22-convergence/sbom-media-parser.gate.txt (python3 tools/doc-parser/sbom_gate.py SBOM --reviews tools/ocr-parser/license-reviews.json: PASS)",
+  "added_by_this_change": {
+    "sherpa-onnx 2.0.1 and sherpa-onnx-core 2.0.1": {
+      "license": "Apache-2.0",
+      "verdict": "default usable; pinned with hashes in tools/media-parser/requirements.lock; see media-asr-model-reviews.json"
+    },
+    "Whisper base int8 weights (base-encoder.int8.onnx, base-decoder.int8.onnx, base-tokens.txt)": {
+      "license": "MIT",
+      "verdict": "default usable; pinned by sha256 in tools/media-parser/models.lock.json; see media-asr-model-reviews.json"
+    },
+    "libasound (ALSA library, bundled by sherpa-onnx)": {
+      "license": "LGPL-2.1-or-later",
+      "use": "shared object vendored in the sherpa-onnx manylinux wheel (libasound.so.2), dynamically linked by the wheel's audio-capture code, which Super Ontology never calls (the recognizer reads files)",
+      "obligation": "LGPL-2.1: the library stays replaceable by a modified version, the licence text and a source offer travel with the image, and the work using it may not forbid reverse engineering for debugging such a replacement",
+      "how_met": "unmodified upstream shared object; dynamic linking, so another libasound.so.2 can be dropped in; the notice, the source location and the LGPL-2.1 text are in tools/media-parser/THIRD_PARTY_NOTICES.md (generated from the SBOM by tools/doc-parser/notices.py, shipped at /usr/share/licenses/oo-docs-media-parser/); Super Ontology's own code is not combined with it",
+      "evidence": "testing/super-ontology/evidence/S22-convergence/sbom-media-parser.json; supply-chain/media-parser-license-reviews.json",
+      "legal_gate": "D67"
+    }
+  },
+  "unchanged": "every other component of the image keeps its record in tools/ocr-parser/license-reviews.json and supply-chain/doc-parser-license-reviews.json"
+}

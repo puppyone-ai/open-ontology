@@ -140,3 +140,14 @@ hashed the previous NOTICE is left as it was.
 
 webpki-roots 1.0.10 (Mozilla CA certificate data, via oracledb) is made available under the
 Community Data License Agreement - Permissive, Version 2.0: https://cdla.dev/permissive-2-0/
+
+
+Super Ontology desktop app
+--------------------------
+
+`apps/super-ontology-desktop` and `packages/design-system` include source adapted from the Super Drive of
+Puppyone (https://github.com/puppyone-ai/puppyone), Copyright 2025 puppyone authors, licensed under the
+Apache License, Version 2.0 (this product includes software developed at puppyone, https://www.puppyone.ai/).
+The adapted files were modified: names, identifiers and storage locations were renamed, the cloud, account,
+agent, Git and update parts were removed, and the engine start-up now locates and starts `oo serve`.
+The full attribution is in `apps/super-ontology-desktop/NOTICE`.

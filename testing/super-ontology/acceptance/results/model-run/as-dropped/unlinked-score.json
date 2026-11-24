@@ -1,0 +1,82 @@
+{
+ "summary": {
+  "files": 7,
+  "correct": 4,
+  "correct_pct": 57.1
+ },
+ "rows": [
+  {
+   "file": "misc/lemon-tart-recipe.docx",
+   "gold": "unrelated_content",
+   "app_reason": "connected",
+   "mapped": "linked_to_project",
+   "correct": false,
+   "state": "published",
+   "size": 4789
+  },
+  {
+   "file": "misc/lisbon-itinerary.pdf",
+   "gold": "unrelated_content",
+   "app_reason": "processing",
+   "mapped": "still_processing",
+   "correct": false,
+   "state": "indexed",
+   "size": 2375
+  },
+  {
+   "file": "misc/random-readings.csv",
+   "gold": "unrelated_content",
+   "app_reason": "processing",
+   "mapped": "still_processing",
+   "correct": false,
+   "state": "indexed",
+   "size": 620
+  },
+  {
+   "file": "misc/empty-notes.txt",
+   "gold": "empty_file",
+   "app_reason": "no_entities",
+   "mapped": "empty_file",
+   "correct": true,
+   "state": "published",
+   "size": 0
+  },
+  {
+   "file": "misc/broken-report.pdf",
+   "gold": "corrupt_file",
+   "app_reason": "parse_failed",
+   "mapped": "corrupt_file",
+   "correct": true,
+   "state": "parse_failed",
+   "size": 358
+  },
+  {
+   "file": "misc/brand-mockup.key",
+   "gold": "unsupported_format",
+   "app_reason": "unsupported",
+   "mapped": "unsupported_format",
+   "correct": true,
+   "state": "unsupported",
+   "size": 2268
+  },
+  {
+   "file": "misc/icon-set.sketch",
+   "gold": "unsupported_format",
+   "app_reason": "unsupported",
+   "mapped": "unsupported_format",
+   "correct": true,
+   "state": "unsupported",
+   "size": 236
+  }
+ ],
+ "false_alarms": [
+  {
+   "file": "meetings/audio/budget-call-2027-01-26.m4a",
+   "reason": "review"
+  },
+  {
+   "file": "meetings/audio/launch-sync-2027-01-12.wav",
+   "reason": "review"
+  }
+ ]
+}

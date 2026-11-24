@@ -1,0 +1,10 @@
+# media-parser (B-S10-05..09, D69, D72..D75). CPython 3.13. The OpenCV wheels pulled by rapidocr and scenedetect are
+# dropped by lock.py: they bundle FFmpeg (D65). The image installs the FFmpeg-free source build instead.
+numpy
+onnxruntime
+kaldi-native-fbank
+blake3
+Pillow
+rapidocr==3.10.0
+scenedetect==0.7.3
+sherpa-onnx

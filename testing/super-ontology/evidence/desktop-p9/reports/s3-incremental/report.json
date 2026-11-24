@@ -1,0 +1,10 @@
+{
+  "ok": false,
+  "skipped": null,
+  "title": "Super Drive s3 incremental sync",
+  "nativeInput": false,
+  "started": "2026-11-19T01:45:26.180Z",
+  "checks": [],
+  "timings": {},
+  "error": "Error: Timed out waiting for the dialog closes\n    at until (file:///Users/redux/puppy-one/puppyone-wt/sd-P9/tests/support/super-drive/electron-scenario.mjs:73:13)\n    at async file:///Users/redux/puppy-one/puppyone-wt/sd-P9/tests/e2e/super-drive/sync/s3-incremental.smoke.mjs:79:3\n    at async Object.execute (file:///Users/redux/puppy-one/puppyone-wt/sd-P9/tests/support/super-drive/electron-scenario.mjs:252:9)"
+}

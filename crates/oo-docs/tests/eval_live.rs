@@ -1,0 +1,587 @@
+//! Live evaluation of the whole pipeline on the golden set (L4: precision and
+//! recall per core type, model on and off; 30 L4 acceptance, 10 12.6).
+//!
+//! A real `oo-docs-engine`, the real Docling sidecar container and (with
+//! `OO_EVAL_MODEL=1`) the real model egress process: the engine is configured
+//! through `PUT /v1/docs/config/model` with `file:` references only. The test
+//! writes the engine's own output (entities, aliases, facts, with anchors) in
+//! the `oo.eval.docs-labels/v1` format for `oo-eval docs`.
+//!
+//! ```text
+//! OO_DOCS_TEST_PG_PORT=<port> OO_EVAL_OUT=<dir> [OO_EVAL_MODEL=1 \
+//!   OO_EVAL_ENDPOINT_FILE=<path> OO_EVAL_KEY_FILE=<path> OO_EVAL_MODEL_ID=<id>] \
+//!   cargo test -p oo-docs --locked --test eval_live -- --ignored --nocapture
+//! ```
+//!
+//! The endpoint and key are only ever paths here; nothing reads or prints them.
+
+mod common;
+mod sidecar_support;
+#[path = "sidecar_support/stack.rs"]
+mod stack;
+
+use std::collections::BTreeMap;
+use std::fmt::Write as _;
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
+
+use serde_json::{Value, json};
+use sidecar_support::testing_root;
+use sqlx::Row;
+use stack::{Stack, copy_tree};
+
+const CORE: [&str; 8] = [
+    "Person",
+    "Organization",
+    "Project",
+    "Decision",
+    "Document",
+    "Topic",
+    "Event",
+    "Term",
+];
+const PREDICATES: [&str; 8] = [
+    "owns",
+    "member_of",
+    "decides",
+    "supersedes",
+    "rejects",
+    "mentions",
+    "about",
+    "tried_and_failed",
+];
+
+/// The label fragment of an anchor (`oo.eval.docs-labels/v1`).
+fn frag(a: &Value) -> Option<(String, Option<Value>)> {
+    let n = |k: &str| a[k].as_i64();
+    match a["kind"].as_str()? {
+        "text" => Some((format!("#L{}-{}", n("line_start")?, n("line_end")?), None)),
+        "docx" => match (a["table_index"].as_i64(), a["cell_range"].as_str()) {
+            (Some(t), Some(r)) => Some((format!("#T{}!{r}", t + 1), None)),
+            _ => Some((format!("#¶{}-{}", n("para_start")?, n("para_end")?), None)),
+        },
+        "slide" => Some((format!("#s{}", n("slide")?), None)),
+        "pdf" => Some((format!("#p{}", n("page")?), Some(a["bbox"].clone()))),
+        "cells" => {
+            let range = a["range"].as_str()?;
+            match a["sheet"].as_str() {
+                Some(sheet) => Some((format!("#'{}'!{range}", sheet.replace('\'', "''")), None)),
+                None => {
+                    let row: String = range
+                        .trim_start_matches(|c: char| c.is_ascii_alphabetic())
+                        .chars()
+                        .take_while(char::is_ascii_digit)
+                        .collect();
+                    Some((format!("#R{row}"), None))
+                }
+            }
+        }
+        _ => None,
+    }
+}
+
+type Anchors = BTreeMap<String, Vec<(String, String, Option<Value>)>>;
+
+fn anchor_json(list: &[(String, String, Option<Value>)]) -> Vec<Value> {
+    let mut out: Vec<Value> = list
+        .iter()
+        .map(|(file, frag, bbox)| {
+            let mut v = json!({"file": format!("docs/{file}"), "frag": frag});
+            if let Some(b) = bbox {
+                v["bbox"] = b.clone();
+            }
+            v
+        })
+        .collect();
+    out.sort_by_key(Value::to_string);
+    out.dedup();
+    out
+}
+
+/// `published_only`: what the product acts on: facts in a published version, and the
+/// entities they connect (plus every Document); otherwise every candidate fact that is
+/// not rejected or retracted, the whole extraction output.
+async fn settle(
+    s: &Stack,
+    n: usize,
+    limit: Duration,
+) -> BTreeMap<String, (String, Option<String>)> {
+    let t0 = Instant::now();
+    let mut quiet = 0;
+    let mut st = s.states().await;
+    while quiet < 5 && t0.elapsed() < limit {
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        st = s.states().await;
+        let open: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM _oo_docs.job WHERE state IN ('queued', 'running') AND kind IN ('parse', 'extract_rules', 'extract_llm', 'publish')",
+        )
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+        let moving = st.values().any(|(state, _)| {
+            matches!(
+                state.as_str(),
+                "stored" | "queued" | "parsing" | "parsed" | "extracting" | "outdated"
+            )
+        });
+        quiet = if st.len() >= n && open == 0 && !moving {
+            quiet + 1
+        } else {
+            0
+        };
+    }
+    st
+}
+
+async fn export(s: &Stack, dir: &std::path::Path, published_only: bool) -> (usize, usize) {
+    // Anchors per target (fact, alias or entity), live evidence only.
+    let rows = sqlx::query(
+        "SELECT e.target_id::text AS t, fv.path_at_version AS p, e.anchor::text AS a \
+           FROM _oo_docs.evidence e JOIN _oo_docs.file_version fv ON fv.id = e.version_id \
+          WHERE e.withdrawn_at IS NULL",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    let mut by_target: Anchors = BTreeMap::new();
+    for r in rows {
+        let a: Value = serde_json::from_str(&r.get::<String, _>("a")).unwrap();
+        if let Some((f, bbox)) = frag(&a) {
+            by_target
+                .entry(r.get("t"))
+                .or_default()
+                .push((r.get("p"), f, bbox));
+        }
+    }
+    let ents = sqlx::query(
+        "SELECT id::text AS id, type, subkind, canonical_name FROM _oo_docs.entity \
+          WHERE status = 'active' AND type <> 'Thing' ORDER BY canonical_name, id",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    let aliases = sqlx::query(
+        "SELECT entity_id::text AS e, alias, id::text AS id FROM _oo_docs.alias \
+          WHERE status IN ('draft', 'published') ORDER BY alias",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    let facts = sqlx::query(
+        "SELECT f.id::text AS id, COALESCE(es.merged_into, es.id)::text AS s, f.predicate, \
+                COALESCE(eo.merged_into, eo.id)::text AS o, f.valid_from::text AS vf, \
+                f.valid_to::text AS vt, f.superseded_by::text AS sb \
+           FROM _oo_docs.fact f JOIN _oo_docs.entity es ON es.id = f.subject_id \
+           JOIN _oo_docs.entity eo ON eo.id = f.object_id \
+          WHERE f.status IN ('draft', 'published') AND f.object_id IS NOT NULL \
+            AND ($1 = false OR f.status = 'published') \
+          ORDER BY f.id",
+    )
+    .bind(published_only)
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    let mut eid: BTreeMap<String, String> = BTreeMap::new();
+    let mut lines = String::new();
+    let mut anchors_of_entity: BTreeMap<String, Vec<(String, String, Option<Value>)>> =
+        BTreeMap::new();
+    for f in &facts {
+        let (sj, ob): (String, String) = (f.get("s"), f.get("o"));
+        for t in [sj, ob] {
+            anchors_of_entity.entry(t).or_default().extend(
+                by_target
+                    .get(f.get::<String, _>("id").as_str())
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+        }
+    }
+    let mut n_ent = 0;
+    for (i, e) in ents.iter().enumerate() {
+        let ty: String = e.get("type");
+        if !CORE.contains(&ty.as_str()) {
+            continue;
+        }
+        let id: String = e.get("id");
+        if published_only && ty != "Document" && !anchors_of_entity.contains_key(&id) {
+            continue;
+        }
+        let name = format!("E{:04}", i + 1);
+        eid.insert(id.clone(), name.clone());
+        let mut als: Vec<String> = aliases
+            .iter()
+            .filter(|a| a.get::<String, _>("e") == id)
+            .map(|a| a.get("alias"))
+            .collect();
+        als.sort();
+        als.dedup();
+        let mut anchors = anchors_of_entity.get(&id).cloned().unwrap_or_default();
+        for a in aliases.iter().filter(|a| a.get::<String, _>("e") == id) {
+            anchors.extend(
+                by_target
+                    .get(a.get::<String, _>("id").as_str())
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+        }
+        let mut rec = json!({"kind": "entity", "id": name, "type": ty, "name": e.get::<String, _>("canonical_name"),
+                             "aliases": als, "anchors": anchor_json(&anchors)});
+        if e.get::<Option<String>, _>("subkind").is_some() {
+            rec["subkind"] = json!("preference");
+        }
+        writeln!(lines, "{rec}").unwrap();
+        n_ent += 1;
+    }
+    let ents_text = std::mem::take(&mut lines);
+    let mut fid: BTreeMap<String, String> = BTreeMap::new();
+    let mut n_fact = 0;
+    for f in &facts {
+        let pred: String = f.get("predicate");
+        let (Some(sj), Some(ob)) = (
+            eid.get(&f.get::<String, _>("s")),
+            eid.get(&f.get::<String, _>("o")),
+        ) else {
+            continue;
+        };
+        if !PREDICATES.contains(&pred.as_str()) {
+            continue;
+        }
+        let id: String = f.get("id");
+        n_fact += 1;
+        let name = format!("F{:04}", n_fact);
+        fid.insert(id.clone(), name.clone());
+        let mut rec = json!({"kind": "fact", "id": name, "subject": sj, "predicate": pred, "object": ob,
+                             "anchors": anchor_json(&by_target.get(&id).cloned().unwrap_or_default())});
+        if let Some(v) = f.get::<Option<String>, _>("vf") {
+            rec["valid_from"] = json!(v);
+        }
+        if let Some(v) = f.get::<Option<String>, _>("vt") {
+            rec["valid_to"] = json!(v);
+        }
+        writeln!(lines, "{rec}").unwrap();
+    }
+    for f in &facts {
+        if let (Some(old), Some(Some(new))) = (
+            fid.get(&f.get::<String, _>("id")),
+            f.get::<Option<String>, _>("sb").map(|n| fid.get(&n)),
+        ) {
+            writeln!(
+                lines,
+                "{}",
+                json!({"kind": "supersede", "old": old, "new": new})
+            )
+            .unwrap();
+        }
+    }
+    // D57: every integrity violation of the engine (`constraint_violation`) is a conflict between
+    // the facts it names; only violations whose facts are all exported are written.
+    let violations = sqlx::query(
+        "SELECT constraint_id, fact_ids::text[] AS fids FROM _oo_docs.constraint_violation ORDER BY dedupe_key",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    for (i, v) in violations.iter().enumerate() {
+        let named: Option<Vec<&String>> = v
+            .get::<Vec<String>, _>("fids")
+            .iter()
+            .map(|id| fid.get(id))
+            .collect();
+        if let Some(named) = named.filter(|n| n.len() >= 2) {
+            writeln!(
+                lines,
+                "{}",
+                json!({"kind": "conflict", "id": format!("C{}", i + 1),
+                       "constraint": v.get::<String, _>("constraint_id"), "facts": named})
+            )
+            .unwrap();
+        }
+    }
+    std::fs::create_dir_all(dir).unwrap();
+    std::fs::write(dir.join("entities.jsonl"), ents_text).unwrap();
+    std::fs::write(dir.join("facts.jsonl"), lines).unwrap();
+    (n_ent, n_fact)
+}
+
+/// predicate, origin, status, score, subject type and name, object type and name, review reason.
+type FactState = (
+    String,
+    String,
+    String,
+    i32,
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+);
+
+/// D90/D91 evidence for the person reading the run: every entity with the origins of its live evidence, and every
+/// review item (`entities-all.jsonl`, `review-items.jsonl`).
+async fn diagnostics(s: &Stack, out: &std::path::Path) {
+    let ents: Vec<(String, String, String, Vec<String>, i64)> = sqlx::query_as(
+        "SELECT e.type, e.canonical_name, e.status, \
+                COALESCE(ARRAY(SELECT DISTINCT ev.origin FROM _oo_docs.evidence ev \
+                                WHERE ev.target_kind = 'entity' AND ev.target_id = e.id AND ev.withdrawn_at IS NULL ORDER BY 1), '{}'), \
+                (SELECT count(*) FROM _oo_docs.fact f WHERE f.subject_id = e.id OR f.object_id = e.id) \
+           FROM _oo_docs.entity e ORDER BY e.type, e.canonical_name",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap_or_default();
+    let lines: Vec<String> = ents
+        .iter()
+        .map(|r| {
+            json!({"type": r.0, "name": r.1, "status": r.2, "origins": r.3, "facts": r.4})
+                .to_string()
+        })
+        .collect();
+    std::fs::write(out.join("entities-all.jsonl"), lines.join("\n")).unwrap();
+    // Facts behind the items, so a person reading the run sees what each question is about.
+    let items: Vec<(String, String, String, String)> = sqlx::query_as(
+        "SELECT r.kind, r.status, r.reason_code, \
+                (r.subject || COALESCE(jsonb_build_object('fact', jsonb_build_object('predicate', f.predicate, 'origin', f.origin, \
+                    'bp', f.confidence_bp, 'subject', s.type || ':' || s.canonical_name, 'object', COALESCE(o.type || ':' || o.canonical_name, ''))), '{}'::jsonb) \
+                 || COALESCE(jsonb_build_object('entities', (SELECT jsonb_agg(e.type || ':' || e.canonical_name) FROM _oo_docs.entity e \
+                      WHERE e.key = ANY(ARRAY(SELECT jsonb_array_elements_text(r.subject->'entity_keys'))))), '{}'::jsonb))::text \
+           FROM _oo_docs.review_item r \
+           LEFT JOIN _oo_docs.fact f ON r.subject ? 'fact_id' AND f.id::text = r.subject->>'fact_id' \
+           LEFT JOIN _oo_docs.entity s ON s.id = f.subject_id LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+          ORDER BY r.kind, r.reason_code, r.created_at",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap_or_default();
+    let lines: Vec<String> = items
+        .iter()
+        .map(|r| json!({"kind": r.0, "status": r.1, "reason": r.2, "subject": serde_json::from_str::<Value>(&r.3).unwrap_or(Value::Null)}).to_string())
+        .collect();
+    std::fs::write(out.join("review-items.jsonl"), lines.join("\n")).unwrap();
+}
+
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT, OO_EVAL_OUT and docker (oo-docs-parser:dev)"]
+async fn the_whole_golden_set_through_the_real_pipeline() {
+    let out = PathBuf::from(std::env::var("OO_EVAL_OUT").expect("OO_EVAL_OUT"));
+    let with_model = std::env::var("OO_EVAL_MODEL").is_ok_and(|v| v == "1");
+    let mut s = Stack::start(if with_model { "eval_on" } else { "eval_off" }, 2).await;
+    let script = testing_root()
+        .join("../../../tools/model-egress/model_egress.py")
+        .canonicalize()
+        .or_else(|_| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tools/model-egress/model_egress.py")
+                .canonicalize()
+        })
+        .unwrap();
+    let script_s = script.to_string_lossy().into_owned();
+    // Respawn the engine with the egress script known and, for a slow model, more
+    // extract_llm workers (`docs.json` `concurrency.extract_llm`).
+    drop(s.engine.take());
+    if let Ok(n) = std::env::var("OO_EVAL_LLM_WORKERS") {
+        std::fs::write(
+            s.state.join("docs.json"),
+            format!(r#"{{"version":"oo.docs/v1","concurrency":{{"extract_llm":{n}}}}}"#),
+        )
+        .unwrap();
+    }
+    // The engine runs with a cleared environment: pass on the knobs of a measuring run (the model timeout and the latency log).
+    let pass: Vec<(String, String)> = [
+        "OO_DOCS_MODEL_TIMEOUT_SECS",
+        "OO_DOCS_MODEL_LATENCY_LOG",
+        "OO_DOCS_CLASSIFY_MODEL",
+    ]
+    .iter()
+    .filter_map(|k| std::env::var(k).ok().map(|v| ((*k).to_owned(), v)))
+    .collect();
+    let mut env: Vec<(&str, &str)> = vec![("OO_DOCS_MODEL_EGRESS", script_s.as_str())];
+    env.extend(pass.iter().map(|(k, v)| (k.as_str(), v.as_str())));
+    s.spawn_engine(&env);
+
+    // OO_EVAL_GOLDEN=<dir> evaluates another labelled set (the held-out one) with the same layout.
+    let docs_root = std::env::var("OO_EVAL_GOLDEN").map_or_else(
+        |_| testing_root().join("golden/docs"),
+        |d| PathBuf::from(d).join("docs"),
+    );
+    // OO_EVAL_SUBSET=a/b.md,c/d.docx limits the run to those golden files (debugging).
+    let n = match std::env::var("OO_EVAL_SUBSET") {
+        Ok(list) => {
+            let mut n = 0;
+            for rel in list.split(',').filter(|r| !r.is_empty()) {
+                let dest = s.root.join(rel);
+                std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+                std::fs::copy(docs_root.join(rel), dest).unwrap();
+                n += 1;
+            }
+            n
+        }
+        Err(_) => {
+            let n = copy_tree(&docs_root, &s.root);
+            assert!(n >= 40, "{n} labelled files");
+            n
+        }
+    };
+    if with_model {
+        let endpoint = std::env::var("OO_EVAL_ENDPOINT_FILE").expect("OO_EVAL_ENDPOINT_FILE");
+        let key = std::env::var("OO_EVAL_KEY_FILE").expect("OO_EVAL_KEY_FILE");
+        let model = std::env::var("OO_EVAL_MODEL_ID").expect("OO_EVAL_MODEL_ID");
+        // References only: the paths of two 0600 files.
+        let body = json!({"provider": "openai-compatible", "base_url": format!("file:{endpoint}"),
+                          "model": model, "key_ref": format!("file:{key}")});
+        let auth = format!("Bearer {}", common::engine::TOKEN);
+        let put = common::http::request(
+            s.addr(),
+            "PUT",
+            "/v1/docs/config/model",
+            &[("Authorization", auth.as_str()), ("If-Match", "\"r1\"")],
+            Some(&body.to_string()),
+        )
+        .await;
+        assert_eq!(
+            put.status,
+            200,
+            "model config refused: {}",
+            put.json()["code"]
+        );
+        let status = put.json()["status"].as_str().unwrap_or("").to_owned();
+        let code = put.json()["code"].as_str().unwrap_or("").to_owned();
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(
+            out.join("model-status.json"),
+            json!({"status": status, "code": code}).to_string(),
+        )
+        .unwrap();
+        assert_eq!(status, "ok", "the model egress did not start: {code}");
+    }
+    let r = s
+        .call(
+            "POST",
+            "/v1/docs/drives",
+            Some(
+                &json!({"name": "eval", "backend": "fs", "model_enabled": with_model,
+                         "config": {"root": s.root.to_str().unwrap()}}),
+            ),
+        )
+        .await;
+    assert_eq!(r.status, 201, "{}", String::from_utf8_lossy(&r.body));
+    let t0 = Instant::now();
+    // Settled: every file is past the pipeline (a file whose facts wait for a person
+    // may stay `indexed`) and no parse, extract or publish job is open, for five polls in
+    // a row (the publish job runs the link pass of the last files: it is debounced by 2 s
+    // and takes seconds, and the export must come after it).
+    let limit = Duration::from_secs(if with_model { 3000 } else { 900 });
+    let mut st = settle(&s, n, limit).await;
+    // D93: OO_EVAL_STRUCTURE=1 plays the person who confirms the induced structure of every class; the files of the classes go through
+    // extraction again against their templates (the model, when on, fills only their slots) and settle before the export.
+    if std::env::var("OO_EVAL_STRUCTURE").is_ok_and(|v| v == "1") {
+        let drive_id = r.json()["id"].as_str().unwrap().to_owned();
+        let induced = s
+            .call(
+                "POST",
+                &format!("/v1/docs/drives/{drive_id}/structure:induce"),
+                None,
+            )
+            .await;
+        assert_eq!(
+            induced.status,
+            200,
+            "{}",
+            String::from_utf8_lossy(&induced.body)
+        );
+        let schema = induced.json();
+        std::fs::create_dir_all(&out).unwrap();
+        std::fs::write(
+            out.join("structure-induced.json"),
+            serde_json::to_string_pretty(&schema).unwrap(),
+        )
+        .unwrap();
+        for c in schema["classes"].as_array().unwrap() {
+            let d = s
+                .call(
+                    "POST",
+                    &format!("/v1/docs/drives/{drive_id}/structure:decide"),
+                    Some(&json!({"op": "accept", "class_key": c["class_key"], "property": null})),
+                )
+                .await;
+            assert_eq!(d.status, 200, "{}", String::from_utf8_lossy(&d.body));
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        st = settle(&s, n, limit).await;
+        let after = s
+            .call(
+                "GET",
+                &format!("/v1/docs/drives/{drive_id}/structure"),
+                None,
+            )
+            .await
+            .json();
+        std::fs::write(
+            out.join("structure-confirmed.json"),
+            serde_json::to_string_pretty(&after).unwrap(),
+        )
+        .unwrap();
+    }
+    let secs = t0.elapsed().as_secs_f64();
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for (state, _) in st.values() {
+        *counts.entry(state.clone()).or_default() += 1;
+    }
+    std::fs::create_dir_all(&out).unwrap();
+    let (e, f) = export(&s, &out.join("predictions"), false).await;
+    let (pe, pf) = export(&s, &out.join("predictions-published"), true).await;
+    diagnostics(&s, &out).await;
+    let usage = s.call("GET", "/v1/docs/usage", None).await.json();
+    let jobs: Vec<(String, String, i64)> = sqlx::query_as(
+        "SELECT kind, state, count(*) FROM _oo_docs.job WHERE kind IN ('extract_llm', 'extract_rules') GROUP BY 1, 2 ORDER BY 1, 2",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap();
+    let origin: Vec<(String, i64)> =
+        sqlx::query_as("SELECT origin, count(*) FROM _oo_docs.fact GROUP BY 1 ORDER BY 1")
+            .fetch_all(&s.pool)
+            .await
+            .unwrap();
+    let summary = json!({"files": n, "states": counts, "seconds": secs, "entities": e, "facts": f, "published_entities": pe, "published_facts": pf,
+        "model": with_model, "usage": usage, "jobs": jobs, "facts_by_origin": origin});
+    std::fs::write(
+        out.join("run.json"),
+        serde_json::to_string_pretty(&summary).unwrap(),
+    )
+    .unwrap();
+    eprintln!("{summary}");
+    // Diagnostics for the person reading the run: what became of every fact (status, score, review reason).
+    let rows: Vec<FactState> = sqlx::query_as(
+        "SELECT f.predicate, f.origin, f.status, f.confidence_bp, s.type, s.canonical_name, COALESCE(o.type, ''), COALESCE(o.canonical_name, ''), \
+                (SELECT r.reason_code FROM _oo_docs.review_item r WHERE r.subject->>'fact_id' = f.id::text LIMIT 1) \
+           FROM _oo_docs.fact f JOIN _oo_docs.entity s ON s.id = f.subject_id LEFT JOIN _oo_docs.entity o ON o.id = f.object_id \
+          WHERE f.origin = 'llm' ORDER BY f.predicate, s.canonical_name",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap_or_default();
+    let lines: Vec<String> = rows
+        .iter()
+        .map(|r| json!({"predicate": r.0, "origin": r.1, "status": r.2, "bp": r.3, "subject_type": r.4, "subject": r.5, "object_type": r.6, "object": r.7, "review": r.8}).to_string())
+        .collect();
+    std::fs::write(out.join("llm-facts-state.jsonl"), lines.join("\n")).unwrap();
+    // OO_EVAL_HOLD=<flag file>: keep the engine up, write its address and token next to the predictions, and wait
+    // until the flag file exists, so the acceptance scorers (which read the engine over HTTP) can run on it.
+    if let Ok(flag) = std::env::var("OO_EVAL_HOLD") {
+        std::fs::write(
+            out.join("engine.json"),
+            json!({"addr": s.addr().to_string()}).to_string(),
+        )
+        .unwrap();
+        std::fs::write(out.join("token"), common::engine::TOKEN).unwrap();
+        while !std::path::Path::new(&flag).exists() {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+    }
+    if std::env::var("OO_EVAL_KEEP").is_ok() {
+        eprintln!("kept: db {} state {}", s.db, s.state.display());
+        std::mem::forget(s);
+        return;
+    }
+    s.finish().await;
+}

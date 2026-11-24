@@ -43,6 +43,7 @@ pub use incremental::{
     SemanticSnapshot, SemanticWork, compile_library_incremental, semantic_snapshot, semantic_work,
 };
 
+pub use canonical::canonical_json;
 pub use captured_pg::{
     CAPTURED_COMPILER, CAPTURED_PROTOCOL, CapturedPgDraft, compile_captured_pg_catalog,
 };
@@ -58,7 +59,10 @@ pub use jsonb_profile::{
     JSONB_PROFILE_COMPILER, JSONB_PROFILE_PROTOCOL, JsonbDocumentProfile,
     compile_jsonb_document_profile,
 };
-pub use knowledge_budget::unicode_word_tokens;
+pub use knowledge_budget::{
+    CharClass, TOKEN_ESTIMATOR_V2, char_class, cjk_calibrated_tokens, tokens_of_classes,
+    unicode_word_tokens,
+};
 pub use nfc::nfc;
 pub use oos_tree::{OosTreeCompilation, compile_oos_tree};
 pub use pack_index::manifest_file_records;

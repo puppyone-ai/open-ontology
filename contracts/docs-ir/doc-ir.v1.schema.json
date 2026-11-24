@@ -1,0 +1,633 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:oo:doc-ir:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "blob_b3",
+    "format",
+    "parser",
+    "meta",
+    "blocks"
+  ],
+  "properties": {
+    "protocol": {
+      "enum": [
+        "oo.doc-ir/v1",
+        "oo.doc-ir/v1.1"
+      ]
+    },
+    "blob_b3": {
+      "$ref": "#/$defs/hex64"
+    },
+    "format": {
+      "enum": [
+        "md",
+        "txt",
+        "csv",
+        "xlsx",
+        "docx",
+        "pptx",
+        "pdf",
+        "audio",
+        "video",
+        "image",
+        "pdf_scanned"
+      ]
+    },
+    "parser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "profile_sha256"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "oo-md",
+            "oo-text",
+            "oo-csv",
+            "oo-xlsx",
+            "docling",
+            "paddleocr",
+            "media"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "adapter_version": {
+          "type": "string"
+        },
+        "profile_sha256": {
+          "$ref": "#/$defs/hex64"
+        },
+        "profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tier",
+            "models",
+            "isa"
+          ],
+          "properties": {
+            "tier": {
+              "enum": [
+                "cpu",
+                "gpu",
+                "host-accel"
+              ]
+            },
+            "models": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "sha256"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "sha256": {
+                    "$ref": "#/$defs/hex64"
+                  }
+                }
+              }
+            },
+            "isa": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "maxItems": 64
+        },
+        "created": {
+          "$ref": "#/$defs/date_or_dt"
+        },
+        "modified": {
+          "$ref": "#/$defs/date_or_dt"
+        },
+        "page_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "slide_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sheets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "maxItems": 256
+        },
+        "frontmatter": {
+          "type": "object"
+        },
+        "encoding": {
+          "enum": [
+            "utf-8",
+            "utf-8-bom",
+            "gb18030",
+            "utf-16le",
+            "utf-16be"
+          ]
+        },
+        "has_macros": {
+          "type": "boolean"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "speakers": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "pattern": "^S[1-9][0-9]{0,2}$"
+          }
+        },
+        "codec": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "maxItems": 200000,
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^DOCS_PARSE_[A-Z_]+$"
+          },
+          "block_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "date_or_dt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z)?$"
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ordinal",
+        "kind",
+        "text",
+        "anchor",
+        "hpath"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^blk_[0-9a-f]{20}$"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "enum": [
+            "heading",
+            "paragraph",
+            "list_item",
+            "quote",
+            "code",
+            "table",
+            "caption",
+            "frontmatter",
+            "slide_title",
+            "slide_notes",
+            "sheet_table",
+            "kv",
+            "page_header",
+            "page_footer",
+            "footnote",
+            "utterance",
+            "scene",
+            "frame_text",
+            "image_text",
+            "image_caption"
+          ]
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 65536
+        },
+        "hpath": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "maxItems": 9
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^blk_[0-9a-f]{20}$"
+        },
+        "anchor": {
+          "$ref": "#/$defs/anchor"
+        },
+        "table": {
+          "$ref": "#/$defs/table"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "merged_cells_expanded",
+              "header_inferred",
+              "formula_cached",
+              "formula_no_cache",
+              "low_text_confidence",
+              "truncated_cell",
+              "model_generated"
+            ]
+          }
+        }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "cols",
+        "header_rows",
+        "cells"
+      ],
+      "properties": {
+        "rows": {
+          "type": "integer"
+        },
+        "cols": {
+          "type": "integer"
+        },
+        "header_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cells": {
+          "type": "array",
+          "maxItems": 1000000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "r",
+              "c",
+              "text"
+            ],
+            "properties": {
+              "r": {
+                "type": "integer"
+              },
+              "c": {
+                "type": "integer"
+              },
+              "rs": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "cs": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 32768
+              },
+              "header": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "anchor": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "line_start",
+            "line_end",
+            "char_start",
+            "char_end"
+          ],
+          "properties": {
+            "kind": {
+              "const": "text"
+            },
+            "line_start": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "line_end": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "char_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "char_end": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "para_start",
+            "para_end"
+          ],
+          "properties": {
+            "kind": {
+              "const": "docx"
+            },
+            "para_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "para_end": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "table_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cell_range": {
+              "type": "string",
+              "pattern": "^R\\d+C\\d+(:R\\d+C\\d+)?$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "slide"
+          ],
+          "properties": {
+            "kind": {
+              "const": "slide"
+            },
+            "slide": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "shape_id": {
+              "type": "integer"
+            },
+            "para_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "para_end": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "notes": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "page",
+            "bbox"
+          ],
+          "properties": {
+            "kind": {
+              "const": "pdf"
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "charspan": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "page_w": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "page_h": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "range"
+          ],
+          "properties": {
+            "kind": {
+              "const": "cells"
+            },
+            "sheet": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            },
+            "range": {
+              "type": "string",
+              "pattern": "^[A-Z]{1,3}[1-9][0-9]{0,6}(:[A-Z]{1,3}[1-9][0-9]{0,6})?$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "t_start_ms",
+            "t_end_ms"
+          ],
+          "properties": {
+            "kind": {
+              "const": "media"
+            },
+            "t_start_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "t_end_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "speaker": {
+              "type": "string",
+              "pattern": "^S[1-9][0-9]{0,2}$"
+            },
+            "word_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "word_end": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "t_ms"
+          ],
+          "properties": {
+            "kind": {
+              "const": "frame"
+            },
+            "t_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "image"
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/anchor"
+                }
+              ]
+            },
+            "image_index": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          }
+        }
+      ]
+    }
+  },
+  "description": "oo.doc-ir/v1 and v1.1 — Super Ontology document IR (spec 10 §3.4, §17.7). v1.1 is a backward-compatible extension: every v1 document still validates. Contract owned by the coordinator; changes follow 50 §6."
+}

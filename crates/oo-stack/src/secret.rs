@@ -79,6 +79,10 @@ impl SecretStore {
         if text.contains('\0') {
             return Err("SECRET_UTF8");
         }
+        let text = strip_one_newline(text);
+        if text.is_empty() {
+            return Err("SECRET_BUDGET");
+        }
         Ok(text)
     }
 
@@ -119,6 +123,18 @@ impl SecretStore {
     }
 }
 
+/// A single-line secret (password, key, token) loses the one line ending that an editor or
+/// `echo` added, as other CLIs do. Multi-line material (a PEM chain) is returned exactly.
+fn strip_one_newline(text: String) -> String {
+    let body = text
+        .strip_suffix("\r\n")
+        .or_else(|| text.strip_suffix('\n'));
+    match body {
+        Some(body) if !body.contains('\n') => body.to_owned(),
+        _ => text,
+    }
+}
+
 fn checked_text(bytes: Vec<u8>) -> Result<String> {
     if bytes.is_empty() || bytes.len() > 65_536 {
         return Err("SECRET_BUDGET");
@@ -126,6 +142,10 @@ fn checked_text(bytes: Vec<u8>) -> Result<String> {
     let value = String::from_utf8(bytes).map_err(|_| "SECRET_UTF8")?;
     if value.contains('\0') {
         return Err("SECRET_UTF8");
+    }
+    let value = strip_one_newline(value);
+    if value.is_empty() {
+        return Err("SECRET_BUDGET");
     }
     Ok(value)
 }
@@ -209,4 +229,46 @@ fn process_owner() -> Result<u32> {
     drop(file);
     fs::remove_file(path).map_err(|_| "SECRET_OWNER")?;
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::DirBuilderExt;
+
+    #[test]
+    fn one_trailing_newline_is_not_part_of_the_secret() {
+        let dir = fs::canonicalize(std::env::temp_dir())
+            .unwrap()
+            .join(format!("oo-secret-nl-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::DirBuilder::new().mode(0o700).create(&dir).unwrap();
+        let store = SecretStore::open(&dir).unwrap();
+        for (name, raw, want) in [
+            ("plain", "pw", "pw"),
+            ("lf", "pw\n", "pw"),
+            ("crlf", "pw\r\n", "pw"),
+            ("two", "pw\n\n", "pw\n\n"),
+            (
+                "pem",
+                "-----BEGIN X-----\nabc\n-----END X-----\n",
+                "-----BEGIN X-----\nabc\n-----END X-----\n",
+            ),
+        ] {
+            store.write_new(name, raw.as_bytes()).unwrap();
+            assert_eq!(store.read(name).unwrap(), want, "{name}");
+        }
+        store.write_new("only-newline", b"\n").unwrap();
+        assert!(store.read("only-newline").is_err());
+        // the same rule for file: references
+        let external = dir.join("plain");
+        assert_eq!(
+            store
+                .read(&format!("file:{}", dir.join("lf").display()))
+                .unwrap(),
+            "pw"
+        );
+        let _ = external;
+        fs::remove_dir_all(&dir).unwrap();
+    }
 }

@@ -1,0 +1,8 @@
+tests
+__pycache__
+*.pyc
+lock.py
+requirements.in
+video/test_video.py
+video/synth.py
+campplus_lock.py

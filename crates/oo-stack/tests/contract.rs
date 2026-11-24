@@ -1,4 +1,4 @@
-use oo_stack::{parse, secret::SecretStore};
+use oo_stack::{parse, parse_draft, secret::SecretStore};
 use serde_json::{Value, json};
 use std::os::unix::fs::{PermissionsExt, symlink};
 
@@ -237,7 +237,8 @@ fn secret_files_fail_closed() {
     std::fs::create_dir(&dir).unwrap();
     let store = SecretStore::create(dir.join("secrets")).unwrap();
     store.write_new("key", b"synthetic-fixture\n").unwrap();
-    assert_eq!(store.read("key").unwrap(), "synthetic-fixture\n");
+    // one trailing newline is not part of the secret
+    assert_eq!(store.read("key").unwrap(), "synthetic-fixture");
     assert!(store.write_new("key", b"replacement").is_err());
     assert!(store.read("../key").is_err());
     symlink(dir.join("secrets/key"), dir.join("secrets/link")).unwrap();
@@ -362,4 +363,29 @@ fn ssh_auth_is_exactly_one_secret_reference_and_port_is_bounded() {
         .unwrap()
         .remove("key");
     assert!(parse(&value).is_err());
+}
+
+#[test]
+fn a_stack_may_start_with_no_sources_and_every_refusal_says_what_to_run() {
+    let mut c = config();
+    c["sources"] = json!([]);
+    let draft = parse_draft(&c.to_string()).unwrap();
+    assert!(draft.sources.is_empty());
+    c.as_object_mut().unwrap().remove("sources");
+    assert!(parse_draft(&c.to_string()).unwrap().sources.is_empty());
+    // up, build and doctor still need a source, and the error names the command.
+    let none = parse(&c.to_string()).err().unwrap();
+    assert!(none.starts_with("STACK_NO_SOURCES") && none.contains("oo source add"));
+    for blank in ["", "  \n"] {
+        let empty = parse_draft(blank).err().unwrap();
+        assert!(empty.starts_with("STACK_EMPTY") && empty.contains("oo init"));
+        assert!(parse(blank).err().unwrap().starts_with("STACK_EMPTY"));
+    }
+    // A draft is no looser anywhere else.
+    assert_eq!(
+        parse_draft("version: oo.stack/v1").err(),
+        Some("STACK_SCHEMA")
+    );
+    c["version"] = json!("oo.stack/v2");
+    assert_eq!(parse_draft(&c.to_string()).err(), Some("STACK_SCHEMA"));
 }

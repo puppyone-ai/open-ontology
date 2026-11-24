@@ -1,0 +1,377 @@
+#!/usr/bin/env node
+// T2 (volume 25 section 6): black-box scenarios against the PACKAGED app from the DMG. Operation goes through Peekaboo by accessible
+// name; assertions only read the renderer over the DevTools protocol. It needs macOS Accessibility and Screen Recording permission
+// for the host that runs it and a quiet desktop, so it is a LOCAL gate, never CI. Start it from a Terminal window with run-t2.command.
+//
+//   node tests/e2e/t2/run-packaged.mjs --app "/Applications/Super Ontology.app" --scenarios all
+//   node tests/e2e/t2/run-packaged.mjs --scenarios P01,P03 --locales en
+//   node tests/e2e/t2/run-packaged.mjs --dry-run         validates the scenarios and resolves every accessible name; launches nothing
+//
+// Options: --engine-bin <path of oo-docs-engine> (only for an app whose bundle lacks it), --evidence <dir>, --expect-sha256 <hash of Contents/MacOS/Super Ontology>, --locales en,zh-Hans, --allow-unresolved
+// (dry run: do not fail on names the renderer's catalog does not have yet), --no-record.
+// Limits: a scenario gets at most 2 attempts of 5 minutes each. Fixtures are created once, up front, and chosen by full path.
+// Scenario file: scenarios/<id>-<name>.t2.json; names are message keys of the app catalog (`app.<key>`, resolved per locale) or, when a
+// step says `"literal": true`, text a person would read (an entity or source name from the fixtures).
+import { execFile, spawn } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { connectToPage, readDevToolsPort } from "../harness/cdp.mjs";
+import { createAutosync } from "../harness/autosync.mjs";
+import { createAutosyncFixtures, createFixtures, createLiteRuntimeStub } from "../harness/fixtures.mjs";
+import { chooseThroughPanel } from "../harness/open-panel.mjs";
+import { createPeekaboo } from "../harness/peekaboo.mjs";
+import { startRecording, stopAllRecordings } from "../harness/recorder.mjs";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const appRoot = path.resolve(here, "..", "..", "..");
+export const SCENARIO_DIRECTORY = path.join(here, "scenarios");
+export const ASSERTION_DIRECTORY = path.join(here, "assertions");
+export const LOCALES = ["en", "zh-Hans"];
+const APP_NAME = "Super Ontology";
+const STEP_KINDS = new Set(["launch", "relaunch", "quit", "click", "type", "scroll", "press", "typeFocused", "chooseFolder", "chooseFiles", "wait", "assert", "screenshot", "provision", "autosync"]);
+const DEFAULT_LIMIT_MINUTES = 5;
+const EXIT = { ok: 0, failed: 1, usage: 2, permission: 78 };
+const TEST_ID_ATTRIBUTE = ["data", "testid"].join("-");
+
+const osa = (script) => new Promise((resolve) => { execFile("osascript", ["-e", script], (error, stdout) => resolve(error ? "" : String(stdout).trim())); });
+const sheetCount = (pid) => osa(`tell application "System Events" to tell (first process whose unix id is ${pid}) to return count of sheets of window 1`).then((value) => Number(value) || 0);
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+/** The accessible name of a message key: the catalog text up to its first placeholder. */
+export function nameFor(catalog, key) {
+  const text = catalog[key.replace(/^app\./u, "")];
+  if (typeof text !== "string") throw new Error(`no message ${key}`);
+  return text.split(/\{/u)[0].trim();
+}
+
+export async function loadCatalogs(localesDirectory = process.env.SO_LOCALES_DIR ?? path.join(appRoot, "src", "locales")) {
+  return Object.fromEntries(await Promise.all(LOCALES.map(async (locale) => [locale, JSON.parse(await fs.readFile(path.join(localesDirectory, locale, "app.json"), "utf8").catch(() => "{}"))])));
+}
+
+/** Problems of one scenario document (empty when valid). */
+export function validateScenario(scenario, { catalogs, assertionNames, allowUnresolved = false }) {
+  const problems = [];
+  const need = (condition, text) => { if (!condition) problems.push(text); };
+  need(/^P\d{2}$/u.test(scenario.id ?? ""), "id is P<nn>");
+  need(typeof scenario.title === "string" && scenario.title.length > 0, "title");
+  need(Array.isArray(scenario.steps) && scenario.steps.length > 0, "steps");
+  need(Array.isArray(scenario.locales) && scenario.locales.length > 0 && scenario.locales.every((locale) => LOCALES.includes(locale)), "locales are en and/or zh-Hans");
+  for (const [index, step] of (scenario.steps ?? []).entries()) {
+    const where = `step ${index + 1}`;
+    need(STEP_KINDS.has(step.do), `${where}: unknown action ${step.do}`);
+    if (["click", "type"].includes(step.do)) {
+      need(typeof step.name === "string", `${where}: ${step.do} needs a name`);
+      if (typeof step.name === "string" && !step.literal) {
+        need(step.name.startsWith("app."), `${where}: name ${step.name} is not a message key (app.<key>); use "literal": true for fixture text`);
+        if (!allowUnresolved) for (const locale of scenario.locales ?? []) { try { nameFor(catalogs[locale], step.name); } catch { problems.push(`${where}: ${step.name} has no message in ${locale}`); } }
+      }
+    }
+    if (step.do === "assert") {
+      need(assertionNames.has(step.assertion), `${where}: assertion ${step.assertion} does not exist`);
+      need(!JSON.stringify(step).includes(TEST_ID_ATTRIBUTE), `${where}: write "testid", not the attribute`);
+    }
+    if (step.do === "wait") need(Number.isInteger(step.ms) && step.ms > 0, `${where}: wait ms`);
+    if (step.do === "chooseFolder") need(typeof step.path === "string", `${where}: chooseFolder needs a path (a variable such as \${secondDocs})`);
+  }
+  return problems;
+}
+
+export async function loadScenarios(ids = null) {
+  const names = (await fs.readdir(SCENARIO_DIRECTORY)).filter((name) => name.endsWith(".t2.json")).sort();
+  const scenarios = await Promise.all(names.map(async (name) => ({ file: name, ...JSON.parse(await fs.readFile(path.join(SCENARIO_DIRECTORY, name), "utf8")) })));
+  return ids ? scenarios.filter((scenario) => ids.includes(scenario.id)) : scenarios;
+}
+
+export function expandIds(text) {
+  return text.split(",").flatMap((part) => {
+    const range = part.trim().match(/^P(\d+)-P?(\d+)$/u);
+    if (!range) return [part.trim()];
+    return Array.from({ length: Number(range[2]) - Number(range[1]) + 1 }, (_, index) => `P${String(Number(range[1]) + index).padStart(2, "0")}`);
+  });
+}
+
+async function loadAssertions() {
+  const modules = {};
+  for (const name of (await fs.readdir(ASSERTION_DIRECTORY)).filter((file) => file.endsWith(".mjs"))) modules[name.replace(/\.mjs$/u, "")] = (await import(pathToFileURL(path.join(ASSERTION_DIRECTORY, name)))).default;
+  return modules;
+}
+
+const sha256 = async (file) => crypto.createHash("sha256").update(await fs.readFile(file)).digest("hex");
+
+/**
+ * A failed attempt keeps the logs of the engine the app started (the app's serve log, `oo serve`'s engine logs, the private PostgreSQL's log) and
+ * the file names of the state directory, so "the engine never came up" can be explained afterwards. Best effort: never throws.
+ */
+export async function saveEngineLogs(profile, destination) {
+  try {
+    await fs.mkdir(destination, { recursive: true });
+    const listing = [];
+    const walk = async (directory, depth) => {
+      for (const entry of await fs.readdir(directory, { withFileTypes: true }).catch(() => [])) {
+        const full = path.join(directory, entry.name);
+        const relative = path.relative(profile, full);
+        if (entry.isDirectory() && depth < 5 && !["data", "uv-cache", "sidecar", "fixtures", "Cache", "Code Cache", "GPUCache"].includes(entry.name)) await walk(full, depth + 1);
+        else if (entry.isFile()) {
+          const { size } = await fs.stat(full).catch(() => ({ size: 0 }));
+          listing.push(`${size}\t${relative}`);
+          if (/\.log(\.\d+)?$/u.test(entry.name) && size <= 8 * 1024 * 1024) await fs.copyFile(full, path.join(destination, relative.replaceAll(path.sep, "__"))).catch(() => undefined);
+        }
+      }
+    };
+    await walk(profile, 0);
+    await fs.writeFile(path.join(destination, "listing.txt"), `${listing.join("\n")}\n`);
+  } catch { /* evidence only */ }
+}
+
+async function attemptScenario({ scenario, locale, catalog, assertions, application, evidence, profileRoot, fixtures: sharedFixtures, options }) {
+  let fixtures = sharedFixtures;
+  const run = { id: scenario.id, locale, ok: false, steps: [], error: null };
+  const directory = path.join(evidence, `${scenario.id}-${locale}`);
+  await fs.mkdir(directory, { recursive: true });
+  const profile = path.join(profileRoot, `${scenario.id}-${locale}-${Date.now()}`);
+  const stateDirectory = path.join(profile, "engine", "state");
+  const peekaboo = createPeekaboo({ app: APP_NAME });
+  let child = null;
+  let cdp = null;
+  let recording = null;
+  // Folders a scenario changes are made fresh for every attempt: a retry must not start from what the failed attempt left behind.
+  if (scenario.id === "P07") fixtures = { ...fixtures, autosync: await createAutosyncFixtures(path.join(profile, "fixtures")) };
+  const variables = { sampleDocs: fixtures.folder, secondDocs: fixtures.second, dropFiles: fixtures.loose, ...(fixtures.autosync ? { watchedDir: fixtures.autosync.watched, dropThree: fixtures.autosync.drop, staging: fixtures.autosync.staging, bulk50: fixtures.autosync.bulk } : {}) };
+  const autosyncState = {};
+  let autosync = null;
+  const text = (value) => String(value).replaceAll(/\$\{(\w+)\}/gu, (_whole, name) => variables[name] ?? "");
+
+  const launch = async () => {
+    await fs.mkdir(profile, { recursive: true });
+    await fs.rm(path.join(profile, "DevToolsActivePort"), { force: true });
+    // The language is the app's own setting; a relaunch keeps whatever the profile already holds.
+    // The embedded runtime keeps the run off Docker: no container is ever created by a T2 run (the host may run other lanes' stacks).
+    await fs.writeFile(path.join(profile, "settings.json"), JSON.stringify({ language: locale, runtime: "lite" }), { flag: "wx", mode: 0o600 }).catch(() => undefined);
+    child = spawn(application.executable, [`--user-data-dir=${profile}`, "--remote-debugging-port=0"], {
+      env: { ...process.env, SUPER_ONTOLOGY_USER_DATA: profile, SUPER_ONTOLOGY_LITE_DIR: fixtures.lite, ...(options.engineBin ? { OO_DOCS_ENGINE_BIN: options.engineBin } : {}) }, stdio: ["ignore", "pipe", "pipe"],
+    });
+    const log = [];
+    child.stdout.on("data", (chunk) => log.push(String(chunk)));
+    child.stderr.on("data", (chunk) => log.push(String(chunk)));
+    child.once("exit", () => { fs.writeFile(path.join(directory, "main-process.log"), log.join("")).catch(() => undefined); });
+    cdp = await connectToPage(await readDevToolsPort(profile), { urlPattern: /^app:/u });
+    await peekaboo.retarget(child.pid);
+  };
+  const quit = async () => {
+    cdp?.close();
+    if (child && child.exitCode === null) { child.kill("SIGTERM"); await new Promise((resolve) => { child.once("exit", resolve); setTimeout(resolve, 20_000); }); }
+    child = null;
+    cdp = null;
+  };
+  // Text goes in as a paste: a keystroke is read by the user's input method (a Chinese one turns "t2" into a character), a paste is not.
+  async function paste(value) {
+    const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
+    await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(value); });
+    await peekaboo.press("cmd+v");
+    await sleep(500);
+    if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
+  }
+  async function chooseFolder(folder) {
+    for (let waited = 0; waited < 15_000 && (await sheetCount(child.pid)) === 0; waited += 500) await sleep(500);
+    const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
+    await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(folder); });
+    await osa(`tell application "System Events" to set frontmost of (first process whose unix id is ${child.pid}) to true`);
+    await sleep(800);
+    await peekaboo.press("cmd+shift+g", { native: true });
+    await sleep(800);
+    await peekaboo.press("cmd+v", { native: true });
+    await sleep(800);
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await peekaboo.nativeReturn(36);
+      await sleep(1500);
+      if ((await sheetCount(child.pid)) === 0) break;
+    }
+    await sleep(1500);
+    if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
+  }
+  // The open panel of the upload button (see harness/open-panel.mjs). Timed from the moment the panel is gone; the attempts it took are kept.
+  async function chooseFiles(folder, reopenName) {
+    const keep = await new Promise((resolve) => { execFile("pbpaste", (error, stdout) => resolve(error ? null : stdout)); });
+    try {
+      const result = await chooseThroughPanel(folder, {
+        sheetCount: () => sheetCount(child.pid),
+        press: (chord) => peekaboo.press(chord, { native: true }),
+        key: (code) => peekaboo.nativeReturn(code),
+        setClipboard: (value) => new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(value); }),
+        front: () => osa(`tell application "System Events" to set frontmost of (first process whose unix id is ${child.pid}) to true`),
+        reopen: () => (reopenName ? peekaboo.click(reopenName) : Promise.resolve()),
+        sleep, now: Date.now,
+      });
+      autosyncState.pickedAt = result.closedAt;
+      autosyncState.panelAttempts = result.attempts;
+    } finally {
+      if (keep !== null) await new Promise((resolve) => { const copy = execFile("pbcopy", resolve); copy.stdin.end(keep); });
+    }
+  }
+  async function engineApi(route, { method = "GET", body, headers = {} } = {}) {
+    const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8"));
+    const token = (await fs.readFile(info.token_file ?? path.join(stateDirectory, "serve.token"), "utf8")).trim();
+    const response = await fetch(`http://127.0.0.1:${info.port}${route}`, { method, headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined });
+    return { status: response.status, body: await response.json().catch(() => null) };
+  }
+  async function provision(step) {
+    switch (step.action) {
+      // Waits for the engine the app started, registers a folder as a source and waits until its files have settled.
+      case "seedSource": {
+        const folder = text(step.path);
+        let engineUp = false;
+        for (let attempt = 0; attempt < 240 && !engineUp; attempt += 1) { try { engineUp = (await engineApi("/v1/docs/health")).status === 200; } catch { /* not yet */ } if (!engineUp) await sleep(500); }
+        // Say what is wrong instead of failing later on a missing serve.json (the engine start is the app's, not this step's).
+        if (!engineUp) throw new Error(`the engine never came up: no healthy engine after 120 s (serve.json ${await fs.access(path.join(stateDirectory, "serve.json")).then(() => "exists", () => "never appeared")}); the engine logs are in serve-logs/`);
+        const created = await engineApi("/v1/docs/drives", { method: "POST", headers: { "idempotency-key": `t2-${scenario.id}-${step.name}-${Date.now()}`.replace(/[^A-Za-z0-9_-]/gu, "-").padEnd(16, "0") }, body: { name: step.name, backend: "fs", config: { root: folder } } });
+        if (![200, 201].includes(created.status)) throw new Error(`source create answered ${created.status}`);
+        await engineApi(`/v1/docs/drives/${created.body.id}:sync`, { method: "POST", body: {}, headers: { "idempotency-key": `t2-sync-${created.body.id}-${Date.now()}` } });
+        const settled = new Set(["parsed", "published", "failed", "skipped", "unsupported"]);
+        for (let attempt = 0; attempt < 240; attempt += 1) {
+          const { body } = await engineApi(`/v1/docs/drives/${created.body.id}/files?limit=200`);
+          const states = (body?.items ?? []).map((file) => file.state);
+          if (states.length >= fixtures.count && states.every((value) => settled.has(value))) return;
+          await sleep(1000);
+        }
+        throw new Error("the seeded source did not settle");
+      }
+      // The app's own "My files" source, made the way the first run makes it.
+      case "ensureMyFiles": {
+        const made = await cdp.evaluate(`window.superOntology.invoke('my-files-ensure', { operationId: ${JSON.stringify(`t2-my-files-${Date.now()}-0000`)} })`);
+        if (!made?.ok) throw new Error(`my-files-ensure failed: ${JSON.stringify(made)}`);
+        return;
+      }
+      default: throw new Error(`unknown provision action ${step.action}`);
+    }
+  }
+  try {
+    if (options.record) recording = startRecording(path.join(directory, "run.mov"));
+    for (const [index, step] of scenario.steps.entries()) {
+      const label = `${String(index + 1).padStart(2, "0")}-${step.do}`;
+      const started = Date.now();
+      const nameOf = () => (step.literal ? text(step.name) : nameFor(catalog, step.name));
+      switch (step.do) {
+        case "launch": await launch(); break;
+        case "relaunch": await quit(); await launch(); break;
+        case "quit": await quit(); break;
+        // `until`: a test id the click must bring up (a screen); a click that the app swallowed while it was still booting is repeated.
+        case "click": {
+          // Peekaboo sometimes loses the element while the page re-renders: look again before failing the step.
+          for (let tries = 1; ; tries += 1) { try { await peekaboo.click(nameOf()); break; } catch (error) { if (tries >= 3) throw error; await sleep(2000); } }
+          // The accessibility press of a control is sometimes acknowledged and not acted on; the next tries use a real mouse click.
+          for (let again = 0; step.until && again < 3; again += 1) {
+            const arrived = await assertions.dom({ cdp, args: { testid: step.until, withinMs: 5000 } });
+            if (arrived.ok) break;
+            await peekaboo.click(nameOf(), { strategy: again === 0 ? "synthOnly" : again === 1 ? "synthFirst" : "actionOnly" });
+          }
+          break;
+        }
+        case "type": await peekaboo.click(nameOf()); await paste(text(step.text)); break;
+        case "press": await peekaboo.press(step.chord); break;
+        case "typeFocused": await paste(text(step.text)); break;
+        // The native open panel is a sheet of the app's window: Go to folder (Cmd+Shift+G), the full path pasted (typing a space triggers the panel's
+        // completion), Return to go there, then Return until the sheet is gone (the first one confirms the path, the next chooses the folder).
+        case "chooseFolder": await chooseFolder(text(step.path)); break;
+        case "chooseFiles": await chooseFiles(text(step.path), step.reopen ? nameFor(catalog, step.reopen) : null); break;
+        // `reveal`: brings the element with this test id into view (only the view moves; the app is operated through Peekaboo).
+        case "scroll": await cdp.evaluate(`document.querySelector('[data-testid="${step.testid}"]')?.scrollIntoView({ block: "center" })`); await sleep(1000); break;
+        case "wait": await sleep(step.ms); break;
+        case "provision": await provision(step); break;
+        case "autosync": {
+          autosync ??= createAutosync({ engineApi, cdp: () => cdp, directory, locale, variables, state: autosyncState });
+          await autosync.cases[step.case]();
+          break;
+        }
+        case "screenshot": await peekaboo.see(path.join(directory, `${label}-${step.label}.png`)); if (step.elements) await fs.writeFile(path.join(directory, `${label}-${step.label}.elements.json`), JSON.stringify((await peekaboo.elements()).map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1)); break;
+        case "assert": {
+          const result = await assertions[step.assertion]({ cdp, args: step.args ?? {}, locale, directory, variables, profile });
+          if (!result.ok) throw new Error(`assertion ${step.assertion} failed: ${result.detail}`);
+          run.steps.push({ label, ms: Date.now() - started, detail: result.detail });
+          continue;
+        }
+        default: throw new Error(`unhandled action ${step.do}`);
+      }
+      run.steps.push({ label, ms: Date.now() - started });
+    }
+    run.ok = true;
+  } catch (error) {
+    run.error = error instanceof Error ? error.stack : String(error);
+    await peekaboo.see(path.join(directory, "failure.png")).catch(() => undefined);
+    await peekaboo.elements().then((list) => fs.writeFile(path.join(directory, "failure.elements.json"), JSON.stringify(list.map(({ role, label: name, value, is_actionable: actionable }) => ({ role, name, value, actionable })), null, 1))).catch(() => undefined);
+    await fs.writeFile(path.join(directory, "renderer-console.json"), JSON.stringify(cdp?.console() ?? [], null, 2)).catch(() => undefined);
+    await saveEngineLogs(profile, path.join(directory, "serve-logs"));
+  } finally {
+    await recording?.stop();
+    await quit();
+    // The engine the app started is stopped with the app; make sure none is left behind.
+    try { const info = JSON.parse(await fs.readFile(path.join(stateDirectory, "serve.json"), "utf8")); process.kill(info.pid, "SIGTERM"); } catch { /* none */ }
+  }
+  return run;
+}
+
+export async function withLimit(work, limitMs, onTimeout = () => undefined) {
+  let timer;
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => { onTimeout(); resolve({ ok: false, steps: [], error: `exceeded ${limitMs / 60_000} minutes` }); }, limitMs); });
+  try { return await Promise.race([work, timeout]); } finally { clearTimeout(timer); }
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+  const flag = (name) => args.includes(name);
+  const ids = option("--scenarios") && option("--scenarios") !== "all" ? expandIds(option("--scenarios")) : null;
+  const locales = option("--locales")?.split(",") ?? LOCALES;
+  const catalogs = await loadCatalogs();
+  const assertions = await loadAssertions();
+  const scenarios = await loadScenarios(ids);
+  if (scenarios.length === 0 || (ids && scenarios.length !== ids.length)) { console.error("no such scenario"); return EXIT.usage; }
+  let invalid = 0;
+  for (const scenario of scenarios) {
+    const problems = validateScenario(scenario, { catalogs, assertionNames: new Set(Object.keys(assertions)), allowUnresolved: flag("--allow-unresolved") });
+    for (const problem of problems) console.error(`${scenario.id}: ${problem}`);
+    invalid += problems.length;
+  }
+  if (invalid > 0) return EXIT.usage;
+  if (flag("--dry-run")) { console.log(`dry run ok: ${scenarios.length} scenarios, every name resolves in ${LOCALES.join(" and ")}`); return EXIT.ok; }
+
+  const bundle = option("--app") ?? "/Applications/Super Ontology.app";
+  const executable = path.join(bundle, "Contents", "MacOS", APP_NAME);
+  try { await fs.access(executable); } catch { console.error(`no app at ${bundle}`); return EXIT.usage; }
+  const binaryHash = await sha256(executable);
+  if (option("--expect-sha256") && option("--expect-sha256").toLowerCase() !== binaryHash) { console.error("the app under test is not the delivered file (sha256 differs)"); return EXIT.usage; }
+  const permissions = await createPeekaboo({ app: APP_NAME }).permissions();
+  if (!permissions.granted) { console.error(`Peekaboo lacks permission: ${permissions.missing.join(", ") || "unknown"}. Grant Screen Recording and Accessibility to the host that runs this.`); return EXIT.permission; }
+
+  const stamp = new Date().toISOString().replaceAll(":", "-");
+  const evidence = path.resolve(option("--evidence") ?? path.join(os.homedir(), "Desktop", "super-ontology-acceptance", `run-${stamp}`, "evidence"));
+  await fs.mkdir(evidence, { recursive: true });
+  const profileRoot = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "so-t2-")));
+  const fixtures = await createFixtures(profileRoot);
+  fixtures.lite = await createLiteRuntimeStub(profileRoot);
+  fixtures.second = path.join(profileRoot, "Second docs");
+  await fs.mkdir(fixtures.second, { recursive: true });
+  await fs.writeFile(path.join(fixtures.second, "extra.md"), "# Extra\n\nA second folder.\n");
+  const application = { executable, bundle, sha256: binaryHash };
+  const results = [];
+  for (const scenario of scenarios) {
+    for (const locale of scenario.locales.filter((entry) => locales.includes(entry))) {
+      let run = null;
+      for (let attempt = 1; attempt <= 2 && !run?.ok; attempt += 1) {
+        run = await withLimit(attemptScenario({ scenario, locale, catalog: catalogs[locale], assertions, application, evidence, profileRoot, fixtures, options: { record: !flag("--no-record"), engineBin: option("--engine-bin") } }), (scenario.limitMinutes ?? DEFAULT_LIMIT_MINUTES) * 60_000, stopAllRecordings);
+        run.attempts = attempt;
+        console.log(`${run.ok ? "PASS" : "FAIL"} ${scenario.id} ${locale} attempt ${attempt}${run.error ? ` - ${String(run.error).split("\n")[0]}` : ""}`);
+      }
+      results.push(run);
+    }
+  }
+  await fs.writeFile(path.join(evidence, "results.json"), JSON.stringify({ app: { bundle, sha256: binaryHash }, results }, null, 2));
+  await fs.rm(profileRoot, { recursive: true, force: true });
+  const failed = results.filter((entry) => !entry.ok);
+  console.log(`\n${results.length - failed.length}/${results.length} passed; evidence in ${evidence}`);
+  return failed.length > 0 ? EXIT.failed : EXIT.ok;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(await main());

@@ -12,6 +12,29 @@ lifecycle=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(lifecycle)
 
 class Tests(unittest.TestCase):
+    def test_docker_failure_says_which_command_and_why(self):
+        proc=MagicMock(returncode=1,stdout=b'',stderr=b'noise\nCannot connect to the Docker daemon at unix:///x.sock\n')
+        with patch.object(lifecycle.subprocess,'run',return_value=proc):
+            with self.assertRaises(ValueError) as caught:
+                lifecycle.docker(['network','ls','-q'],{})
+        text=str(caught.exception)
+        self.assertIn('LITE_DOCKER_FAILED: docker network ls exited 1',text)
+        self.assertIn('Cannot connect to the Docker daemon',text)
+        self.assertIn('OO_LITE_SUBNET',text)
+
+    def test_model_call_limit_scales_with_scope_and_can_be_set(self):
+        def stack(*n):return {'sources':[{'scope':{'include':[f't{i}' for i in range(k)]}} for k in n]}
+        with patch.dict(os.environ,{},clear=False):
+            os.environ.pop('OO_LITE_MODEL_CALL_LIMIT',None)
+            self.assertEqual(lifecycle.model_call_limit(stack(2)),6)
+            self.assertEqual(lifecycle.model_call_limit(stack(4)),14)
+            self.assertEqual(lifecycle.model_call_limit({'sources':[{}]}),6+4*30)
+            self.assertEqual(lifecycle.model_call_limit(stack(5000)),4096)
+        with patch.dict(os.environ,{'OO_LITE_MODEL_CALL_LIMIT':'20'}):
+            self.assertEqual(lifecycle.model_call_limit(stack(2)),20)
+        with patch.dict(os.environ,{'OO_LITE_MODEL_CALL_LIMIT':'0'}):
+            with self.assertRaises(ValueError):lifecycle.model_call_limit(stack(2))
+
     def test_large_review_artifact_does_not_relax_private_config_or_mode_checks(self):
         path=self.root/'large-review.json'
         data=b'x'*(1048576+1)
@@ -150,6 +173,24 @@ class Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'LITE_OWNERSHIP'):
                 lifecycle.main(self.request)
         self.assertFalse(any('down' in a for a in calls))
+
+    def test_lane_follows_the_callers_board_lane_not_eight_characters(self):
+        lane='super-ontology-q1'
+        def docker(args,env):
+            self.assertEqual(env['OO_LITE_LANE'],lane)
+            return b'cid' if args[0]=='ps' else json.dumps({'oo.lane':lane}).encode()
+        for name in ('OO_LITE_LANE','OO_TEST_LANE'):
+            with patch.dict(os.environ,{name:lane}),patch.object(lifecycle,'docker',side_effect=docker):
+                try:
+                    lifecycle.main(self.request)
+                except ValueError as error:
+                    self.assertNotIn('LITE_LANE',str(error))
+                    self.assertNotIn('LITE_OWNERSHIP',str(error))
+                except Exception:
+                    pass  # past the lane/ownership checks; later steps need a live docker
+        with patch.dict(os.environ,{'OO_LITE_LANE':'Bad Lane'}):
+            with self.assertRaisesRegex(ValueError,'LITE_LANE'):
+                lifecycle.main(self.request)
 
     def test_absent_health_credentials_never_imply_healthy(self):
         result=lifecycle.health(self.root,self.request['stack'])

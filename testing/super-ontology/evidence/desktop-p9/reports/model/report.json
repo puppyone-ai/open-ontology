@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "nativeInput": false,
+  "started": "2026-11-19T01:49:42.521Z",
+  "engine": "real oo serve + oo-docs-engine + Postgres container",
+  "checks": [
+    {
+      "check": "the model starts unconfigured",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "the engine holds a key reference, never the value",
+      "ok": true,
+      "detail": "{\"base_url\":\"http://127.0.0.1:58726/v1\",\"configured\":true,\"key_ref\":\"file:/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-super-drive-model-WJ2jeE/puppyone-development/super-ontology/secrets/model-key\",\"model\":\"recorded-model-1\",\"provider\":\"openai-compatible\",\"revision\":2,\"status\":\"ok\"}"
+    },
+    {
+      "check": "the key is a private file",
+      "ok": true,
+      "detail": "600"
+    },
+    {
+      "check": "the engine has the model on for the Drive",
+      "ok": true,
+      "detail": "{\"backend\":\"fs\",\"bytes_total\":4690,\"config\":{\"root\":\"/private/var/folders/15/d96j9n314fd9w_9dy15qwyrr0000gn/T/puppyone-real-engine-014942-oIMNVO/drive\"},\"counts\":{\"published\":20},\"created_at\":\"2026-11"
+    },
+    {
+      "check": "the engine called the recorded model once per section",
+      "ok": true,
+      "detail": "2 calls"
+    },
+    {
+      "check": "the engine reports the usage",
+      "ok": true,
+      "detail": "{\"drives\":[{\"cache_hits\":0,\"calls\":2,\"day\":\"2026-11-19\",\"drive_id\":\"97362ca1-d201-4c4c-8020-9aeda1e8c5a6\",\"files_limited\":0,\"limit\":2000,\"tokens_in\":200,\"tokens"
+    },
+    {
+      "check": "Settings shows the day's usage",
+      "ok": true,
+      "detail": "Today 2 / 2,000 calls"
+    }
+  ],
+  "timings": {},
+  "notes": [],
+  "error": null,
+  "driveFiles": 20
+}

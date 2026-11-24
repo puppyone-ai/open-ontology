@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Regenerates ITF sample traces (input of the conformance tests, 80 section 4).
+# Deterministic: fixed seed, --mbt metadata for quint-connect. Large counts are
+# produced in batches of 1000 (quint's ITF writer aborts above ~2000 in one go);
+# batch b uses seed+b.
+# FORMAL_STEP=<action> replays a restricted step profile (e.g. stepFacts for review_decide).
+# Usage: formal-traces <model-basename> <main> <n-traces> <max-steps> [seed] [out-dir] [--no-mbt]
+source "$(dirname "$0")/_env.sh"
+name="${1:?model basename, e.g. jobs}"; main="${2:?main module}"
+n="${3:-8}"; steps="${4:-30}"; seed="${5:-0x464d}"
+mbt="--mbt"; [ "${7:-}" = "--no-mbt" ] && mbt=""
+out="${6:-$FORMAL_ROOT/formal/traces/$name}"
+mkdir -p "$out"; rm -f "$out"/*.itf.json
+batch=1000; b=0; left="$n"
+while [ "$left" -gt 0 ]; do
+  k=$(( left < batch ? left : batch ))
+  quint run "$FORMAL_ROOT/formal/quint/$name.qnt" --main="$main" --max-steps="$steps" \
+    --max-samples="$k" --n-traces="$k" --seed="$(printf '0x%x' $(( seed + b )))" ${mbt} ${FORMAL_STEP:+--step="$FORMAL_STEP"} \
+    --out-itf="$out/b${b}-trace{seq}.itf.json" >/dev/null
+  left=$(( left - k )); b=$(( b + 1 ))
+done
+if [ -z "${mbt:-}" ]; then :; else
+  # committed samples: drop machine paths and wall-clock times from the ITF metadata
+  python3 -I - "$out" "formal/quint/$name.qnt" <<'PY'
+import json, glob, sys
+out, src = sys.argv[1], sys.argv[2]
+for f in glob.glob(out + "/*.itf.json"):
+    with open(f) as fh:
+        t = json.load(fh)
+    t["#meta"] = {"format": t["#meta"].get("format", "ITF"), "source": src, "status": t["#meta"].get("status", "ok")}
+    with open(f, "w") as fh:
+        json.dump(t, fh, separators=(",", ":"))
+        fh.write("\n")
+PY
+fi
+echo "wrote $(ls "$out" | wc -l | tr -d ' ') traces to ${out#"$FORMAL_ROOT"/}"

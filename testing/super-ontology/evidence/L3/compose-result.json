@@ -1,0 +1,215 @@
+{
+ "run_id": "l3-compose-resume",
+ "ok": true,
+ "checks": [
+  {
+   "check": "drive has 5 markdown files",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "missing deploy dir exits 4",
+   "ok": true,
+   "detail": "exit 4: oo serve: deploy/docs was not found; set --deploy-dir or OO_DOCS_DEPLOY_DIR"
+  },
+  {
+   "check": "image digest mismatch exits 4",
+   "ok": true,
+   "detail": "exit 4: oo serve: docs-engine image digest mismatch: tag oo-docs-parser:dev is sha256:83649cf8cb44b4a643babe7cb01c9850"
+  },
+  {
+   "check": "the project name is oo-docs-<12 hex of sha256(state dir)>",
+   "ok": true,
+   "detail": "oo-docs-6feaf889d45b"
+  },
+  {
+   "check": "serve.json says compose with a project name",
+   "ok": true,
+   "detail": "oo-docs-6feaf889d45b"
+  },
+  {
+   "check": "health through the proxy",
+   "ok": true,
+   "detail": "HTTP 200 ok"
+  },
+  {
+   "check": "secret files are 0600",
+   "ok": true,
+   "detail": "{\"serve.token\": \"0o600\", \"serve.json\": \"0o600\", \"home/engine-token\": \"0o600\", \"home/parser-token\": \"0o600\", \"pki/docs-db-key\": \"0o600\", \"pki/admin-password\": \"0o600\"}"
+  },
+  {
+   "check": "drive registered through the daemon",
+   "ok": true,
+   "detail": "HTTP 201"
+  },
+  {
+   "check": "the engine sees the drive as /drives/<id>",
+   "ok": true,
+   "detail": "/drives/a7d0051aced26672"
+  },
+  {
+   "check": "all 5 files published",
+   "ok": true,
+   "detail": "{\"published\": 5}"
+  },
+  {
+   "check": "oo context mount exits 0",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "BRIEF mounts and every content line has [src:",
+   "ok": true,
+   "detail": "7 content lines"
+  },
+  {
+   "check": "three services run",
+   "ok": true,
+   "detail": "doc-parser,docs-db,docs-engine"
+  },
+  {
+   "check": "doc-parser: lane label, read-only rootfs, cap_drop ALL, no-new-privileges",
+   "ok": true,
+   "detail": "lane=super-ontology-be2"
+  },
+  {
+   "check": "doc-parser: published ports none",
+   "ok": true,
+   "detail": "{}"
+  },
+  {
+   "check": "docs-db: lane label, read-only rootfs, cap_drop ALL, no-new-privileges",
+   "ok": true,
+   "detail": "lane=super-ontology-be2"
+  },
+  {
+   "check": "docs-db: published ports none",
+   "ok": true,
+   "detail": "{}"
+  },
+  {
+   "check": "docs-engine: lane label, read-only rootfs, cap_drop ALL, no-new-privileges",
+   "ok": true,
+   "detail": "lane=super-ontology-be2"
+  },
+  {
+   "check": "docs-engine: published ports ['7480/tcp']",
+   "ok": true,
+   "detail": "{\"7480/tcp\": \"127.0.0.1\"}"
+  },
+  {
+   "check": "docs-db and doc-parser are on docs-internal only",
+   "ok": true,
+   "detail": "{\"docs-engine\": [\"oo-docs-6feaf889d45b_docs-egress\", \"oo-docs-6feaf889d45b_docs-internal\"], \"doc-parser\": [\"oo-docs-6feaf889d45b_docs-internal\"], \"docs-db\": [\"oo-docs-6feaf889d45b_docs-internal\"]}"
+  },
+  {
+   "check": "docs-engine is on docs-internal and docs-egress",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "docs-internal is internal, docs-egress is not",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "the drive is a read-only bind in the engine",
+   "ok": true,
+   "detail": "[\"/drives/a7d0051aced26672\"]"
+  },
+  {
+   "check": "only /state is writable among the engine's binds",
+   "ok": true,
+   "detail": "[\"/state\"]"
+  },
+  {
+   "check": "no docker socket anywhere",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "doc-parser is reachable from the engine",
+   "ok": true,
+   "detail": "200"
+  },
+  {
+   "check": "doc-parser is not reachable from the egress network",
+   "ok": true,
+   "detail": "blocked gaierror"
+  },
+  {
+   "check": "doc-parser wants the token (401 without, 200 with)",
+   "ok": true,
+   "detail": "401\n200"
+  },
+  {
+   "check": "doc-parser has no egress",
+   "ok": true,
+   "detail": "blocked 1.1.1.1 blocked 8.8.8.8"
+  },
+  {
+   "check": "docs-db has no egress",
+   "ok": true,
+   "detail": "blocked"
+  },
+  {
+   "check": "docs-db ssl is on",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "passwords are stored as SCRAM-SHA-256",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "a connection without TLS is refused",
+   "ok": true,
+   "detail": "ed: FATAL:  no pg_hba.conf entry for host \"127.0.0.1\", user \"oo_docs_login\", database \"oo_docs\", no encryption"
+  },
+  {
+   "check": "oo serve exits 0 on SIGTERM",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "serve.json and the token files are gone",
+   "ok": true,
+   "detail": "[]"
+  },
+  {
+   "check": "all three containers are stopped, not removed",
+   "ok": true,
+   "detail": "{\"doc-parser\": \"exited\", \"docs-db\": \"exited\", \"docs-engine\": \"exited\"}"
+  },
+  {
+   "check": "the volumes stay",
+   "ok": true,
+   "detail": "[\"oo-docs-6feaf889d45b_docs-data\", \"oo-docs-6feaf889d45b_docs-parser-scratch\"]"
+  },
+  {
+   "check": "the Drive survived the restart",
+   "ok": true,
+   "detail": "[\"compose-drive\"]"
+  },
+  {
+   "check": "its 5 files are still published",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "--keep-engine: exit 0 and the containers keep running",
+   "ok": true,
+   "detail": "{\"doc-parser\": true, \"docs-db\": true, \"docs-engine\": true}"
+  },
+  {
+   "check": "cleanup left nothing",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "timings": {
+  "start_seconds": 10.8,
+  "publish_seconds": 8.3
+ }
+}

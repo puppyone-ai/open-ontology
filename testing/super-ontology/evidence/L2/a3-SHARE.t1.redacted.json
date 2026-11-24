@@ -1,0 +1,46 @@
+{
+  "aigc": {
+    "ContentProducer": "<COMPANY>",
+    "ContentPropagator": "",
+    "Label": "1",
+    "ProduceID": "9607484fa318f2e3b8d86e7c5dc46e74a82e5fd876fc2f0f747ab9afd3c76ec3/SHARE.json",
+    "PropagateID": "",
+    "ReservedCode1": "e2c6b0e4c87cc00f8471f179c3fbdb4590d56d9e546621054a5e387d64a81a4d",
+    "ReservedCode2": ""
+  },
+  "blocked": {
+    "entities": 43,
+    "facts": 91
+  },
+  "budget": 800,
+  "created_at": "2026-11-19T06:17:10.966299Z",
+  "drive": {
+    "backend": "fs",
+    "id": "33ad40dc-c01a-4da1-9f2d-3eebdda0acd8",
+    "snapshot_sha256": "f033bf4817b7c3cf2267fd789629f1a73ccdb2bde9ca20705f344f4b7588048f"
+  },
+  "expires_at": "2026-11-26T06:17:10.966299Z",
+  "grantor": "owner",
+  "guarantees": {
+    "change_delivery": true,
+    "constraint_free": true,
+    "freshness_floor": true,
+    "group_same_version": true,
+    "pack_consistent": true
+  },
+  "notice": "撤销后本目录会被删除；已读取的内容无法收回。",
+  "ontology_version": 1,
+  "pack_digest": "e2c6b0e4c87cc00f8471f179c3fbdb4590d56d9e546621054a5e387d64a81a4d",
+  "protocol": "oo.context-pack.share/v1",
+  "refs": {
+    "credential": "oodr_REDACTED",
+    "endpoint": "http://127.0.0.1:54964/v1/docs/refs",
+    "expires_at": "2026-11-26T06:17:10.966299Z"
+  },
+  "role": "suggester",
+  "scope": [
+    "Projects/a"
+  ],
+  "share_id": "ee4ba6f1-d2e6-471a-8a96-6c3826095de4",
+  "task": null
+}

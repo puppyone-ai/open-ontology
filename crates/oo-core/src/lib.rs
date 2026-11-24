@@ -16,6 +16,7 @@ pub mod config;
 pub mod convert;
 pub mod decimal;
 pub mod diagnostic;
+pub mod docir;
 pub mod duration;
 pub mod json_scan;
 pub mod jsonb_doc;

@@ -1,0 +1,581 @@
+{
+ "run_id": "l3-final1",
+ "ok": false,
+ "checks": [
+  {
+   "check": "disk: at least 20 GiB free",
+   "ok": true,
+   "detail": "85 GiB"
+  },
+  {
+   "check": "two Drives registered",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "the doc-parser is up and the engine can parse (health ok)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "all golden files were found",
+   "ok": true,
+   "detail": "51/51"
+  },
+  {
+   "check": "golden md: parse success >= 98%",
+   "ok": true,
+   "detail": "18/18 = 100.0%"
+  },
+  {
+   "check": "golden txt: parse success >= 98%",
+   "ok": true,
+   "detail": "3/3 = 100.0%"
+  },
+  {
+   "check": "golden csv: parse success >= 98%",
+   "ok": true,
+   "detail": "3/3 = 100.0%"
+  },
+  {
+   "check": "golden xlsx: parse success >= 98%",
+   "ok": true,
+   "detail": "4/4 = 100.0%"
+  },
+  {
+   "check": "golden docx: parse success >= 98%",
+   "ok": true,
+   "detail": "10/10 = 100.0%"
+  },
+  {
+   "check": "golden pptx: parse success >= 98%",
+   "ok": true,
+   "detail": "6/6 = 100.0%"
+  },
+  {
+   "check": "golden pdf: parse success >= 98%",
+   "ok": true,
+   "detail": "7/7 = 100.0%"
+  },
+  {
+   "check": "no golden file is left in a failure state",
+   "ok": true,
+   "detail": "[]"
+  },
+  {
+   "check": "hostile docx-encrypted.docx: encrypted DOCS_PARSE_ENCRYPTED",
+   "ok": true,
+   "detail": "('encrypted', 'DOCS_PARSE_ENCRYPTED')"
+  },
+  {
+   "check": "hostile pdf-encrypted.pdf: encrypted DOCS_PARSE_ENCRYPTED",
+   "ok": true,
+   "detail": "('encrypted', 'DOCS_PARSE_ENCRYPTED')"
+  },
+  {
+   "check": "hostile legacy.doc: unsupported DOCS_PARSE_LEGACY_OFFICE",
+   "ok": true,
+   "detail": "('unsupported', 'DOCS_PARSE_LEGACY_OFFICE')"
+  },
+  {
+   "check": "hostile zip-bomb-ratio.docx: unsupported DOCS_PARSE_ZIP_BOMB",
+   "ok": true,
+   "detail": "('unsupported', 'DOCS_PARSE_ZIP_BOMB')"
+  },
+  {
+   "check": "hostile zip-bomb-size.xlsx: unsupported DOCS_PARSE_ZIP_BOMB",
+   "ok": true,
+   "detail": "('unsupported', 'DOCS_PARSE_ZIP_BOMB')"
+  },
+  {
+   "check": "hostile zip-plain.zip: unsupported DOCS_PARSE_UNSUPPORTED_FORMAT",
+   "ok": true,
+   "detail": "('unsupported', 'DOCS_PARSE_UNSUPPORTED_FORMAT')"
+  },
+  {
+   "check": "hostile zip-traversal.docx: unsupported DOCS_PARSE_CORRUPT",
+   "ok": true,
+   "detail": "('unsupported', 'DOCS_PARSE_CORRUPT')"
+  },
+  {
+   "check": "hostile gb18030.txt: unsupported DOCS_PARSE_ENCODING",
+   "ok": true,
+   "detail": "('unsupported', 'DOCS_PARSE_ENCODING')"
+  },
+  {
+   "check": "hostile pdf-table.pdf: published",
+   "ok": true,
+   "detail": "('published', None)"
+  },
+  {
+   "check": "hostile xlsx-merged-regions.xlsx: published",
+   "ok": true,
+   "detail": "('published', None)"
+  },
+  {
+   "check": "hostile xlsx-hidden-sheet.xlsx: published",
+   "ok": true,
+   "detail": "('published', None)"
+  },
+  {
+   "check": "hostile comma.csv: published",
+   "ok": true,
+   "detail": "('published', None)"
+  },
+  {
+   "check": "hostile semicolon.csv: published",
+   "ok": true,
+   "detail": "('published', None)"
+  },
+  {
+   "check": "every file that did not publish carries an error code",
+   "ok": true,
+   "detail": "[]"
+  },
+  {
+   "check": "every such code is in errors.v1.json",
+   "ok": true,
+   "detail": "[]"
+  },
+  {
+   "check": "md: 10 copies -> 1 published and 9 duplicate",
+   "ok": true,
+   "detail": "{\"duplicate\": 9, \"published\": 1}"
+  },
+  {
+   "check": "md: one parse job and one parse result for the content",
+   "ok": true,
+   "detail": "parse jobs 1, parse results 1"
+  },
+  {
+   "check": "md: every one of the 10 paths has its own evidence, equal in number",
+   "ok": true,
+   "detail": "10 paths, evidence per path [11]"
+  },
+  {
+   "check": "pdf: 10 copies -> 1 published and 9 duplicate",
+   "ok": true,
+   "detail": "{\"duplicate\": 9, \"published\": 1}"
+  },
+  {
+   "check": "pdf: one parse job and one parse result for the content",
+   "ok": true,
+   "detail": "parse jobs 1, parse results 1"
+  },
+  {
+   "check": "pdf: every one of the 10 paths has its own evidence, equal in number",
+   "ok": true,
+   "detail": "10 paths, evidence per path [3]"
+  },
+  {
+   "check": "docx: 10 copies -> 1 published and 9 duplicate",
+   "ok": true,
+   "detail": "{\"duplicate\": 9, \"published\": 1}"
+  },
+  {
+   "check": "docx: one parse job and one parse result for the content",
+   "ok": true,
+   "detail": "parse jobs 1, parse results 1"
+  },
+  {
+   "check": "docx: every one of the 10 paths has its own evidence, equal in number",
+   "ok": true,
+   "detail": "10 paths, evidence per path [3]"
+  },
+  {
+   "check": "xlsx: 10 copies -> 1 published and 9 duplicate",
+   "ok": true,
+   "detail": "{\"duplicate\": 9, \"published\": 1}"
+  },
+  {
+   "check": "xlsx: one parse job and one parse result for the content",
+   "ok": true,
+   "detail": "parse jobs 1, parse results 1"
+  },
+  {
+   "check": "xlsx: every one of the 10 paths has its own evidence, equal in number",
+   "ok": true,
+   "detail": "10 paths, evidence per path [2]"
+  },
+  {
+   "check": "the poison pdf ends parse_failed with DOCS_PARSE_QUARANTINED",
+   "ok": true,
+   "detail": "after 33.4 s, 2 worker kills"
+  },
+  {
+   "check": "the 16 other files in the same drive publish",
+   "ok": true,
+   "detail": "16/16"
+  },
+  {
+   "check": "the job is quarantined after at most 3 attempts",
+   "ok": true,
+   "detail": "state quarantined, attempt 2, crashes 2"
+  },
+  {
+   "check": "no other file needed a second parse job",
+   "ok": true,
+   "detail": "0 retried"
+  },
+  {
+   "check": "no job is stuck",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "the sidecar still parses after the poison",
+   "ok": true,
+   "detail": "published"
+  },
+  {
+   "check": "add: published",
+   "ok": true,
+   "detail": "stored>queued>parsing>parsed>extracting>indexed>published"
+  },
+  {
+   "check": "add: evidence rows written",
+   "ok": true,
+   "detail": "15 live evidence rows"
+  },
+  {
+   "check": "modify: the new content is published",
+   "ok": true,
+   "detail": "stored>queued>parsing>parsed>extracting>indexed>published>superseded>stored>queued>parsing>parsed>extracting>indexed>published"
+  },
+  {
+   "check": "modify: the chain went through superseded and stored",
+   "ok": true,
+   "detail": "stored>queued>parsing>parsed>extracting>indexed>published>superseded>stored>queued>parsing>parsed>extracting>indexed>published"
+  },
+  {
+   "check": "modify: the old version's evidence is withdrawn, the new version's is live",
+   "ok": true,
+   "detail": "old live 0, new live 15"
+  },
+  {
+   "check": "rename: the new path has its result (duplicate of the old version), the old path is gone",
+   "ok": true,
+   "detail": "stored>duplicate"
+  },
+  {
+   "check": "rename: same content, evidence is live on the new path",
+   "ok": true,
+   "detail": "15 live evidence rows"
+  },
+  {
+   "check": "rename: a file.renamed event exists",
+   "ok": true,
+   "detail": "1 events"
+  },
+  {
+   "check": "rename: no fact was retracted",
+   "ok": true,
+   "detail": "retracted 1 -> 1"
+  },
+  {
+   "check": "delete: the file disappears from the listing",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "delete: the file row is marked deleted",
+   "ok": true,
+   "detail": "true|deleted"
+  },
+  {
+   "check": "delete: its evidence is withdrawn",
+   "ok": true,
+   "detail": "0 live rows"
+  },
+  {
+   "check": "delete: facts left without evidence are retracted",
+   "ok": true,
+   "detail": "retracted 1 -> 5"
+  },
+  {
+   "check": "the docx is published",
+   "ok": true,
+   "detail": "published"
+  },
+  {
+   "check": "the first version has entities, aliases or facts with evidence",
+   "ok": true,
+   "detail": "3 targets, 3 evidence rows"
+  },
+  {
+   "check": "the new file differs in bytes",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "the formatted docx is published as a new version",
+   "ok": true,
+   "detail": "published b3 changed: True"
+  },
+  {
+   "check": "the extraction was reused: the history says reused_from",
+   "ok": true,
+   "detail": "{\"by\": \"block_ids\", \"reused_from\": \"0b5fe4ba-a6c2-43a0-9a63-b6a87b752aef\"}"
+  },
+  {
+   "check": "the evidence moved to the new version: same count live, none left on the old one",
+   "ok": true,
+   "detail": "new 3 (was 3), old live 0"
+  },
+  {
+   "check": "no fact was retracted",
+   "ok": true,
+   "detail": "5 -> 5"
+  },
+  {
+   "check": "the changed docx is published as a third version",
+   "ok": true,
+   "detail": "published"
+  },
+  {
+   "check": "control: a changed word is extracted again (no reused_from)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "D49 md/txt (poll): p95 6.13 s vs target 5.0 s",
+   "ok": false,
+   "detail": "{\"n\": 20, \"p50\": 5.45, \"p95\": 6.13, \"max\": 6.33, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 5.0}"
+  },
+  {
+   "check": "D49 pdf (poll): p95 8.26 s vs target 30.0 s",
+   "ok": true,
+   "detail": "{\"n\": 10, \"p50\": 8.04, \"p95\": 8.26, \"max\": 8.26, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 30.0}"
+  },
+  {
+   "check": "D49 docx (poll): p95 6.21 s vs target 30.0 s",
+   "ok": true,
+   "detail": "{\"n\": 10, \"p50\": 6.03, \"p95\": 6.21, \"max\": 6.21, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 30.0}"
+  },
+  {
+   "check": "D49 xlsx (poll): p95 6.24 s vs target 20.0 s",
+   "ok": true,
+   "detail": "{\"n\": 10, \"p50\": 6.06, \"p95\": 6.24, \"max\": 6.24, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 20.0}"
+  },
+  {
+   "check": "oo serve exits 0 on SIGTERM",
+   "ok": true,
+   "detail": "exit 0"
+  },
+  {
+   "check": "both Drives survived the restart",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "D49 md/txt (hint): p95 6.11 s vs target 5.0 s",
+   "ok": false,
+   "detail": "{\"n\": 10, \"p50\": 4.05, \"p95\": 6.11, \"max\": 6.11, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 5.0}"
+  },
+  {
+   "check": "D49 pdf (hint): p95 8.15 s vs target 30.0 s",
+   "ok": true,
+   "detail": "{\"n\": 5, \"p50\": 8.1, \"p95\": 8.15, \"max\": 8.15, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 30.0}"
+  },
+  {
+   "check": "D49 docx (hint): p95 4.13 s vs target 30.0 s",
+   "ok": true,
+   "detail": "{\"n\": 5, \"p50\": 4.01, \"p95\": 4.13, \"max\": 4.13, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 30.0}"
+  },
+  {
+   "check": "D49 xlsx (hint): p95 6.21 s vs target 20.0 s",
+   "ok": true,
+   "detail": "{\"n\": 5, \"p50\": 4.08, \"p95\": 6.21, \"max\": 6.21, \"server_stored_to_published_p95\": 0.0, \"target_p95\": 20.0}"
+  },
+  {
+   "check": "the targeted sync published the new file",
+   "ok": true,
+   "detail": "targeted/new-1.md"
+  },
+  {
+   "check": "the generation did not advance",
+   "ok": true,
+   "detail": "670 -> 670"
+  },
+  {
+   "check": "the file deleted on disk is still listed (no sweep)",
+   "ok": true,
+   "detail": "golden/Notes/速记-0412.txt: published"
+  },
+  {
+   "check": "the full sync sweeps it and advances the generation",
+   "ok": true,
+   "detail": "670 -> 671"
+  },
+  {
+   "check": "waiting_review: an unresolved alias tie leaves a review item",
+   "ok": true,
+   "detail": "{\"as_of\": \"2026-11-17T21:19:40.419468Z\", \"ontology_version\": 106, \"pending_review\": 1, \"processing\": 0, \"reason_code\": null, \"state\": \"waiting_review\"}"
+  },
+  {
+   "check": "degraded: an unreadable root is degraded and nothing is swept",
+   "ok": true,
+   "detail": "{\"as_of\": \"2026-11-17T21:19:40.419468Z\", \"ontology_version\": 106, \"pending_review\": 0, \"processing\": 0, \"reason_code\": \"DOCS_SOURCE_ROOT_MISSING\", \"state\": \"degraded\"}"
+  },
+  {
+   "check": "degraded: the files are still listed",
+   "ok": true,
+   "detail": "120 files"
+  },
+  {
+   "check": "degraded: the Drive recovers by itself when the root is readable again",
+   "ok": true,
+   "detail": "{\"as_of\": \"2026-11-17T21:19:40.419468Z\", \"ontology_version\": 106, \"pending_review\": 0, \"processing\": 0, \"reason_code\": null, \"state\": \"up_to_date\"}"
+  },
+  {
+   "check": "held: the sync is accepted",
+   "ok": true,
+   "detail": "HTTP 202"
+  },
+  {
+   "check": "held: freshness says held",
+   "ok": true,
+   "detail": "{\"as_of\": \"2026-11-17T21:19:40.419468Z\", \"ontology_version\": 106, \"pending_review\": 0, \"processing\": 0, \"reason_code\": \"DOCS_SOURCE_MASS_DELETE_HELD\", \"state\": \"held\"}"
+  },
+  {
+   "check": "held: another sync answers 422 DOCS_SOURCE_MASS_DELETE_HELD",
+   "ok": true,
+   "detail": "HTTP 422 {\"generation\": 664, \"would_delete\": 120}"
+  },
+  {
+   "check": "held: nothing was swept",
+   "ok": true,
+   "detail": "120 files still listed"
+  },
+  {
+   "check": "held: the confirmation lets the sweep through",
+   "ok": true,
+   "detail": "HTTP 202 "
+  },
+  {
+   "check": "held: after the confirmation the files are deleted and the Drive is up to date",
+   "ok": true,
+   "detail": "{\"as_of\": \"2026-11-17T21:19:40.419468Z\", \"ontology_version\": 106, \"pending_review\": 0, \"processing\": 0, \"reason_code\": null, \"state\": \"up_to_date\"}"
+  },
+  {
+   "check": "freshness up_to_date was observed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "freshness syncing was observed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "freshness processing was observed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "freshness publishing was observed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "freshness waiting_review was observed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "freshness degraded was observed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "freshness held was observed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "cleanup left nothing",
+   "ok": true,
+   "detail": ""
+  }
+ ],
+ "timings": {
+  "start_seconds": 10.6,
+  "golden_settle_seconds": 283.5,
+  "golden_success_md": "18/18",
+  "golden_success_txt": "3/3",
+  "golden_success_csv": "3/3",
+  "golden_success_xlsx": "4/4",
+  "golden_success_docx": "10/10",
+  "golden_success_pptx": "6/6",
+  "golden_success_pdf": "7/7",
+  "golden_latency_stored_to_published_seconds": {},
+  "latency_poll": {
+   "md/txt": {
+    "n": 20,
+    "p50": 5.45,
+    "p95": 6.13,
+    "max": 6.33,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 5.0
+   },
+   "pdf": {
+    "n": 10,
+    "p50": 8.04,
+    "p95": 8.26,
+    "max": 8.26,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 30.0
+   },
+   "docx": {
+    "n": 10,
+    "p50": 6.03,
+    "p95": 6.21,
+    "max": 6.21,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 30.0
+   },
+   "xlsx": {
+    "n": 10,
+    "p50": 6.06,
+    "p95": 6.24,
+    "max": 6.24,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 20.0
+   }
+  },
+  "latency_hint": {
+   "md/txt": {
+    "n": 10,
+    "p50": 4.05,
+    "p95": 6.11,
+    "max": 6.11,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 5.0
+   },
+   "pdf": {
+    "n": 5,
+    "p50": 8.1,
+    "p95": 8.15,
+    "max": 8.15,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 30.0
+   },
+   "docx": {
+    "n": 5,
+    "p50": 4.01,
+    "p95": 4.13,
+    "max": 4.13,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 30.0
+   },
+   "xlsx": {
+    "n": 5,
+    "p50": 4.08,
+    "p95": 6.21,
+    "max": 6.21,
+    "server_stored_to_published_p95": 0.0,
+    "target_p95": 20.0
+   }
+  }
+ }
+}

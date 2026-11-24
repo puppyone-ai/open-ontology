@@ -38,3 +38,33 @@ Release staging requires each target's prebuilt bridge and its source-license
 inventory. The coordinator must apply `packages/cli/v03-release-integration.patch`
 to build and collect these artifacts. Contract tests and local TLS fixtures
 are not a real Agent/client or database-engine acceptance run.
+
+## L5 Suggest mode (docs engine, B-S7-04 / B-S7-07)
+
+Set `OO_MCP_DOCS_URL` (loopback `http://127.0.0.1:<port>`), `OO_MCP_DOCS_CREDENTIAL_FILE` (the share's `oodr_` credential, read on
+every call) and `OO_MCP_DOCS_SHARE_ID`. The server then talks to the docs engine (`oo serve`) directly, never through the Gateway
+data plane. With `OO_MCP_GATEWAY_URL` or a profile also set it advertises the Gateway tools **and** these; with the docs variables
+alone it advertises only these (the historical interface above is unchanged when no docs variable is set).
+
+- `suggest` (`readOnlyHint:false, destructiveHint:false, idempotentHint:true, openWorldHint:false`): `oo.suggest/v1` fields
+  (`kind, subject, predicate, object|value, valid_from, supersedes, rationale, evidence[], idempotency_key`) become
+  `POST /v1/docs/suggestions`. The share is the credential's: a `share_id` argument is refused before the call. The engine
+  needs scope `suggest:write` (`DOCS_SUGGEST_SCOPE_MISSING` 403 comes back as an error result) and the share role
+  `suggester` or `editor` (`DOCS_SUGGEST_ROLE_FORBIDDEN`). Resending the same `idempotency_key` changes nothing.
+- `context_check` (read only): `POST /v1/docs/shares/<sid>:check?since=<seq>`; `exit_code` 0 continue, 10 refresh recommended,
+  20 stop, 30 the share ended.
+- Resource `puppyone://share/<sid>/updates` (only the configured share): `resources/read` returns the engine's update entries
+  (`GET /shares/<sid>/updates`). `resources/subscribe` starts a watcher that polls the entries twice a second and sends
+  `notifications/resources/updated` within 2 seconds of an appended entry (the legacy subscribe of protocol 2025-11-25; the new
+  `subscriptions/listen` of 2026-07-28 is not served).
+- The credential never appears in a process argument, an environment variable, a log line or a result.
+
+## Unified ontology tools (D83)
+
+`oo mcp --stdio --endpoint <url> --token-file <file>` starts the server with `OO_MCP_ONTOLOGY_URL` and `OO_MCP_ONTOLOGY_TOKEN_FILE`
+(a loopback `oo serve` and an `ooa_` Agent token file). Five read-only tools, the same verbs as `oo ontology`, each a call of
+`/v1/ontology/*` (docs-api 1.7) with the Agent token as the only bearer: `ontology_search {q, type?, limit?}`,
+`ontology_entity {urn}`, `ontology_sources {}`, `ontology_query {sql, max_rows?}`, `ontology_schema {limit?, cursor?}` (`/v1/ontology/schema`, the same answer as `oo ontology schema`: tables, columns, relationships, document links; no `db:read` is the same 403 `ONTOLOGY_SCOPE_DENIED`). Every answer carries `provenance` (file anchor or
+table row); scope, drive and revocation are decided by `oo serve` (revoked: 401 `ONTOLOGY_TOKEN_INVALID`; a write: 403
+`ONTOLOGY_READ_ONLY`; no `db:read`: 403 `ONTOLOGY_SCOPE_DENIED`), returned as an error result, never as an empty one. The twelve
+Gateway tools and the `--profile` mode are unchanged and are not advertised in this mode.

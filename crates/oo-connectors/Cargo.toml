@@ -24,6 +24,15 @@ oracle = ["dep:oracledb"]
 olap = ["mysql"]
 mongodb = ["dep:mongodb", "dep:mongodb-internal-macros"]
 opensearch = ["dep:reqwest"]
+# Super Ontology read-only document sources (oo.doc-source/v1). Trait only in
+# S1; the fs backend arrives with B-S2-02. blake3 is the content key (B-S1-07).
+objectstore = ["dep:blake3"]
+# S3-compatible stores (s3, r2, RustFS, MinIO) through OpenDAL services-s3.
+objectstore-s3 = ["objectstore", "dep:opendal", "opendal/services-s3", "dep:reqwest", "dep:futures-util", "dep:http"]
+# B-S11-01: OSS, COS and R2 are the same S3 compatible path with each cloud's endpoint, addressing and CRC64
+# defaults (compat.rs `Provider`); no OpenDAL service and no dependency is added by these names.
+objectstore-oss = ["objectstore-s3"]
+objectstore-cos = ["objectstore-s3"]
 sqlserver = ["dep:tiberius", "dep:tokio-util", "dep:futures-util", "tokio/net", "tokio/io-util"]
 
 [[bin]]
@@ -75,6 +84,18 @@ oracledb = { version = "=26.0.0-beta.4", optional = true, default-features = fal
 tiberius = { version = "=0.13.0", optional = true, default-features = false, features = ["tds73", "rustls"] }
 tokio-util = { version = "=0.7.19", optional = true, default-features = false, features = ["compat"] }
 unicode-normalization = "=0.1.25"
+# B-S1-07: content key. Default features off (no rayon, no mmap, no digest
+# traits). `pure` keeps the build free of C and assembly (no `cc` build step on
+# x86-64); see supply-chain/blake3-audit.json.
+blake3 = { version = "=1.8.7", optional = true, default-features = false, features = ["std", "pure"] }
+# B-S1-07: optional S3 backend. Default features off; the S3 service is enabled
+# by the `objectstore-s3` feature. See supply-chain/opendal-audit.json.
+opendal = { version = "=0.59.5", optional = true, default-features = false }
+# B-S4-01: the OpenDAL transport is ours (objectstore/opendal.rs) on the reqwest
+# above, so that no opendal-http-transport-reqwest, retry layer or backon enters
+# the lock. `http` names the request and response types of that trait; it is
+# the version opendal-core already locks.
+http = { version = "=1.5.0", optional = true }
 zeroize = { version = "=1.9.0", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]

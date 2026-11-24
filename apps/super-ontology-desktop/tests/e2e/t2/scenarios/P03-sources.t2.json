@@ -1,0 +1,110 @@
+{
+  "id": "P03",
+  "title": "Sources: the list, a source's files, adding a folder through the native dialog",
+  "locales": [
+    "en",
+    "zh-Hans"
+  ],
+  "closes": "volume 25 section 6",
+  "steps": [
+    {
+      "do": "launch"
+    },
+    {
+      "do": "provision",
+      "action": "seedSource",
+      "name": "Sample docs",
+      "path": "${sampleDocs}"
+    },
+    {
+      "do": "relaunch"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "statusbar-engine",
+        "attributes": {
+          "data-state": "running"
+        },
+        "withinMs": 150000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.nav.sources",
+      "until": "screen-sources"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "source-row",
+        "attributes": {
+          "data-name": "Sample docs"
+        },
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "click",
+      "name": "Sample docs",
+      "literal": true
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "file-row",
+        "min": 3,
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.nav.sources",
+      "until": "screen-sources"
+    },
+    {
+      "do": "click",
+      "name": "app.sources.add"
+    },
+    {
+      "do": "click",
+      "name": "app.sources.add.folder"
+    },
+    {
+      "do": "chooseFolder",
+      "path": "${secondDocs}"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "screen-source-detail",
+        "attributes": {
+          "data-name": "Second docs"
+        },
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "click",
+      "name": "app.nav.sources",
+      "until": "screen-sources"
+    },
+    {
+      "do": "assert",
+      "assertion": "dom",
+      "args": {
+        "testid": "source-row",
+        "equals": 2,
+        "withinMs": 60000
+      }
+    },
+    {
+      "do": "screenshot",
+      "label": "sources"
+    }
+  ]
+}

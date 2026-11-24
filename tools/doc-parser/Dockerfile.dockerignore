@@ -1,0 +1,7 @@
+*
+!requirements.lock
+!models.lock.json
+!fetch_models.py
+!doc_parser
+!opencv-build-requirements.lock
+!THIRD_PARTY_NOTICES.md

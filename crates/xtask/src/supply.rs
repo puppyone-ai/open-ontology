@@ -191,7 +191,7 @@ const AGE_FLOOR_SECONDS: i64 = 604_800;
 /// or the same version with a different recorded time, still fails. These are
 /// RUSTSEC fixes that mysql_common's binlog decoding (D10) requires; the older
 /// releases carry five advisories. Each waiver is moot once its crate clears
-/// the floor (2026-11-08T14:12Z) and must be removed then.
+/// the floor (zstd 2026-11-08T14:12Z, url 2026-11-27T23:03Z) and must be removed then.
 const AGE_FLOOR_WAIVERS: &[(&str, &str, &str)] = &[
     ("zstd", "0.13.4", "2026-11-01T14:12:07"),
     ("zstd-safe", "7.4.0", "2026-11-01T14:11:59"),
@@ -1438,14 +1438,35 @@ fn run_pinned_tools(repo: &Path) -> Result<serde_json::Value, ToolError> {
             tail(&audit_datagen.1)
         )));
     }
+    // Unmaintained advisories covered by a live, reviewed record in
+    // supply-chain/advisory-exceptions.json are accepted; anything else fails.
+    let mut excepted = Vec::new();
     if deny.0 != 0 || deny_datagen.0 != 0 {
-        return Err(ToolError::Other(format!(
-            "cargo-deny root {} datagen {}\n{}{}",
-            deny.0,
-            deny_datagen.0,
-            tail(&deny.1),
-            tail(&deny_datagen.1)
-        )));
+        let records = fs::read_to_string(repo.join(crate::advisory_exceptions::PATH))
+            .map_err(|error| ToolError::Other(error.to_string()))
+            .and_then(|text| {
+                crate::advisory_exceptions::parse_records(&text).map_err(ToolError::Other)
+            })?;
+        let today = crate::advisory_exceptions::today();
+        let mut uncovered = Vec::new();
+        for (exit, output) in [(&deny.0, &deny.1), (&deny_datagen.0, &deny_datagen.1)] {
+            if *exit != 0 {
+                uncovered.extend(crate::advisory_exceptions::uncovered_errors(
+                    output, &records, today,
+                ));
+            }
+        }
+        if !uncovered.is_empty() {
+            return Err(ToolError::Other(format!(
+                "cargo-deny root {} datagen {}\n{}\n{}{}",
+                deny.0,
+                deny_datagen.0,
+                uncovered.join("\n"),
+                tail(&deny.1),
+                tail(&deny_datagen.1)
+            )));
+        }
+        excepted = records.iter().map(|record| record.id.clone()).collect();
     }
     let advisory = advisory_db_identity(&home);
     let config_sha = hash_config(repo);
@@ -1455,6 +1476,7 @@ fn run_pinned_tools(repo: &Path) -> Result<serde_json::Value, ToolError> {
         "cargo_audit_datagen_exit": audit_datagen.0,
         "cargo_deny_exit": deny.0,
         "cargo_deny_datagen_exit": deny_datagen.0,
+        "cargo_deny_excepted_unmaintained": excepted,
         "cargo_audit_version": CARGO_AUDIT_VERSION,
         "cargo_deny_version": CARGO_DENY_VERSION,
         "cargo_home": "temporary",

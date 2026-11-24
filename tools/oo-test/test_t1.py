@@ -359,7 +359,7 @@ class T1Tests(unittest.TestCase):
         with patch.object(t1.runner.Run, "command", return_value=(0, "")) as command:
             run.command(["docker", "create", "--name", "owned-source", "--label", "oo.lane=h", "image"])
             self.assertEqual(command.call_args.args[0][2:4], ["-p", "127.0.0.1::1521"])
-            self.assertIn("oo.lane=m", command.call_args.args[0])
+            self.assertIn("oo.lane=" + t1.LANE, command.call_args.args[0])  # "h" is rewritten to the run's lane (OO_TEST_LANE; other tests set it)
             target = ["docker", "create", "--name", "owned-target", "-p", "127.0.0.1::5432", "image"]
             run.command(target)
             self.assertEqual(command.call_args.args[0], target)

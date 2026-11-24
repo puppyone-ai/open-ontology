@@ -1,0 +1,12 @@
+{
+ "meetings/audio/budget-call-2027-01-26.m4a": "speaker",
+ "meetings/audio/launch-sync-2027-01-12.wav": "speaker",
+ "meetings/audio/readiness-call-2027-02-02.m4a": "speaker",
+ "meetings/audio/supplier-call-2027-01-16.wav": "speaker",
+ "misc/brand-mockup.key": "unsupported",
+ "misc/broken-report.pdf": "parse_failed",
+ "misc/icon-set.sketch": "unsupported",
+ "misc/random-readings.csv": "no_entities",
+ "notes/meeting-cadence.txt": "no_entities",
+ "notes/retro-prep.md": "no_entities"
+}
