@@ -5,4 +5,4 @@ lock.py
 requirements.in
 video/test_video.py
 video/synth.py
-export_campplus_onnx.py
+campplus_lock.py

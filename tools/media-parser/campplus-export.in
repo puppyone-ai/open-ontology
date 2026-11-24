@@ -1,0 +1,17 @@
+# Builder-only environment of the `campplus` Dockerfile stage: exports the 3D-Speaker CAM++ ONNX with export_campplus_onnx.py.
+# None of this reaches the image; the ONNX is pinned by sha256 in models.lock.json and the stage's output is checked against it.
+# CPython 3.13, CPU-only torch. Resolved with campplus_lock.py into campplus-export.lock (hashes for aarch64 and x86_64).
+torch
+torchaudio
+onnx
+modelscope
+addict
+datasets
+pillow
+simplejson
+sortedcontainers
+soundfile
+kaldiio
+librosa
+scipy
+pyyaml

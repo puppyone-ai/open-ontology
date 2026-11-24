@@ -2,6 +2,9 @@
 #   docker build --label oo.lane=super-ontology-be6 --build-context dp=tools/doc-parser --build-context so=tools/super-ontology \
 #     -t oo-docs-media-parser:dev tools/media-parser
 # Own LGPL FFmpeg (stage `ffmpeg`): decode only, allow-list build, no h264/hevc/aac, dynamic (D65). OpenCV without FFmpeg (stage `opencv`).
+# The build is hermetic: nothing is read from the host except the context. The FFmpeg source and the Whisper weights are
+# downloaded, the CAM++ ONNX is exported in stage `campplus`, and every one of them is checked against a sha256 pinned here or in
+# models.lock.json (the full image, ASR included; Dockerfile.asr-layer is only a developer shortcut on top of an older image).
 FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f AS deps
 ARG PIP_INDEX_URL
 ENV PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -16,9 +19,9 @@ RUN if [ -n "$DEBIAN_MIRROR" ]; then sed -i "s|http://deb.debian.org|$DEBIAN_MIR
  && apt-get update && apt-get install -y --no-install-recommends build-essential pkg-config zlib1g-dev xz-utils nasm && rm -rf /var/lib/apt/lists/*
 ARG FFMPEG_VERSION=9.0.2
 ARG FFMPEG_SHA256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
-# The source tarball comes from https://ffmpeg.org/releases/ (placed in ffmpeg-src/ by the builder, not committed); the hash is checked here.
-COPY ffmpeg-src/ffmpeg-$FFMPEG_VERSION.tar.xz /ffmpeg.tar.xz
-RUN echo "$FFMPEG_SHA256  /ffmpeg.tar.xz" | sha256sum -c - \
+ARG FFMPEG_URL=https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+RUN python -c "import hashlib,sys,urllib.request as u; d=u.urlopen(sys.argv[1], timeout=300).read(); h=hashlib.sha256(d).hexdigest(); sys.exit('ffmpeg sha256 mismatch: '+h) if h!=sys.argv[2] else open('/ffmpeg.tar.xz','wb').write(d)" "$FFMPEG_URL" "$FFMPEG_SHA256" \
+ && echo "$FFMPEG_SHA256  /ffmpeg.tar.xz" | sha256sum -c - \
  && mkdir /src && tar -xJf /ffmpeg.tar.xz -C /src && cd /src/ffmpeg-$FFMPEG_VERSION \
  && ./configure --prefix=/opt/ffmpeg --enable-shared --disable-static --disable-gpl --disable-nonfree \
     --disable-everything --disable-doc --disable-autodetect --disable-network --disable-debug --enable-zlib \
@@ -61,13 +64,33 @@ ENV ENABLE_HEADLESS=1 CMAKE_BUILD_PARALLEL_LEVEL=12 MAKEFLAGS=-j12 \
 RUN cd /src && /opt/buildenv/bin/pip wheel --no-deps --no-build-isolation -w /wheels /src/opencv.tar.gz \
  && ls -l /wheels && sha256sum /wheels/*.whl
 
+# --- CAM++ speaker embedding: 3D-Speaker weights exported to ONNX by export_campplus_onnx.py (builder only: torch and
+# modelscope never reach the image). The export environment is hashed (campplus-export.lock); the ONNX is pinned by sha256 in
+# models.lock.json and the `models` stage fails if the export differs.
+FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f AS campplus
+ENV PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+COPY campplus-export.lock /tmp/campplus-export.lock
+RUN python -m venv /opt/venv \
+ && /opt/venv/bin/pip install --require-hashes --no-deps --extra-index-url https://download.pytorch.org/whl/cpu -r /tmp/campplus-export.lock
+ARG CAMPPLUS_MODEL_ID=iic/speech_campplus_sv_zh-cn_16k-common
+COPY export_campplus_onnx.py /tmp/export_campplus_onnx.py
+RUN mkdir -p /out && /opt/venv/bin/python -c "import sys; from modelscope import snapshot_download; print(snapshot_download(sys.argv[1], cache_dir='/tmp/ms'))" "$CAMPPLUS_MODEL_ID" > /tmp/model_dir.txt \
+ && /opt/venv/bin/python /tmp/export_campplus_onnx.py "$(tail -n 1 /tmp/model_dir.txt)" /out/campplus.onnx
+
+# --- Whisper base (sherpa-onnx int8 export, MIT). The archive is not pinned (models.lock.json says so); each of the three
+# extracted files is pinned by sha256 there and checked in the `models` stage.
+FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f AS whisper
+ARG WHISPER_URL=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2
+RUN mkdir -p /out && python -c "import io,sys,tarfile,urllib.request as u; t=tarfile.open(fileobj=io.BytesIO(u.urlopen(sys.argv[1], timeout=600).read()), mode='r:bz2'); [open('/out/'+n,'wb').write(t.extractfile('sherpa-onnx-whisper-base/'+n).read()) for n in ('base-encoder.int8.onnx','base-decoder.int8.onnx','base-tokens.txt')]" "$WHISPER_URL" \
+ && ls -l /out
+
 FROM deps AS models
 COPY --from=dp fetch_models.py /tmp/fetch_models.py
 COPY models.lock.json /tmp/models.lock.json
-COPY models-local /tmp/local
+COPY --from=campplus /out/campplus.onnx /tmp/local/campplus.onnx
+COPY --from=whisper /out/ /tmp/local/
 ARG MODELS_MODE=verify
-RUN /opt/venv/bin/pip install --no-deps --no-cache-dir huggingface_hub >/dev/null 2>&1 || true \
- && /opt/venv/bin/python /tmp/fetch_models.py --dest /opt/models --lock /tmp/models.lock.json --mode "$MODELS_MODE" --local-dir /tmp/local
+RUN /opt/venv/bin/python /tmp/fetch_models.py --dest /opt/models --lock /tmp/models.lock.json --mode "$MODELS_MODE" --local-dir /tmp/local
 
 FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
 ARG OO_LANE=super-ontology-be6

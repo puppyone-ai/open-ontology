@@ -45,8 +45,7 @@ FROM deps AS models
 COPY --from=dp fetch_models.py /tmp/fetch_models.py
 COPY models.lock.json /tmp/models.lock.json
 ARG MODELS_MODE=verify
-RUN /opt/venv/bin/pip install --no-deps --no-cache-dir "socksio" >/dev/null 2>&1 || true \
- && /opt/venv/bin/python /tmp/fetch_models.py --dest /opt/models --lock /tmp/models.lock.json --mode "$MODELS_MODE"
+RUN /opt/venv/bin/python /tmp/fetch_models.py --dest /opt/models --lock /tmp/models.lock.json --mode "$MODELS_MODE"
 
 FROM docker.io/library/python@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
 ARG OO_LANE=super-ontology-be6
