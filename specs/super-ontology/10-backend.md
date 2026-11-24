@@ -207,6 +207,7 @@
 | `deploy/docs/compose.yaml` | `oo-docs` compose 模板（§2.7） |
 | `deploy/docs/postgres.sh` | 复用 `deploy/lite/postgres.sh` 的 TLS/SCRAM 引导（拷贝 + 固定身份 `docs-db`） |
 | `deploy/docs/images.lock.json` | parser 镜像两个架构的 digest |
+| `deploy/docs/docker-bake.hcl`、`.github/workflows/docs-images.yml` | docs 运行时镜像（engine、doc-parser、ocr-parser、media-parser，可选 pgvector）的发布：**只由 CI 发布，且只在 PR 合入 master 之后**，手动派发、`docs-release` 环境审批、amd64 与 arm64 原生构建、SBOM 与 provenance、按 digest 推送后合并多架构索引；流程见 `docs/engineering/release.md` §5 |
 | `deploy/lite/Dockerfile` **[主]** | 构建列表加 `-p oo-docs --features s3 --bins`，复制 `oo-docs-engine`、`oo-docs-parse` |
 | `contracts/docs-api/docs-api.v1.schema.json` **[主]** | **控制 API 的 schema 文件**（50 §4、§6、§10 所指），JSON Schema 2020-12 |
 | `contracts/docs-api/errors.v1.json` **[主]** | 错误码机器可读表（Puppyone 的 i18n key 由它生成） |

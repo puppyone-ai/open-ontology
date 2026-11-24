@@ -10,6 +10,7 @@
 | `nightly.yml` | 每天 / 手动 | `ubuntu-24.04` | 引擎矩阵（engine-matrix）等夜间检查 |
 | `l3-rotation.yml` | 每天 / 手动 | `ubuntu-24.04` | 每晚跑一个引擎的 L3 全量，三晚轮换一遍；加上故障配对和缺陷闸门 |
 | `lite-images.yml` | 手动，仅限 `v0.2/product-loops` 分支 | `ubuntu-24.04`、`ubuntu-24.04-arm` | 构建并签名 lite 运行时多架构镜像 |
+| `docs-images.yml` | 手动，仅限 master，`docs-release` 审批 | `ubuntu-24.04`、`ubuntu-24.04-arm` | 构建并发布 docs 运行时多架构镜像，见 [release.md](release.md) §5；合入 master 之前不能运行 |
 | `lite-bundle-release.yml` | 手动，仅限 master | 两种架构的原生机器 | 把镜像打成离线包，上传到 GitHub Release |
 | `cli-binaries.yml` | 手动 | `ubuntu-24.04`、`ubuntu-24.04-arm`、`macos-15` | 构建四个平台的二进制并打 npm 包 |
 

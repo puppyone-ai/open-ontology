@@ -24,7 +24,9 @@
       "opencv_build_requirements_lock_sha256": "cf65da4b2f9714acaa0a82cf699c574e8e8ae9a3b6514155dd8eeb49d8b10bd9",
       "notices_sha256": "814ab504827ae4ddb4efb343255e8d1fb66cecde79f66f19c7777ee19b024c3b",
       "opencv": "5.0.0.93 built from the pinned sdist without FFmpeg (Dockerfile stage opencv); table_structure on",
-      "stale_note": "doc_parser/ is overlaid from the tree on the be2 image (one layer, includes the meta module, pictures and /v1/embed). The python dependency set was NOT rebuilt: tools/doc-parser/requirements.lock changed (RapidOCR) after the base layers were built, and the python base digest is not in the local store with no route to the registry or PyPI, so requirements_lock_sha256 above describes the earlier set. Rebuild with tools/doc-parser/Dockerfile when the network allows."
+      "stale_note": "doc_parser/ is overlaid from the tree on the be2 image (one layer, includes the meta module, pictures and /v1/embed). The python dependency set was NOT rebuilt: tools/doc-parser/requirements.lock changed (RapidOCR) after the base layers were built, and the python base digest is not in the local store with no route to the registry or PyPI, so requirements_lock_sha256 above describes the earlier set. Rebuild with tools/doc-parser/Dockerfile when the network allows. Update 2026-11-23: the drift is only in this record. Regenerating tools/doc-parser/requirements.lock with lock.py reproduces the committed file (same package set and hashes), so lock and requirements.in agree; the committed lock now hashes to current_requirements_lock_sha256 and the models lock to current_models_lock_sha256. .github/workflows/docs-images.yml builds every image from these current files on both architectures, and the registry digests of that build are recorded under registry after the first CI publication.",
+      "current_requirements_lock_sha256": "737d0b0136eec2b280254b484983ae650244c21f64c9086fd32eca2d27d0d1a4",
+      "current_models_lock_sha256": "31ad59b989ba19266ae2cce55fd45bfe81238af53914221bac1b65788ebe0d87"
     },
     "linux/amd64": null
   },
