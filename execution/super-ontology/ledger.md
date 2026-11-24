@@ -412,6 +412,10 @@
 | SO-F-S23-22 | D83 | merged | feat/super-ontology | e12cc1495 → e12cc1495 | — | supply-chain/secret-review.json | Review the secret scanner findings and re-bind stale reviews |
 | SO-F-S23-23 | D83 | merged | feat/super-ontology | 25cc2ee71 → 25cc2ee71 | — | benchmarks/ab/fixtures/replay-report.linux-amd64.json | Record the A/B replay report for the current benchmark binaries |
 | SO-F-S23-24 | D81 | merged | feat/super-ontology | 6eff3c3a3 → 6eff3c3a3 | — | .github/workflows/formal.yml | Stop two formal CI failures that were not model violations |
+| SO-F-S23-30 | D83 | merged | feat/super-ontology | e65dcbee5 → e65dcbee5 | — | tools/media-parser/Dockerfile, tools/media-parser/campplus-export.lock, tools/ocr-parser/Dockerfile | Build the media-parser image from the repository alone |
+| SO-F-S23-31 | D83 | merged | feat/super-ontology | 5d9f4c203 → 5d9f4c203 | — | .github/workflows/docs-images.yml, deploy/docs/docker-bake.hcl, deploy/docs/release_summary.py | Add the docs-images workflow for CI-only publication |
+| SO-F-S23-32 | D83 | merged | feat/super-ontology | 47298a581 → 47298a581 | — | docs/engineering/release.md, docs/engineering/ci.md, specs/super-ontology/10-backend.md, deploy/docs/images.lock.json | Document CI-only publication of the docs runtime images after merge |
+| SO-F-S23-33 | D83 | merged | feat/super-ontology | (this commit) | — | execution/super-ontology/ledger.md | Add the ledger rows for the docs-images workflow |
 | SO-B-S13-01 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 5c3b92efd → 1745581d1 | — | testing/super-ontology/evidence/L8/ | 可选 pgvector 迁移 0144；服务端带 pgvector 时安装向量表 |
 | SO-B-S13-02 | L8 | merged | feat/super-ontology (车道 C 分支并入) | 00ea0bc8e → 00ea0bc8e | — | testing/super-ontology/evidence/L8/ | 可选本地向量：BRIEF 其他相关与 resolve 召回 |
 | SO-B-S13-03 | L8 | merged | feat/super-ontology (车道 C 分支并入) | ddf16f740 → 7d00afb0f | — | testing/super-ontology/evidence/L8/ | 1 万文件规模基准 |
