@@ -1,0 +1,191 @@
+name: docs-images
+
+# Publication of the docs runtime images is CI-only, manual, master-only and protected by the docs-release
+# environment (the owner creates it with required reviewers). Nothing here is the S5/S6 acceptance gate.
+# Images (ghcr.io/<repository>/<name>:<version>): docs-engine, docs-doc-parser, docs-ocr-parser,
+# docs-media-parser and, when asked for, docs-pgvector. Each is built natively on amd64 and arm64 from
+# deploy/docs/docker-bake.hcl with an SBOM and max provenance, pushed by digest, then merged into one index.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version used as the image tag (for example 0.2.1). An existing tag is never overwritten.
+        required: true
+        type: string
+      pgvector:
+        description: Also build the optional docs-pgvector image
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-images
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      images: ${{ steps.plan.outputs.images }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Validate the version and plan the matrix
+        id: plan
+        env:
+          VERSION: ${{ inputs.version }}
+          PGVECTOR: ${{ inputs.pgvector }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "version must look like 0.2.1 or 0.2.1-rc.1" >&2; exit 1; }
+          python3 - "$PGVECTOR" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          images = ["docs-engine", "docs-doc-parser", "docs-ocr-parser", "docs-media-parser"]
+          if sys.argv[1] == "true":
+              images.append("docs-pgvector")
+          arches = [("amd64", "ubuntu-24.04"), ("arm64", "ubuntu-24.04-arm")]
+          matrix = {"include": [{"image": i, "arch": a, "runner": r} for i in images for a, r in arches]}
+          print("images=" + json.dumps(images))
+          print("matrix=" + json.dumps(matrix))
+          PY
+  build:
+    needs: plan
+    if: github.ref == 'refs/heads/master'
+    environment: docs-release
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write # push the per-architecture image by digest to ghcr.io
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.22.0
+          driver-opts: image=moby/buildkit@sha256:c457984bd29f04d6acc90c8d9e717afe3922ae14665f3187e0096976fe37b1c8
+      - name: Build the native image with SBOM and provenance, push by digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ matrix.image }}
+          ARCH: ${{ matrix.arch }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          export REPO="ghcr.io/${GITHUB_REPOSITORY,,}" REVISION="$GITHUB_SHA" PUSH=true
+          docker buildx bake -f deploy/docs/docker-bake.hcl "$IMAGE" \
+            --set "*.platform=linux/$ARCH" --metadata-file "$RUNNER_TEMP/build.json"
+          mkdir -p "$RUNNER_TEMP/out"
+          python3 - "$RUNNER_TEMP/build.json" "$IMAGE" "$ARCH" "$RUNNER_TEMP/out/digest-$IMAGE-$ARCH.json" <<'PY'
+          import json, re, sys
+          meta, image, arch, out = sys.argv[1:]
+          digest = json.load(open(meta))[image]["containerimage.digest"]
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", digest), digest
+          json.dump({"image": image, "arch": arch, "digest": digest}, open(out, "w"))
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: docs-digest-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/out/digest-${{ matrix.image }}-${{ matrix.arch }}.json
+          if-no-files-found: error
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io
+  merge:
+    needs: [plan, build]
+    if: github.ref == 'refs/heads/master'
+    environment: docs-release
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read # gh run download of this run's digest artifacts
+      packages: write # create the multi-arch index and its tags
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+        with:
+          version: v0.22.0
+          driver-opts: image=moby/buildkit@sha256:c457984bd29f04d6acc90c8d9e717afe3922ae14665f3187e0096976fe37b1c8
+      - name: Merge the exact digests into one multi-arch index
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ matrix.image }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}/$IMAGE"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          gh run download "$GITHUB_RUN_ID" --pattern "docs-digest-$IMAGE-*" --dir "$RUNNER_TEMP/digests"
+          amd64=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["digest"])' "$RUNNER_TEMP/digests/docs-digest-$IMAGE-amd64/digest-$IMAGE-amd64.json")
+          arm64=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["digest"])' "$RUNNER_TEMP/digests/docs-digest-$IMAGE-arm64/digest-$IMAGE-arm64.json")
+          [[ "$amd64" =~ ^sha256:[0-9a-f]{64}$ && "$arm64" =~ ^sha256:[0-9a-f]{64}$ && "$amd64" != "$arm64" ]]
+          if docker buildx imagetools inspect "$repository:$VERSION" >/dev/null 2>&1; then
+            echo "$repository:$VERSION already exists; a release tag is never overwritten" >&2
+            exit 1
+          fi
+          docker buildx imagetools create -t "$repository:$VERSION" -t "$repository:sha-$GITHUB_SHA" \
+            "$repository@$amd64" "$repository@$arm64"
+          docker buildx imagetools inspect "$repository:$VERSION" --format '{{json .Manifest}}' > "$RUNNER_TEMP/index.json"
+          mkdir -p "$RUNNER_TEMP/out"
+          python3 - "$RUNNER_TEMP/index.json" "$IMAGE" "$repository" "$VERSION" "$amd64" "$arm64" "$RUNNER_TEMP/out/merged-$IMAGE.json" <<'PY'
+          import json, re, sys
+          index, image, repository, version, amd64, arm64, out = sys.argv[1:]
+          digest = json.load(open(index))["digest"]
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", digest), digest
+          json.dump({"image": image, "repository": repository, "version": version, "index": digest,
+                     "linux/amd64": amd64, "linux/arm64": arm64}, open(out, "w"), indent=2)
+          PY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: docs-merged-${{ matrix.image }}
+          path: ${{ runner.temp }}/out/merged-${{ matrix.image }}.json
+          if-no-files-found: error
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io
+  summary:
+    needs: merge
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read # gh run download of this run's merged artifacts
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Write the digest summary and the updated images.lock.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --pattern 'docs-merged-*' --dir "$RUNNER_TEMP/merged"
+          mkdir -p "$RUNNER_TEMP/release"
+          python3 deploy/docs/release_summary.py --merged "$RUNNER_TEMP/merged" --lock deploy/docs/images.lock.json \
+            --version "$VERSION" --revision "$GITHUB_SHA" --out "$RUNNER_TEMP/release"
+          cat "$RUNNER_TEMP/release/digests.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: docs-images-release
+          path: ${{ runner.temp }}/release
+          if-no-files-found: error
