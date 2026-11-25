@@ -73,6 +73,13 @@ def main():
                     r = subprocess.run([sys.executable, "-B", str(REPO / "tools/super-ontology/acceptance/score_ask.py"), "--ask-results", str(out / f"ask-{tag}" / "ask-results.json"),
                                         "--questions", str(REPO / "testing/super-ontology/structure/gold/questions.jsonl"), "--out", str(out / f"score-ask-{tag}.json")], capture_output=True, text=True)
                     ev.log(f"== ask {tag} ==\n" + r.stdout[-800:])
+        # D93 (lane AT): the cells the confirmed table classes filled, scored against the frozen cell gold of the corpus.
+        project = Path(a.project) if a.project else REPO / "testing/super-ontology/structure/project"
+        gold = project.parent / "gold" / "cells.json"
+        if not a.acceptance and ok and gold.exists() and (out / "instances-after.json").exists():
+            q = subprocess.run([sys.executable, "-B", str(HERE / "score_cells.py"), "--instances", str(out / "instances-after.json"), "--gold", str(gold), "--out", str(out / "score-cells.json")],
+                               capture_output=True, text=True)
+            ev.log("== cells ==\n" + q.stdout[-3000:] + q.stderr[-500:])
     finally:
         pg.stop()
     sys.exit(0 if ok else 1)
