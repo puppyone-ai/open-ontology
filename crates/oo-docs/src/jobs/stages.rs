@@ -1772,7 +1772,7 @@ impl PublishHandler {
                     let Ok(Some(ir)) = load_ir_of(&self.pool, &self.cas, &r.1).await else {
                         continue;
                     };
-                    let f = Arc::new(crate::extract::anchors::scan(&ir));
+                    let f = Arc::new(crate::extract::anchors::scan_for(&r.2, &ir));
                     if let Ok(mut m) = self.scanned.lock() {
                         m.insert(r.0.clone(), f.clone());
                     }
