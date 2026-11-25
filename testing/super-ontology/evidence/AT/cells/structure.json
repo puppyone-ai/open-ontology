@@ -1,0 +1,96 @@
+{
+ "corpus": "/Users/redux/puppy-one/oo-v02/so-AT/testing/super-ontology/structure/gold/cells.json",
+ "properties": {
+  "budget": {
+   "gold": 12,
+   "written": 12,
+   "right": 12,
+   "typed": 12,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "deadline": {
+   "gold": 12,
+   "written": 12,
+   "right": 12,
+   "typed": 12,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "department": {
+   "gold": 22,
+   "written": 22,
+   "right": 22,
+   "typed": 22,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "email": {
+   "gold": 22,
+   "written": 22,
+   "right": 22,
+   "typed": 22,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "employee_id": {
+   "gold": 22,
+   "written": 22,
+   "right": 22,
+   "typed": 22,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "role": {
+   "gold": 22,
+   "written": 22,
+   "right": 22,
+   "typed": 22,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "start_date": {
+   "gold": 22,
+   "written": 22,
+   "right": 22,
+   "typed": 22,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "status": {
+   "gold": 12,
+   "written": 12,
+   "right": 12,
+   "typed": 12,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  }
+ },
+ "cells": {
+  "gold": 146,
+  "written": 146,
+  "right": 146,
+  "precision": 1.0,
+  "recall": 1.0
+ },
+ "instances": {
+  "gold_rows": 34,
+  "found": 34,
+  "named_right": 34,
+  "recall": 1.0
+ },
+ "relations": {
+  "gold": 12,
+  "found": 12,
+  "recall": 1.0
+ },
+ "wrong_cells": []
+}

@@ -1,0 +1,60 @@
+{
+ "corpus": "/Users/redux/puppy-one/oo-v02/so-AT/testing/super-ontology/structure-cells/gold/cells.json",
+ "properties": {
+  "budget": {
+   "gold": 48,
+   "written": 48,
+   "right": 48,
+   "typed": 48,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "completion": {
+   "gold": 48,
+   "written": 48,
+   "right": 48,
+   "typed": 48,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "due": {
+   "gold": 48,
+   "written": 48,
+   "right": 48,
+   "typed": 48,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "status": {
+   "gold": 48,
+   "written": 48,
+   "right": 48,
+   "typed": 48,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  }
+ },
+ "cells": {
+  "gold": 192,
+  "written": 192,
+  "right": 192,
+  "precision": 1.0,
+  "recall": 1.0
+ },
+ "instances": {
+  "gold_rows": 48,
+  "found": 48,
+  "named_right": 48,
+  "recall": 1.0
+ },
+ "relations": {
+  "gold": 48,
+  "found": 48,
+  "recall": 1.0
+ },
+ "wrong_cells": []
+}

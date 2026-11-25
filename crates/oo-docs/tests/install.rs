@@ -118,7 +118,7 @@ async fn empty_db_install_then_readiness() {
             .fetch_one(&mut admin)
             .await
             .unwrap();
-    assert_eq!(tables, 49 + i64::try_from(extra).unwrap());
+    assert_eq!(tables, 50 + i64::try_from(extra).unwrap());
 
     // The runtime principal can verify readiness without installing.
     let mut rt = connect_runtime("oo_docs_it_empty").await;
@@ -247,7 +247,7 @@ async fn missing_prerequisite_raises_oo002_and_runs_nothing() {
         .fetch_one(&mut admin)
         .await
         .unwrap();
-    assert_eq!(n, 17 + i64::from(has_vector(&mut admin).await));
+    assert_eq!(n, 18 + i64::from(has_vector(&mut admin).await));
     match verify_readiness(&mut admin).await {
         Err(ReadinessError::Incomplete { missing }) => assert_eq!(missing, "docs-sources-jobs/1"),
         other => panic!("{other:?}"),
@@ -442,12 +442,12 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
         .await
         .unwrap();
     admin
-        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
+        .execute("DROP TABLE _oo_docs.structure_fill, _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
         .await
         .unwrap();
     tamper(
         &mut admin,
-        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-drive-scale/1', 'docs-media-profile/1', 'docs-file-profile/1', 'docs-structure/1')",
+        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-drive-scale/1', 'docs-media-profile/1', 'docs-file-profile/1', 'docs-structure/1', 'docs-structure-fill/1')",
     )
     .await;
     match install(&mut admin).await.expect("upgrade") {
@@ -458,7 +458,8 @@ async fn a_database_at_0153_with_a_capped_drive_upgrades_to_0154() {
                     "docs-drive-scale/1",
                     "docs-media-profile/1",
                     "docs-file-profile/1",
-                    "docs-structure/1"
+                    "docs-structure/1",
+                    "docs-structure-fill/1"
                 ]
             )
         }
@@ -509,12 +510,12 @@ async fn a_database_at_0154_upgrades_to_0157_with_the_media_profile_table() {
         .await
         .unwrap();
     admin
-        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
+        .execute("DROP TABLE _oo_docs.structure_fill, _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
         .await
         .unwrap();
     tamper(
         &mut admin,
-        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-media-profile/1', 'docs-file-profile/1', 'docs-structure/1')",
+        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-media-profile/1', 'docs-file-profile/1', 'docs-structure/1', 'docs-structure-fill/1')",
     )
     .await;
     match install(&mut admin).await.expect("upgrade") {
@@ -523,7 +524,8 @@ async fn a_database_at_0154_upgrades_to_0157_with_the_media_profile_table() {
             vec![
                 "docs-media-profile/1",
                 "docs-file-profile/1",
-                "docs-structure/1"
+                "docs-structure/1",
+                "docs-structure-fill/1"
             ]
         ),
         other => panic!("{other:?}"),
@@ -564,17 +566,24 @@ async fn a_database_at_0157_upgrades_to_0159_with_the_file_class() {
         .await
         .unwrap();
     admin
-        .execute("DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
+        .execute("DROP TABLE _oo_docs.structure_fill, _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment")
         .await
         .unwrap();
     tamper(
         &mut admin,
-        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-file-profile/1', 'docs-structure/1')",
+        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-file-profile/1', 'docs-structure/1', 'docs-structure-fill/1')",
     )
     .await;
     match install(&mut admin).await.expect("upgrade") {
         InstallOutcome::Applied(versions) => {
-            assert_eq!(versions, vec!["docs-file-profile/1", "docs-structure/1"])
+            assert_eq!(
+                versions,
+                vec![
+                    "docs-file-profile/1",
+                    "docs-structure/1",
+                    "docs-structure-fill/1"
+                ]
+            )
         }
         other => panic!("{other:?}"),
     }
@@ -622,17 +631,19 @@ async fn a_database_at_0159_upgrades_to_0160_with_the_structure_layer() {
     let mut admin = connect(db).await;
     admin
         .execute(
-            "DROP TABLE _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment",
+            "DROP TABLE _oo_docs.structure_fill, _oo_docs.structure_member, _oo_docs.structure_class, _oo_docs.structure_version, _oo_docs.structure_observation, _oo_docs.structure_alignment",
         )
         .await
         .unwrap();
     tamper(
         &mut admin,
-        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-structure/1'",
+        "DELETE FROM _oo_docs.schema_migrations WHERE version IN ('docs-structure/1', 'docs-structure-fill/1')",
     )
     .await;
     match install(&mut admin).await.expect("upgrade") {
-        InstallOutcome::Applied(versions) => assert_eq!(versions, vec!["docs-structure/1"]),
+        InstallOutcome::Applied(versions) => {
+            assert_eq!(versions, vec!["docs-structure/1", "docs-structure-fill/1"])
+        }
         other => panic!("{other:?}"),
     }
     let tables: i64 = sqlx::query_scalar(

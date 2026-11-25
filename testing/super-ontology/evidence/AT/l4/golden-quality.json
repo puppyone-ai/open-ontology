@@ -1,0 +1,11 @@
+{
+ "predicted_entities": 42,
+ "matching_a_gold_entity": 40,
+ "entity_precision": 0.9524,
+ "type_precision": 0.975,
+ "decisions": 10,
+ "single_word_decisions": 0,
+ "single_word_decision_names": [],
+ "short_decisions_under_8": 1,
+ "pass": true
+}
