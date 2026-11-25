@@ -227,6 +227,79 @@ class Acceptance(unittest.TestCase):
         self.assertEqual(review['summary']['fk_mapping_rate'],0)
 
 
+class RetryTest(unittest.TestCase):
+    def setUp(self):
+        tables,_=fixture(1,3)
+        self.items=lib.bridge('tables',tables=tables)[0]['items']
+        self.config=dict(Acceptance().config(),retry_backoff_seconds=[0,0,0,0])
+
+    def run_with(self, script):
+        model=Model(); seen=[]
+        def transport(request):
+            seen.append(request)
+            action=script(len(seen),request,model)
+            if isinstance(action,Exception):
+                raise action
+            return action
+        with tempfile.TemporaryDirectory() as output:
+            runner=lib.Runner(self.config,output,transport)
+            values,missing=runner.generate(self.items,{})
+        return values,missing,seen
+
+    def test_max_tokens_has_headroom(self):
+        values,missing,seen=self.run_with(lambda n,r,m:m(r))
+        self.assertFalse(missing)
+        self.assertGreaterEqual(seen[0]['max_tokens'],2048)
+
+    def test_failed_and_empty_replies_retry_with_more_room_and_no_repair_round(self):
+        def script(n,request,model):
+            if n==1:
+                return dict(choices=[dict(finish_reason='failed',message={'content':''})],usage={'prompt_tokens':0,'completion_tokens':0})
+            if n==2:
+                return dict(choices=[dict(finish_reason='stop',message={'content':''})])
+            return model(request)
+        values,missing,seen=self.run_with(script)
+        self.assertFalse(missing)
+        self.assertEqual(len(seen),3)
+        self.assertGreater(seen[2]['max_tokens'],seen[0]['max_tokens'])
+
+    def test_transient_provider_errors_retry_then_succeed(self):
+        def script(n,request,model):
+            if n==1:
+                return model_provider.ProviderFailure('s5_provider_http_502',True)
+            if n==2:
+                return RuntimeError('selfbuild_provider_transport')
+            return model(request)
+        values,missing,seen=self.run_with(script)
+        self.assertFalse(missing)
+        self.assertEqual(len(seen),3)
+
+    def test_non_transient_provider_failure_still_stops(self):
+        with self.assertRaises(model_provider.ProviderFailure):
+            self.run_with(lambda n,r,m:model_provider.ProviderFailure('s5_provider_http_429',False,True))
+
+    def test_partial_replies_reask_only_missing_items_in_smaller_units(self):
+        def script(n,request,model):
+            reply=model(request)
+            if n<=2:
+                lines=reply['choices'][0]['message']['content'].split('\n')
+                reply['choices'][0]['message']['content']='\n'.join(lines[:-1])
+                reply['choices'][0]['finish_reason']='length'
+            return reply
+        values,missing,seen=self.run_with(script)
+        self.assertFalse(missing)
+        first={i['id'] for i in json.loads(seen[0]['messages'][1]['content'])['items']}
+        later=[json.loads(r['messages'][1]['content'])['items'] for r in seen[1:]]
+        self.assertTrue(all(len(items)<len(first) for items in later))
+
+    def test_exhausted_retries_report_missing_items_and_never_certify(self):
+        def script(n,request,model):
+            return dict(choices=[dict(finish_reason='failed',message={'content':''})])
+        values,missing,seen=self.run_with(script)
+        self.assertEqual(set(missing),{i['id'] for i in self.items})
+        self.assertLessEqual(len(seen),(lib.REPAIR_ROUNDS)*5*len(self.items))
+
+
 class ReceiptAndFamilyTest(unittest.TestCase):
     def test_resume_preserves_attempts_and_retries_missing_finish_frame(self):
         tables,_=fixture(1,1)

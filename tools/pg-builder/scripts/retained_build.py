@@ -214,7 +214,14 @@ def draft(facts, config, output):
         runner = builder.Runner(settings, output / 'community', transport)
         result = runner.run(tables, [])
         if result['unresolved'] or result.get('published') is not False:
-            raise ValueError('retained_draft_incomplete')
+            kinds = {}
+            for item_id in result['unresolved']:
+                kind = item_id.split(':', 1)[0]
+                kinds[kind] = kinds.get(kind, 0) + 1
+            save(output / 'draft-incomplete.json', dict(protocol='oo.builder.draft-incomplete/v1',
+                 unresolved=result['unresolved'], model_certified=False))
+            raise ValueError('retained_draft_incomplete:' + ':'.join(
+                f'{k}_{n}' for k, n in sorted(kinds.items())))
         return result, calls[0]
     finally:
         egress.terminate()

@@ -12,6 +12,7 @@ import math
 import os
 from pathlib import Path
 import subprocess
+import time
 import urllib.error
 import urllib.request
 
@@ -30,6 +31,15 @@ Reuse canonical names in the registry where evidence supports it. Do not emit
 markdown, SQL, reviews, credentials, or unrelated IDs. During merge you may
 include merge_into with another existing entity ID only when they are the same
 business entity. Every requested ID must appear exactly once.'''
+
+
+REPAIR_ROUNDS = 6
+MIN_MAX_TOKENS = 2048
+
+
+def transient(error):
+    return (isinstance(error, model_provider.ProviderFailure) and error.retryable
+            or isinstance(error, RuntimeError) and str(error) == 'selfbuild_provider_transport')
 
 
 def canonical(value):
@@ -259,39 +269,23 @@ class Runner:
         previous_attempts = len(attempts)
         feedback = []
         stream_complete = False
-        for _ in range(3):
+        for round_no in range(REPAIR_ROUNDS):
             missing = [item for item in batch['items'] if item['id'] not in accepted]
             if not missing:
                 break
             retry_context = dict(context, validation_feedback=feedback[:8])
-            # Feedback and registry growth are charged too. Repairs may subdivide.
-            repair_batches = self.plan(missing, retry_context)
+            # Each further round re-asks only what is still missing, in smaller units.
+            size = max(1, math.ceil(len(missing) / 2 ** round_no))
+            repair_batches = []
+            for start in range(0, len(missing), size):
+                repair_batches.extend(self.plan(missing[start:start + size], retry_context))
             for repair in repair_batches:
                 if self.stopped:
                     raise RuntimeError('selfbuild_dispatch_stopped')
-                request = dict(model=self.config['model'], stream=self.config.get('stream', True),
-                    max_tokens=repair['output_reserve'], messages=[
-                        {'role':'system','content':PROMPT},
-                        {'role':'user','content':canonical(dict(items=repair['items'], context=retry_context))}])
-                if request['stream']:
-                    request['stream_options'] = {'include_usage':True}
-                estimate = dict(preflight_estimate(self.config,[repair],self.concurrency,
-                                                  self.budget['capabilities']['system_overhead']),
-                                protocol='oo.selfbuild.dispatch-preflight/v1',
-                                request_hash=digest(request))
-                write_private(self.output/'preflight'/ (digest(request)+'.json'),estimate)
-                print(canonical(estimate),flush=True)
-                try:
-                    envelope = self.transport(request)
-                except Exception:
-                    self.stopped = True
-                    raise
-                choices = envelope.get('choices', [])
-                if len(choices) != 1:
-                    raise ValueError('selfbuild_response_choices')
-                choice = choices[0]
+                envelope, request = self.ask(repair, retry_context)
+                choice = envelope['choices'][0]
                 stream_complete = choice.get('finish_reason') == 'stop'
-                parsed = bridge('parse', items=repair['items'], text=choice.get('message', {}).get('content', ''))
+                parsed = bridge('parse', items=repair['items'], text=choice.get('message', {}).get('content') or '')
                 accepted.update(parsed['accepted'])
                 feedback = parsed['feedback']
                 if parsed['unresolved']:
@@ -312,6 +306,47 @@ class Runner:
             cache='miss', new_calls=len(attempts)-previous_attempts, model_certified=False)
         write_private(path, receipt)
         return receipt
+
+
+    def ask(self, repair, context):
+        """One request; empty, failed, over-long and transient replies are retried with
+        more output room and backoff, and never consume a repair round."""
+        backoff = self.config.get('retry_backoff_seconds', [2, 5, 10, 20])
+        limit = max(self.budget['capabilities']['max_output'], repair['output_reserve'])
+        tokens = min(limit, max(MIN_MAX_TOKENS, 2 * repair['output_reserve']))
+        for attempt in range(len(backoff) + 1):
+            request = dict(model=self.config['model'], stream=self.config.get('stream', True),
+                max_tokens=tokens, messages=[
+                    {'role':'system','content':PROMPT},
+                    {'role':'user','content':canonical(dict(items=repair['items'], context=context))}])
+            if request['stream']:
+                request['stream_options'] = {'include_usage':True}
+            estimate = dict(preflight_estimate(self.config,[repair],self.concurrency,
+                                              self.budget['capabilities']['system_overhead']),
+                            protocol='oo.selfbuild.dispatch-preflight/v1',
+                            request_hash=digest(request))
+            write_private(self.output/'preflight'/ (digest(request)+'.json'),estimate)
+            print(canonical(estimate),flush=True)
+            try:
+                envelope = self.transport(request)
+            except Exception as error:
+                if not transient(error) or attempt == len(backoff):
+                    self.stopped = True
+                    raise
+                time.sleep(backoff[attempt])
+                continue
+            choices = envelope.get('choices', [])
+            if len(choices) != 1:
+                raise ValueError('selfbuild_response_choices')
+            choice = choices[0]
+            content = (choice.get('message') or {}).get('content') or ''
+            if choice.get('finish_reason') == 'failed' or not content.strip():
+                if attempt == len(backoff):
+                    return envelope, request
+                tokens = min(limit, tokens * 2)
+                time.sleep(backoff[attempt])
+                continue
+            return envelope, request
 
     def generate(self, items, context):
         pending = list(items)
