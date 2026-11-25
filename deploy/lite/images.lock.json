@@ -15,10 +15,10 @@
       "build_matches_current_dockerfile": false
     },
     "linux/arm64": {
-      "image": "sha256:6b27babba3e18198ef62d758b90c7199f44c5fc3b6edd62bccbaa45b4085269e",
-      "tag": "oo-lane-a-lite:k4-lite-arm64",
+      "image": "sha256:174360585af8a8ebcf5b43f7df01c6b36f693725cc2df262dbdea95a944d46a0",
+      "tag": "oo-lane-a-lite:as-retry-fix-arm64",
       "dockerfile_sha256": "7673a5130ca3e0b356498d5f42e592750e8c431a9d89ef14190bdcb8200b70bc",
-      "run_id": "k4-lite",
+      "run_id": "as-retry-fix",
       "build_matches_current_dockerfile": true
     }
   }
