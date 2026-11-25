@@ -61,3 +61,13 @@ def test_frontend_rows_checked_only_against_puppyone_plans():
     assert cl.check(text, set(), {"SO-F-S1-01"}) == []
     bad = cl.check(text, set(), set())
     assert len(bad) == 1 and "Puppyone" in bad[0][1]
+
+
+def test_base_limits_only_the_new_plan_direction():
+    text = HEAD + row("SO-B-S1-01")
+    # a merged row backed by history outside the base range is fine
+    assert cl.check(text, {"SO-B-S1-01"}, None, set()) == []
+    # a new Plan in base..ref still needs a row
+    assert any("SO-B-S9-09" in m[1] for m in cl.check(text, {"SO-B-S1-01", "SO-B-S9-09"}, None, {"SO-B-S9-09"}))
+    # a merged row with no commit anywhere in the whole history is still a violation
+    assert cl.check(text, set(), None, set()) != []

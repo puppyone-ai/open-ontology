@@ -987,7 +987,7 @@ jobs:
         run: |
           base="${BASE_SHA:-HEAD~1}"
           python3 -B tools/super-ontology/check_trailers.py --base "${base}" --head HEAD
-          python3 -B tools/super-ontology/check_ledger.py --ref HEAD --base "${base}"
+          python3 -B tools/super-ontology/check_ledger.py --ref HEAD --base "${base}"  # merged/signed rows: whole history; new Plans: base..HEAD
       - name: golden set, contracts, eval smoke (spec 30 §L1)
         shell: bash
         run: |
