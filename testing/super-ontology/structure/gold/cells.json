@@ -1,0 +1,968 @@
+{
+ "note": "Frozen before the first run on these corpora. Generated from the corpus generators' own source data (not read from the rendered files). Properties are matched by any of their labels; text, enum, id, email and version values are one kind (`text`).",
+ "tables": [
+  {
+   "file": "people/团队名册.csv",
+   "identity": [
+    "姓名",
+    "Name"
+   ],
+   "properties": {
+    "department": [
+     "部门",
+     "Department"
+    ],
+    "email": [
+     "邮箱",
+     "Email"
+    ],
+    "employee_id": [
+     "工号",
+     "Employee ID"
+    ],
+    "role": [
+     "角色",
+     "Role"
+    ],
+    "start_date": [
+     "入职日期",
+     "Hire date"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "平台部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "chenzimo@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1001"
+      },
+      "role": {
+       "kind": "text",
+       "value": "工程师"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2023-04-17"
+      }
+     },
+     "name": "陈子墨",
+     "relations": [],
+     "row": 2
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "产品部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "zhouruoxi@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1002"
+      },
+      "role": {
+       "kind": "text",
+       "value": "产品经理"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2022-09-05"
+      }
+     },
+     "name": "周若溪",
+     "relations": [],
+     "row": 3
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "平台部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "wuqiming@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1003"
+      },
+      "role": {
+       "kind": "text",
+       "value": "工程师"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2021-03-22"
+      }
+     },
+     "name": "吴启明",
+     "relations": [],
+     "row": 4
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "设计部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "sunxiaotang@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1004"
+      },
+      "role": {
+       "kind": "text",
+       "value": "设计师"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2024-01-08"
+      }
+     },
+     "name": "孙晓棠",
+     "relations": [],
+     "row": 5
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "数据部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "linjiahe@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1005"
+      },
+      "role": {
+       "kind": "text",
+       "value": "工程师"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2023-11-13"
+      }
+     },
+     "name": "林嘉禾",
+     "relations": [],
+     "row": 6
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "产品部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "zhengyiming@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1006"
+      },
+      "role": {
+       "kind": "text",
+       "value": "产品经理"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2020-06-29"
+      }
+     },
+     "name": "郑一鸣",
+     "relations": [],
+     "row": 7
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "设计部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "songyutong@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1007"
+      },
+      "role": {
+       "kind": "text",
+       "value": "设计师"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2024-05-20"
+      }
+     },
+     "name": "宋雨桐",
+     "relations": [],
+     "row": 8
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "数据部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "hanzhiyuan@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1008"
+      },
+      "role": {
+       "kind": "text",
+       "value": "工程师"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2022-02-14"
+      }
+     },
+     "name": "韩知远",
+     "relations": [],
+     "row": 9
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "运营部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "fengkexin@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1009"
+      },
+      "role": {
+       "kind": "text",
+       "value": "运营"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2023-08-01"
+      }
+     },
+     "name": "冯可心",
+     "relations": [],
+     "row": 10
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "运营部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "tangyifan@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1010"
+      },
+      "role": {
+       "kind": "text",
+       "value": "运营"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2021-10-18"
+      }
+     },
+     "name": "唐亦凡",
+     "relations": [],
+     "row": 11
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "平台部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "xumingzhe@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1011"
+      },
+      "role": {
+       "kind": "text",
+       "value": "工程师"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2024-03-11"
+      }
+     },
+     "name": "许明哲",
+     "relations": [],
+     "row": 12
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "产品部"
+      },
+      "email": {
+       "kind": "text",
+       "value": "jiangxueqing@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E1012"
+      },
+      "role": {
+       "kind": "text",
+       "value": "产品经理"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2022-12-05"
+      }
+     },
+     "name": "江雪晴",
+     "relations": [],
+     "row": 13
+    }
+   ]
+  },
+  {
+   "file": "people/team-roster.csv",
+   "identity": [
+    "姓名",
+    "Name"
+   ],
+   "properties": {
+    "department": [
+     "部门",
+     "Department"
+    ],
+    "email": [
+     "邮箱",
+     "Email"
+    ],
+    "employee_id": [
+     "工号",
+     "Employee ID"
+    ],
+    "role": [
+     "角色",
+     "Role"
+    ],
+    "start_date": [
+     "入职日期",
+     "Hire date"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Platform"
+      },
+      "email": {
+       "kind": "text",
+       "value": "daniel.kim@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2001"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Engineer"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2023-02-13"
+      }
+     },
+     "name": "Daniel Kim",
+     "relations": [],
+     "row": 2
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Product"
+      },
+      "email": {
+       "kind": "text",
+       "value": "karen.wu@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2002"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Product Manager"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2022-07-18"
+      }
+     },
+     "name": "Karen Wu",
+     "relations": [],
+     "row": 3
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Platform"
+      },
+      "email": {
+       "kind": "text",
+       "value": "ralph.evans@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2003"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Engineer"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2021-05-24"
+      }
+     },
+     "name": "Ralph Evans",
+     "relations": [],
+     "row": 4
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Design"
+      },
+      "email": {
+       "kind": "text",
+       "value": "sandy.cho@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2004"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Designer"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2024-02-05"
+      }
+     },
+     "name": "Sandy Cho",
+     "relations": [],
+     "row": 5
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Data"
+      },
+      "email": {
+       "kind": "text",
+       "value": "fred.lang@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2005"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Engineer"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2023-10-09"
+      }
+     },
+     "name": "Fred Lang",
+     "relations": [],
+     "row": 6
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Product"
+      },
+      "email": {
+       "kind": "text",
+       "value": "kathy.moss@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2006"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Product Manager"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2020-08-31"
+      }
+     },
+     "name": "Kathy Moss",
+     "relations": [],
+     "row": 7
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Design"
+      },
+      "email": {
+       "kind": "text",
+       "value": "albert.shaw@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2007"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Designer"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2024-04-15"
+      }
+     },
+     "name": "Albert Shaw",
+     "relations": [],
+     "row": 8
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Data"
+      },
+      "email": {
+       "kind": "text",
+       "value": "junior.park@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2008"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Engineer"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2022-03-28"
+      }
+     },
+     "name": "Junior Park",
+     "relations": [],
+     "row": 9
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Operations"
+      },
+      "email": {
+       "kind": "text",
+       "value": "flo.reyes@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2009"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Operations"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2023-06-12"
+      }
+     },
+     "name": "Flo Reyes",
+     "relations": [],
+     "row": 10
+    },
+    {
+     "cells": {
+      "department": {
+       "kind": "text",
+       "value": "Operations"
+      },
+      "email": {
+       "kind": "text",
+       "value": "reed.cole@example.com"
+      },
+      "employee_id": {
+       "kind": "text",
+       "value": "E2010"
+      },
+      "role": {
+       "kind": "text",
+       "value": "Operations"
+      },
+      "start_date": {
+       "kind": "date",
+       "value": "2021-11-22"
+      }
+     },
+     "name": "Reed Cole",
+     "relations": [],
+     "row": 11
+    }
+   ]
+  },
+  {
+   "file": "projects/项目一览.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "deadline": [
+     "截止日期",
+     "Deadline"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1200000"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-09-30"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "星河",
+     "relations": [
+      "陈子墨"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "800000"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-07-15"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "北辰",
+     "relations": [
+      "周若溪"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "450000"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-03-31"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "青云",
+     "relations": [
+      "吴启明"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "600000"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-12-20"
+      },
+      "status": {
+       "kind": "text",
+       "value": "暂停"
+      }
+     },
+     "name": "远山",
+     "relations": [
+      "孙晓棠"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1500000"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-10-31"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "云帆",
+     "relations": [
+      "林嘉禾"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "300000"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-02-28"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "海岚",
+     "relations": [
+      "郑一鸣"
+     ],
+     "row": 7
+    }
+   ]
+  },
+  {
+   "file": "projects/portfolio.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "deadline": [
+     "截止日期",
+     "Deadline"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "120000 USD"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-09-30"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Beacon",
+     "relations": [
+      "Daniel Kim"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "80000 USD"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-07-15"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Atlas",
+     "relations": [
+      "Karen Wu"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "45000 USD"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-03-31"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Harbor",
+     "relations": [
+      "Ralph Evans"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "60000 USD"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-12-20"
+      },
+      "status": {
+       "kind": "text",
+       "value": "On hold"
+      }
+     },
+     "name": "Summit",
+     "relations": [
+      "Sandy Cho"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "150000 USD"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-10-31"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Lantern",
+     "relations": [
+      "Fred Lang"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "30000 USD"
+      },
+      "deadline": {
+       "kind": "date",
+       "value": "2026-02-28"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Meridian",
+     "relations": [
+      "Daniel Kim"
+     ],
+     "row": 7
+    }
+   ]
+  }
+ ],
+ "version": "structure-cells-gold/1"
+}
