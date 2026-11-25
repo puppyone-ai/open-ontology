@@ -2,7 +2,7 @@ use super::induce::{induce, reconcile};
 use super::observe::{canon_key, observe, slug_of};
 use super::store::{Decision, apply};
 use super::template;
-use super::vtype::{Lexicon, infer};
+use super::vtype::{Lexicon, infer, infer_labeled};
 use super::yaml::{DbColumn, DbLinkRule, DbSide, DbTable, render};
 use super::{FieldSource, Status, ValueType};
 use crate::extract::rules::extract;
@@ -156,6 +156,27 @@ fn values_written_in_words_decide_the_type_too() {
         ValueType::Date
     );
     assert_eq!(t("x", &["三十", "二十五", "12", "一百"]), ValueType::Number);
+    // A header that names money and a currency makes plain numbers an amount; a bare `total` stays a number.
+    assert_eq!(
+        t("amount_cny", &["744000", "210000", "330000"]),
+        ValueType::Amount
+    );
+    assert_eq!(
+        t("budget cny", &["3100000", "1420000", "980000"]),
+        ValueType::Amount
+    );
+    assert_eq!(
+        infer_labeled(
+            "预算",
+            "预算（万元）",
+            &vs(&["685", "142", "248"]),
+            &lex,
+            true
+        )
+        .value_type,
+        ValueType::Amount
+    );
+    assert_eq!(t("total", &["12", "7", "30"]), ValueType::Number);
     // Words that are not numbers stay what they were.
     assert_eq!(
         t("x", &["Daniel Kim", "Karen Wu", "Ralph Evans"]),

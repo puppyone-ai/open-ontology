@@ -139,7 +139,11 @@ fn g1_takes_typed_values_and_rows_that_are_about_something() {
         json!({"number": "30"}),
         json!({"date": "2027-03-16", "original": "三月十六号"}),
     ] {
-        assert_eq!(g1_fact(&fact("attr.budget", "Thing", None, Some(v.clone()))), Ok(()), "{v}");
+        assert_eq!(
+            g1_fact(&fact("attr.budget", "Thing", None, Some(v.clone()))),
+            Ok(()),
+            "{v}"
+        );
     }
     for v in [
         json!({"original": "x"}),
@@ -156,11 +160,24 @@ fn g1_takes_typed_values_and_rows_that_are_about_something() {
     }
     // A row that is a Thing or an Organization is about the person, project or organization its column names.
     for s in ["Thing", "Organization", "Project", "Person"] {
-        assert_eq!(g1_fact(&fact("about", s, Some("Person"), None)), Ok(()), "{s}");
+        assert_eq!(
+            g1_fact(&fact("about", s, Some("Person"), None)),
+            Ok(()),
+            "{s}"
+        );
     }
-    assert_eq!(g1_fact(&fact("about", "Thing", Some("Organization"), None)), Ok(()));
-    assert_eq!(g1_fact(&fact("about", "Thing", Some("Thing"), None)), Err("schema_range"));
-    assert_eq!(g1_fact(&fact("about", "Recording", Some("Person"), None)), Err("schema_domain"));
+    assert_eq!(
+        g1_fact(&fact("about", "Thing", Some("Organization"), None)),
+        Ok(())
+    );
+    assert_eq!(
+        g1_fact(&fact("about", "Thing", Some("Thing"), None)),
+        Err("schema_range")
+    );
+    assert_eq!(
+        g1_fact(&fact("about", "Recording", Some("Person"), None)),
+        Err("schema_domain")
+    );
 }
 
 #[test]

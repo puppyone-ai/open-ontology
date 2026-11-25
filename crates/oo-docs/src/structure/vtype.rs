@@ -311,6 +311,17 @@ fn share(items: &[String], f: impl Fn(&str) -> bool) -> f64 {
 /// Infer the type of a property from the values of every record that carries it. `hint` is the entity type the
 /// property's name suggests; `key` is its canonical key.
 pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) -> Inferred {
+    infer_labeled(key, key, values, lexicon, allow_enum)
+}
+
+/// [`infer`] with the label the field is written with (`预算（万元）`): the folded key loses a unit in brackets, the label keeps it.
+pub fn infer_labeled(
+    key: &str,
+    label: &str,
+    values: &[String],
+    lexicon: &Lexicon,
+    allow_enum: bool,
+) -> Inferred {
     let raw: Vec<&str> = values
         .iter()
         .map(|v| v.trim())
@@ -357,7 +368,9 @@ pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) 
             .filter(|c| c.as_deref().is_some_and(|c| c.starts_with("c:")))
             .count() as f64
             / cores.len() as f64;
-        let money_key = matches!(key, "amount" | "budget" | "price");
+        // A header that names money and its currency or unit (`Budget CNY`, `amount_cny`, `预算（万元）`) is an amount column.
+        let money_key = matches!(key, "amount" | "budget" | "price")
+            || crate::values::money::header_hint(label).is_some_and(|(cur, _)| cur.is_some());
         return single(if currency >= 0.5 || money_key {
             ValueType::Amount
         } else {
