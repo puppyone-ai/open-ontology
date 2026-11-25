@@ -1,14 +1,16 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalization } from "@open-ontology/design-system/localization";
-import { Badge, Button, Card, Dialog, EmptyState, IconButton, Menu, MenuItem, Notice, ProgressBar, Select, Skeleton, TextField } from "@open-ontology/design-system";
-import { Check, GitMerge, Layers, MoreHorizontal, Pencil, RefreshCw, X } from "lucide-react";
-import type { StructureClass, StructureProperty, StructureSchema } from "../../../shared/super-ontology/docs-api.generated";
+import { Badge, Button, Card, Dialog, EmptyState, Icon, IconButton, Menu, MenuItem, Notice, ProgressBar, Select, Skeleton, TextField } from "@open-ontology/design-system";
+import { Check, ChevronDown, ChevronRight, FileText, GitMerge, Layers, MoreHorizontal, Pencil, RefreshCw, X } from "lucide-react";
+import type { StructureClass, StructureFilled, StructureInstance, StructureProperty, StructureSchema } from "../../../shared/super-ontology/docs-api.generated";
 import { ErrorText } from "../shared/ErrorText";
 import { useLoad } from "../../hooks/useLoad";
 import { useSuperDriveSelector } from "../../model/SuperDriveProvider";
 import { selectDrives, selectOntologyVersion } from "../../model/superDriveSelectors";
 import { isEngineReady } from "../../model/superDriveStateModel";
-import { exampleText, isKnownKind, relationTarget, sortedClasses, structureApi, visibleProperties } from "../../model/structureModel";
+import { anchorLabel, exampleText, INSTANCE_PAGE, instanceColumns, isKnownKind, relationTarget, shownValue, sortedClasses, structureApi, TABLE_ROW_LIMIT, visibleProperties } from "../../model/structureModel";
+import { useApp } from "../../hooks/useApp";
+import { useDisplayName } from "../../hooks/useDisplayName";
 import { toSuperDriveError, type SuperDriveError } from "../../model/superDriveErrors";
 
 type Edit = { kind: "rename"; classKey: string; property: string | null; current: string } | { kind: "merge"; classKey: string; property: string };
@@ -56,12 +58,143 @@ function PropertyRow({ c, p, classes, busy, onDecide, onEdit }: {
   );
 }
 
-function ClassCard({ c, classes, busy, onDecide, onEdit }: {
-  c: StructureClass; classes: StructureClass[]; busy: boolean;
-  onDecide: (classKey: string, op: "accept" | "reject", property: string | null) => void; onEdit: (edit: Edit) => void;
+/** What the rows of a confirmed table class filled: instances of rows, values, links, cells not read; and a quiet note when a file was longer than what is read. */
+function FilledSummary({ filled }: { filled: StructureFilled }) {
+  const { t } = useLocalization();
+  const truncated = filled.truncated_files ?? 0;
+  return (
+    <div className="so-struct-filled" data-testid="structure-filled" data-instances={filled.instances} data-rows={filled.rows_total} data-rejected={filled.rejected}>
+      <span className="so-struct-filled-figures">
+        <span className="so-struct-filled-main">{t("app.structure.filled.instances", { count: filled.instances, rows: filled.rows_total })}</span>
+        <span aria-hidden="true" className="so-weak">·</span>
+        <span>{t("app.structure.filled.cells", { count: filled.cells })}</span>
+        <span aria-hidden="true" className="so-weak">·</span>
+        <span>{t("app.structure.filled.relations", { count: filled.relations })}</span>
+        {filled.rejected > 0 && <><span aria-hidden="true" className="so-weak">·</span><span className="so-struct-filled-rejected" title={t("app.structure.filled.rejected.hint")}>{t("app.structure.filled.rejected", { count: filled.rejected })}</span></>}
+      </span>
+      {truncated > 0 && <span className="so-metric-hint" data-testid="structure-filled-truncated">{t("app.structure.filled.truncated", { limit: TABLE_ROW_LIMIT, count: truncated })}</span>}
+    </div>
+  );
+}
+
+/** A value cell: the normalised value, and the text as written below it (quiet; the full "written as" in the tooltip) when it was read from words. */
+function ValueCell({ value }: { value: Record<string, unknown> | undefined }) {
+  const { t, formatNumber, formatDate } = useLocalization();
+  const shown = shownValue(value, { formatNumber, formatDate });
+  if (!shown) return <span className="so-weak" aria-hidden="true">–</span>;
+  const written = shown.original ? t("app.ontology.value.writtenAs", { original: shown.original }) : null;
+  return (
+    <span className="so-inst-value" data-key={shown.key ?? "other"} title={written ? `${shown.text}\n${written}` : shown.text}>
+      <span className="so-truncate">{shown.text}</span>
+      {written && <><span className="so-inst-original so-truncate" aria-hidden="true" data-testid="structure-instance-original">{shown.original}</span><span className="so-visually-hidden">{written}</span></>}
+    </span>
+  );
+}
+
+const NUMERIC_TYPES = new Set(["amount", "number", "percent"]);
+/** Narrowest width of a value column by its type (px): what a typical value and its original need before the table scrolls sideways. */
+const COLUMN_WIDTH: Record<string, number> = { amount: 140, number: 110, percent: 110, date: 120, enum: 100, id: 110, email: 170, url: 170, version: 90, text: 160, long_text: 200 };
+
+function InstanceRow({ item, columns, related, onOpenEntity }: { item: StructureInstance; columns: StructureProperty[]; related: boolean; onOpenEntity: (key: string) => void }) {
+  const { t } = useLocalization();
+  const app = useApp();
+  const shown = useDisplayName();
+  const range = anchorLabel(item.anchor);
+  const fileName = item.file.path.slice(item.file.path.lastIndexOf("/") + 1);
+  const cells = new Map(item.cells.map((cell) => [cell.slug, cell]));
+  return (
+    <tr data-testid="structure-instance" data-key={item.entity.key} data-row={item.row}>
+      <th scope="row" className="so-inst-name">
+        <button type="button" className="so-entity-link so-truncate" title={shown(item.entity.name)} onClick={() => onOpenEntity(item.entity.key)}>{shown(item.entity.name)}</button>
+      </th>
+      {columns.map((p) => <td key={p.slug} data-slug={p.slug} data-numeric={NUMERIC_TYPES.has(p.value_type) ? "" : undefined}><ValueCell value={cells.get(p.slug)?.value} /></td>)}
+      {related && (
+        <td>
+          <span className="so-inst-chips">
+            {item.relations.map((r) => r.object.key
+              ? <button key={r.fact_id} type="button" className="so-chip so-inst-chip" title={`${r.predicate.replace(/_/gu, " ")} · ${shown(r.object.name)}`} onClick={() => onOpenEntity(r.object.key as string)}><span className="so-truncate">{shown(r.object.name)}</span></button>
+              : <span key={r.fact_id} className="so-chip so-inst-chip" title={r.predicate.replace(/_/gu, " ")}><span className="so-truncate">{shown(r.object.name)}</span></span>)}
+          </span>
+        </td>
+      )}
+      <td>
+        <button type="button" className="so-inst-source" data-testid="structure-instance-open" data-file={item.file.path} data-range={range ?? undefined}
+          aria-label={range ? t("app.structure.instances.open", { path: item.file.path, range }) : t("app.ontology.evidence.open", { path: item.file.path })}
+          title={range ? `${item.file.path} · ${range}` : item.file.path} onClick={() => app.openFile(item.file.id)}>
+          <Icon icon={FileText} size={16} className="so-source-chip-icon" />
+          <span className="so-inst-source-text">
+            {range && <span className="so-mono so-truncate">{range}</span>}
+            <span className="so-inst-source-file so-truncate">{fileName}</span>
+          </span>
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+/** The instances of a filled table class: a row each, a column per value property, the links of the row and where it is in the sheet; paged. */
+function InstanceList({ driveId, c, onOpenEntity }: { driveId: string; c: StructureClass; onOpenEntity: (key: string) => void }) {
+  const { t } = useLocalization();
+  const [items, setItems] = useState<StructureInstance[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<SuperDriveError | null>(null);
+  const live = useRef(true);
+  useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
+  const load = useCallback(async (after: string | null) => {
+    setLoading(true); setError(null);
+    const r = await structureApi.instances({ driveId, classKey: c.class_key, limit: INSTANCE_PAGE, ...(after ? { cursor: after } : {}) });
+    if (!live.current) return;
+    setLoading(false);
+    if (!r.ok) { setError(toSuperDriveError(r)); return; }
+    setItems((current) => (after ? [...current, ...r.value.items] : r.value.items));
+    setTotal(r.value.total);
+    setCursor(r.value.next_cursor ?? null);
+  }, [driveId, c.class_key]);
+  useEffect(() => { void load(null); }, [load]);
+
+  const columns = instanceColumns(c);
+  const related = items.some((item) => item.relations.length > 0);
+  // Fixed column widths keep the columns aligned across pages; a wide class scrolls sideways inside the card.
+  const widths = [110, ...columns.map((p) => COLUMN_WIDTH[p.value_type] ?? 150), ...(related ? [120] : []), 170];
+  const minWidth = widths.reduce((sum, w) => sum + w, 0);
+  if (error && items.length === 0) return <div className="so-struct-instances"><Notice tone="danger" title={t("app.common.loadFailed")} action={<Button size="compact" onClick={() => { void load(null); }}>{t("app.common.retry")}</Button>}><ErrorText error={error} /></Notice></div>;
+  if (total === null) return <div className="so-struct-instances" aria-busy="true">{Array.from({ length: 3 }, (_, i) => <div key={i} className="so-list-row"><Skeleton width="60%" height={13} /></div>)}</div>;
+  if (items.length === 0) return <div className="so-struct-instances"><p className="so-muted so-struct-instances-empty">{t("app.structure.instances.empty")}</p></div>;
+  return (
+    <div className="so-struct-instances" data-testid="structure-instances" data-total={total} data-shown={items.length}>
+      <div className="so-inst-scroll">
+        <table className="so-inst-table" style={{ minWidth }} aria-label={t("app.structure.instances.title", { name: c.label })}>
+          <colgroup>{widths.map((w, i) => <col key={i} style={{ width: `${Math.round((w / minWidth) * 1000) / 10}%` }} />)}</colgroup>
+          <thead>
+            <tr>
+              <th scope="col">{t("app.structure.instances.col.name")}</th>
+              {columns.map((p) => <th key={p.slug} scope="col" data-numeric={NUMERIC_TYPES.has(p.value_type) ? "" : undefined}><span className="so-truncate" title={p.name}>{p.name}</span></th>)}
+              {related && <th scope="col">{t("app.structure.instances.col.related")}</th>}
+              <th scope="col">{t("app.structure.instances.col.source")}</th>
+            </tr>
+          </thead>
+          <tbody>{items.map((item) => <InstanceRow key={`${item.entity.key}:${item.file.id}:${item.row}`} item={item} columns={columns} related={related} onOpenEntity={onOpenEntity} />)}</tbody>
+        </table>
+      </div>
+      <div className="so-struct-instances-foot">
+        <span className="so-metric-hint">{t("app.structure.instances.shown", { shown: items.length, total })}</span>
+        {error && <span className="so-struct-filled-rejected"><ErrorText error={error} /></span>}
+        {cursor && <Button size="compact" loading={loading} onClick={() => { void load(cursor); }} data-testid="structure-instances-more">{t("app.structure.instances.more")}</Button>}
+      </div>
+    </div>
+  );
+}
+
+function ClassCard({ driveId, c, classes, busy, onDecide, onEdit, onOpenEntity }: {
+  driveId: string; c: StructureClass; classes: StructureClass[]; busy: boolean;
+  onDecide: (classKey: string, op: "accept" | "reject", property: string | null) => void; onEdit: (edit: Edit) => void; onOpenEntity: (key: string) => void;
 }) {
   const { t } = useLocalization();
   const props = visibleProperties(c);
+  const [instancesOpen, setInstancesOpen] = useState(false);
+  const filled = c.status === "confirmed" && c.shape === "table" ? c.filled : undefined;
   return (
     <Card className="so-struct-class" data-testid="structure-class" data-class={c.class_key} data-status={c.status}>
       <header className="so-struct-head">
@@ -86,11 +219,22 @@ function ClassCard({ c, classes, busy, onDecide, onEdit }: {
         </div>
         {props.map((p) => <PropertyRow key={p.slug} c={c} p={p} classes={classes} busy={busy} onDecide={(op, slug) => onDecide(c.class_key, op, slug)} onEdit={onEdit} />)}
       </div>
+      {filled && (
+        <div className="so-struct-fill">
+          <div className="so-struct-fill-head">
+            <FilledSummary filled={filled} />
+            <Button size="compact" variant="ghost" icon={instancesOpen ? ChevronDown : ChevronRight} aria-expanded={instancesOpen} onClick={() => setInstancesOpen((v) => !v)} data-testid="structure-instances-toggle">
+              {instancesOpen ? t("app.structure.instances.hide") : t("app.structure.instances.show")}
+            </Button>
+          </div>
+          {instancesOpen && <InstanceList driveId={driveId} c={c} onOpenEntity={onOpenEntity} />}
+        </div>
+      )}
     </Card>
   );
 }
 
-function DriveStructure({ driveId, driveName, showName, ready }: { driveId: string; driveName: string; showName: boolean; ready: boolean }) {
+function DriveStructure({ driveId, driveName, showName, ready, onOpenEntity }: { driveId: string; driveName: string; showName: boolean; ready: boolean; onOpenEntity: (key: string) => void }) {
   const { t, formatNumber } = useLocalization();
   const version = useSuperDriveSelector(selectOntologyVersion);
   const result = useLoad(() => structureApi.read(driveId), [driveId, version], { enabled: ready });
@@ -144,7 +288,7 @@ function DriveStructure({ driveId, driveName, showName, ready }: { driveId: stri
             </div>
             <Button size="compact" icon={RefreshCw} loading={busy} onClick={() => { void run(() => structureApi.induce(driveId)); }}>{t("app.structure.refresh")}</Button>
           </Card>
-          {classes.map((c) => <ClassCard key={c.class_key} c={c} classes={schema.classes} busy={busy} onDecide={decide} onEdit={open} />)}
+          {classes.map((c) => <ClassCard key={c.class_key} driveId={driveId} c={c} classes={schema.classes} busy={busy} onDecide={decide} onEdit={open} onOpenEntity={onOpenEntity} />)}
         </>
       )}
       {edit && (
@@ -164,7 +308,7 @@ function DriveStructure({ driveId, driveName, showName, ready }: { driveId: stri
 }
 
 /** Ontology > Structure: what the files of each kind of record share, as columns with types and coverage, confirmable (D93). */
-export function Structure() {
+export function Structure({ onOpenEntity }: { onOpenEntity: (key: string) => void }) {
   const { t } = useLocalization();
   const ready = useSuperDriveSelector((s) => isEngineReady(s.engine));
   const drives = useSuperDriveSelector(selectDrives, (a, b) => a.length === b.length && a.every((d, i) => d.id === b[i]?.id));
@@ -172,7 +316,7 @@ export function Structure() {
   return (
     <div className="so-stack" data-testid="structure">
       <p className="so-muted">{t("app.structure.intro")}</p>
-      {drives.map((d) => <DriveStructure key={d.id} driveId={d.id} driveName={d.name} showName={drives.length > 1} ready={ready} />)}
+      {drives.map((d) => <DriveStructure key={d.id} driveId={d.id} driveName={d.name} showName={drives.length > 1} ready={ready} onOpenEntity={onOpenEntity} />)}
     </div>
   );
 }

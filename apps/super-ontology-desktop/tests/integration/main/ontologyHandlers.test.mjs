@@ -324,4 +324,24 @@ describe("the structure layer (D93)", () => {
     expect(parseSuperOntologyRequest("structure-decide", { driveId: drive, op: "accept", classKey: "c", property: null }).property).toBeNull();
     for (const bad of [{ op: "delete" }, { classKey: "x".repeat(65) }, { name: "y".repeat(81) }, { extra: 1 }]) expect(() => parseSuperOntologyRequest("structure-decide", { driveId: drive, op: "rename", classKey: "c", name: "n", ...bad })).toThrow();
   });
+  it("pages the instances of a table class through the engine's route (docs-api 1.17)", async () => {
+    const page = { class_key: "budgets", total: 2, items: [{ entity: { key: "thing:0001", type: "Thing", name: "Atlas", label: "budgets" }, file: { id: "00000000-0000-4000-8000-0000000000f1", path: "finance/budget.xlsx" }, anchor: { kind: "cells", sheet: "Sheet1", range: "A2:D2" }, row: 2, cells: [{ fact_id: "00000000-0000-4000-8000-0000000000c1", slug: "budget", type: "amount", value: { amount: "6850000 CNY", original: "六百八十五万元" } }], relations: [] }], next_cursor: "1" };
+    const { handlers, calls } = make({ responses: { structureInstances: { value: page } } });
+    const value = await handlers["structure-instances"]({ driveId: drive, classKey: "budgets", limit: 50, cursor: "1" });
+    expect(value.items[0].cells[0].value.original).toBe("六百八十五万元");
+    expect(calls.find(([name]) => name === "structureInstances")[1]).toEqual({ params: { id: drive, classkey: "budgets" }, query: { limit: 50, cursor: "1" } });
+    expect(ROUTES.structureInstances.method).toBe("GET");
+    expect(ROUTES.structureInstances.template).toBe("/v1/docs/drives/{id}/structure/classes/{classkey}/instances");
+    expect(ROUTES.structureInstances.params.classkey.test("budgets")).toBe(true);
+    expect(ROUTES.structureInstances.params.classkey.test("../x")).toBe(false);
+  });
+  it("rejects an answer that is not a page of instances", async () => {
+    const { handlers } = make({ responses: { structureInstances: { value: { class_key: "budgets", items: [] } } } });
+    await expect(handlers["structure-instances"]({ driveId: drive, classKey: "budgets" })).rejects.toMatchObject({ code: "SO_RESPONSE_INVALID" });
+  });
+  it("validates the instances request: a Drive, a class key of the engine's form, a bounded page", () => {
+    expect(parseSuperOntologyRequest("structure-instances", { driveId: drive, classKey: "people_table" })).toEqual({ driveId: drive, classKey: "people_table" });
+    expect(parseSuperOntologyRequest("structure-instances", { driveId: drive, classKey: "budgets", limit: 50, cursor: "50" })).toEqual({ driveId: drive, classKey: "budgets", limit: 50, cursor: "50" });
+    for (const bad of [{ classKey: "Budgets" }, { classKey: "a/b" }, { classKey: "x".repeat(65) }, { classKey: undefined }, { limit: 0 }, { limit: 201 }, { extra: 1 }]) expect(() => parseSuperOntologyRequest("structure-instances", { driveId: drive, classKey: "budgets", ...bad })).toThrow();
+  });
 });

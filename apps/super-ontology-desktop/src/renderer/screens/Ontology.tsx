@@ -31,7 +31,7 @@ export function Ontology() {
       </div>
       {app.ontologyTab === "entities" && <EntityList onOpen={setEntityKey} />}
       {app.ontologyTab === "atlas" && <Atlas onOpenEntity={setEntityKey} />}
-      {app.ontologyTab === "structure" && <Structure />}
+      {app.ontologyTab === "structure" && <Structure onOpenEntity={(key) => { app.setOntologyTab("entities"); setEntityKey(key); }} />}
       {app.ontologyTab === "ask" && <Ask />}
       {app.ontologyTab === "query" && <QueryPanel />}
       {app.ontologyTab === "files" && <OntologyFiles />}

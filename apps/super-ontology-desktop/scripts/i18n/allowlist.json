@@ -126,7 +126,8 @@
       "app:structure.source.section": "Section",
       "app:structure.type.date": "Date",
       "app:files.group.structure": "Structure",
-      "app:structure.type.version": "Version"
+      "app:structure.type.version": "Version",
+      "app:structure.instances.col.name": "Instance"
     },
     "de": {
       "app:status.engine": "Engine: {state}",

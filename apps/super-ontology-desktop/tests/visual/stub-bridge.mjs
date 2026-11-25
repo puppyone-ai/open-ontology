@@ -85,6 +85,59 @@ export function stubBridgeSource(scenario) {
         ] },
       ],
     };
+    // A filled table class (scenario.filled, docs-api 1.17): a confirmed project table whose rows became instances with typed values,
+    // some read from words, a link to a person each and the cell range of the row; eight rows over two pages.
+    const BUDGET_XLSX = "00000000-0000-4000-8000-0000000006f1"; const PLAN_CSV = "00000000-0000-4000-8000-0000000006f2";
+    if (scenario.filled) {
+      structure.classes.push({ class_key: "project_table", label: "project_table", kind: "project_table", shape: "table", status: "confirmed", version: 2, files: 2, rows: 8, sample_paths: ["finance/budgets-2027.xlsx"], signature: ["name", "owner", "budget", "yield", "launch", "status"],
+        filled: { files: 2, rows_total: 9, instances: 8, rows_unnamed: 1, cells: 29, relations: 8, rejected: 2, truncated_files: 1 },
+        properties: [
+          prop("name", "Project", "column", "project", 1, 2, ["Atlas", "Beacon"], { status: "confirmed" }),
+          prop("owner", "Owner", "column", "person", 1, 2, ["Daniel Kim", "Karen Wu"], { status: "confirmed", relation: { target: "people_table", target_kind: "class", resolved: 1, predicate: "about" } }),
+          prop("budget", "Budget", "column", "amount", 1, 2, ["六百八十五万元", "1.2 million dollars"], { status: "confirmed" }),
+          prop("yield", "Yield", "column", "percent", 0.88, 2, ["百分之八十八", "71.5%"], { status: "confirmed" }),
+          prop("launch", "Launch", "column", "date", 1, 2, ["三月十六号", "May second, 2027"], { status: "confirmed" }),
+          prop("status", "Status", "column", "enum", 1, 2, ["Active", "Planned"], { status: "confirmed", enum_values: ["Active", "Planned", "Paused"] }),
+        ] });
+    }
+    const instance = (n, name, file, anchor, values, owner) => ({
+      entity: { key: "thing:" + name.toLowerCase(), type: "Thing", name, label: "project_table" }, file, anchor, row: n + 1,
+      cells: Object.entries(values).map(([slug, value], i) => ({ fact_id: "00000000-0000-4000-8000-000000000" + String(700 + n * 10 + i), slug, name: slug, type: { budget: "amount", yield: "percent", launch: "date", status: "enum" }[slug], value })),
+      relations: owner ? [{ fact_id: "00000000-0000-4000-8000-000000000" + String(800 + n), predicate: "about", object: { key: "person:" + owner.toLowerCase().replace(/ /g, "-"), type: "Person", name: owner } }] : [],
+    });
+    const xlsx = { id: BUDGET_XLSX, path: "finance/budgets-2027.xlsx" }; const csv = { id: PLAN_CSV, path: "finance/q3-plan.csv" };
+    const cellsOf = (sheet, row) => ({ kind: "cells", sheet, range: "A" + row + ":F" + row });
+    const instances = [
+      instance(1, "Atlas", xlsx, cellsOf("Sheet1", 2), { budget: { amount: "6850000 CNY", original: "六百八十五万元" }, yield: { ratio: "0.88", original: "百分之八十八" }, launch: { date: "2027-03-16", original: "三月十六号" }, status: { enum: "Active" } }, "Daniel Kim"),
+      instance(2, "Beacon", xlsx, cellsOf("Sheet1", 3), { budget: { amount: "1200000 USD", original: "1.2 million dollars" }, yield: { ratio: "0.715" }, launch: { date: "2027-05-02", original: "May second, 2027" }, status: { enum: "Planned" } }, "Karen Wu"),
+      instance(3, "Cobalt", xlsx, cellsOf("Sheet1", 4), { budget: { amount: "450000 CNY" }, yield: { ratio: "0.9" }, launch: { date: "2027-06-30" }, status: { enum: "Active" } }, "Ralph Evans"),
+      instance(4, "Delta", xlsx, cellsOf("Sheet1", 5), { budget: { amount: "2300000 EUR" }, launch: { date: "2027-09-01", original: "九月一日" }, status: { enum: "Paused" } }, "Karen Wu"),
+      instance(5, "Ember", xlsx, cellsOf("Sheet1", 6), { budget: { amount: "98000000 CNY", original: "九千八百万元" }, yield: { ratio: "0.125", original: "twelve and a half percent" }, launch: { date: "2027-11-01" }, status: { enum: "Planned" } }, "Daniel Kim"),
+      instance(6, "Fjord", xlsx, cellsOf("Sheet1", 7), { budget: { amount: "15000 USD" }, yield: { ratio: "0.64" }, launch: { date: "2028-01-15", original: "January fifteenth" }, status: { enum: "Active" } }, "Ralph Evans"),
+      instance(7, "Garnet", csv, cellsOf(null, 2), { budget: { amount: "3200000 CNY", original: "三百二十万" }, yield: { ratio: "0.8" }, status: { enum: "Active" } }, "Karen Wu"),
+      instance(8, "Harbor", csv, cellsOf(null, 3), { budget: { amount: "760000 CNY" }, yield: { ratio: "0.55", original: "五成五" }, launch: { date: "2027-12-20" }, status: { enum: "Planned" } }, "Daniel Kim"),
+    ];
+    const instancesPage = (request) => {
+      const from = request.cursor ? Number(request.cursor) : 0; const size = 6;
+      return { class_key: request.classKey, total: instances.length, items: request.classKey === "project_table" ? instances.slice(from, from + size) : [], next_cursor: from + size < instances.length ? String(from + size) : null };
+    };
+    // The entity page of one instance: its typed values (some read from words), a link and an attribute of a kind this app does not know.
+    const atlasRef = { id: "00000000-0000-4000-8000-000000000601", key: "thing:atlas", type: "Thing", label: "project_table", name: "Atlas" };
+    const cellEvidence = (n, row) => ({ id: "00000000-0000-4000-8000-0000000006e" + n, file_id: BUDGET_XLSX, path: "finance/budgets-2027.xlsx", block_id: "blk_r" + row, anchor: cellsOf("Sheet1", row), src: "src:finance/budgets-2027.xlsx#Sheet1!A" + row + ":F" + row, origin: "rule" });
+    const attrFact = (n, predicate, value, extra = {}) => ({ id: "00000000-0000-4000-8000-0000000006a" + n, fact_key: String(n).repeat(64).slice(0, 64), subject: atlasRef, predicate, value, valid_from: null, confidence_bp: 9500, origin: "rule", status: "published", revision: 1, recorded_at: "2026-11-0" + n + "T09:00:00Z", evidence: [cellEvidence(n, 2)], evidence_total: 1, ...extra });
+    const entityDetail = (key) => key === "thing:atlas" ? { ...atlasRef, status: "active", revision: 1, aliases: [], facts: [
+      attrFact(1, "attr.budget", { amount: "6850000 CNY", original: "六百八十五万元" }),
+      attrFact(2, "attr.yield", { ratio: "0.88", original: "百分之八十八" }),
+      attrFact(3, "attr.launch", { date: "2027-03-16", original: "三月十六号" }),
+      attrFact(4, "attr.status", { enum: "Active" }),
+      attrFact(5, "attr.review_window", { duration: "P2W" }),
+      attrFact(6, "about", null, { object: { id: "00000000-0000-4000-8000-000000000602", key: "person:daniel-kim", type: "Person", name: "Daniel Kim" } }),
+    ] } : key === "ratio:88" ? { id: "00000000-0000-4000-8000-000000000603", key: "ratio:88", type: "Thing", label: "Ratio", name: "88%", status: "active", revision: 1,
+      aliases: [{ alias: "百分之八十八", origin: "rule", status: "active" }, { alias: "eighty-eight percent", origin: "rule", status: "active" }], facts: [
+        { id: "00000000-0000-4000-8000-0000000006b1", fact_key: "b".repeat(64), subject: { id: "00000000-0000-4000-8000-000000000604", key: "document:yield-review", type: "Document", name: "reports/yield-review.md" }, predicate: "mentions",
+          object: { id: "00000000-0000-4000-8000-000000000603", key: "ratio:88", type: "Thing", label: "Ratio", name: "88%" }, confidence_bp: 9000, origin: "rule", status: "published", revision: 1, recorded_at: "2026-11-08T09:00:00Z",
+          evidence: [{ id: "00000000-0000-4000-8000-0000000006e9", file_id: "00000000-0000-4000-8000-0000000006f3", path: "reports/yield-review.md", block_id: "blk_4", anchor: { kind: "text", line_start: 4, line_end: 4, char_start: 0, char_end: 40 }, src: "src:reports/yield-review.md#L4", quote: "Lens yield reached 百分之八十八 in the last run.", origin: "rule" }], evidence_total: 1 },
+      ] } : null;
     const structureYaml = "protocol: oo.docs.structure/v1\nstructure_version: 4\nsources: [documents]\ntypes:\n  - name: meeting_minutes\n    layer: structure\n    origin: documents\n    properties:\n      - name: attendees\n        type: person\n        relation: {target: people_table, kind: class}\nrelations: []\n";
     const structureOf = (driveId) => (driveId === DRIVE_ONE ? structure : { protocol: "oo.docs.structure/v1", version: 0, classes: [], coverage: { record_files: 0, in_class: 0, confirmed: 0, share_in_class: 0, share_confirmed: 0 } });
     const decideStructure = (request) => {
@@ -128,6 +181,8 @@ export function stubBridgeSource(scenario) {
         // The structure layer (D93): three classes for the first Drive (one confirmed, two proposed), none for the others; a decision changes them.
         case "structure-read": case "structure-induce": return structureOf(request.driveId);
         case "structure-decide": return decideStructure(request);
+        case "structure-instances": return instancesPage(request);
+        case "entity-detail": return entityDetail(request?.entityIdOrKey) ?? empty;
         case "structure-yaml": return { protocol: "oo.docs.structure/v1", version: 4, sources: ["documents"], agent_db: "unbound", text: request.driveId === DRIVE_ONE ? structureYaml : "protocol: oo.docs.structure/v1\nstructure_version: 0\nsources: [documents]\ntypes: []\nrelations: []\n" };
         case "ontology-versions": return { items: [{ n: 3, facts_added: 6, facts_retracted: 0, published_at: "2026-11-09T10:00:00Z", as_of: "2026-11-09T10:00:00Z" }, { n: 2, facts_added: 4, facts_retracted: 1, published_at: "2026-11-05T10:00:00Z", as_of: "2026-11-05T10:00:00Z" }], next_cursor: null };
         case "engine-read": case "engine-preflight": case "engine-start": case "engine-restart": return snapshot(scenario.engine);
@@ -153,7 +208,7 @@ export function stubBridgeSource(scenario) {
         case "files-list": return scenario.unlinked ? { items: files.filter((f) => f.drive_id === request?.driveId), next_cursor: null } : empty;
         case "file-detail": return scenario.unlinked ? detail(request?.fileId) : empty;
         case "ask-run": return askAnswers[scenario.ask] ?? askAnswers.answered;
-        case "entities-search": return { items: entities, next_cursor: null };
+        case "entities-search": return { items: scenario.filled ? [...entities, { id: "00000000-0000-4000-8000-000000000601", key: "thing:atlas", type: "Thing", label: "project_table", name: "Atlas", counts: { facts: 6 } }, { id: "00000000-0000-4000-8000-000000000603", key: "ratio:88", type: "Thing", label: "Ratio", name: "88%", counts: { facts: 0 } }] : entities, next_cursor: null };
         case "agent-token-list": return empty;
         case "model-config-read": return scenario.ask ? { configured: scenario.ask !== "no_model", provider: "openai-compatible", base_url: "https://model.example.test/v1", model: "example-model", key_ref: "file:/k" } : { configured: false };
         case "events-subscribe": return scenario.live ? { instanceId: "stub", lastSeq: 0, connection: { state: "connected", attempt: 0, nextRetryAt: null, lastSeq: 0 } } : { instanceId: "stub", seq: 0 };
