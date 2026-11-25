@@ -390,3 +390,39 @@ fn coercion_per_type() {
     );
     assert_eq!(c(ValueType::Person, "p", "Daniel Ortiz"), None);
 }
+
+#[test]
+fn a_column_that_points_at_another_class_does_not_name_the_row() {
+    // An expense table: the `employee` column (the concept `name`) is a person of the people class, the receipt names the row.
+    let mut employee = prop("name", "name", ValueType::Person);
+    employee.relation = Some(crate::structure::Relation {
+        target: "people_table".into(),
+        target_kind: "class".into(),
+        resolved: 1.0,
+        predicate: "mentions".into(),
+    });
+    let c = class(
+        "other",
+        vec![
+            employee,
+            prop("receipt", "receipt", ValueType::Id),
+            prop("amount", "amount", ValueType::Amount),
+        ],
+    );
+    let (x, f) = fill(
+        "Name,Receipt,Amount\nMara Lindqvist,RC1000,$120\nMara Lindqvist,RC1001,$157\nTobias Wren,RC1002,$194\n",
+        &c,
+    );
+    assert_eq!(f.rows_filled, 3);
+    assert!(
+        x.entities
+            .iter()
+            .any(|m| m.entity.ty == EntityType::Thing && m.entity.name == "RC1001")
+    );
+    let rel = x
+        .facts
+        .iter()
+        .find(|f| f.subject.name == "RC1001" && f.predicate == Predicate::About)
+        .unwrap();
+    assert_eq!(rel.object.as_ref().unwrap().name, "Mara Lindqvist");
+}

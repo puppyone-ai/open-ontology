@@ -141,16 +141,22 @@ const IDENTITY_KEYS: &[&str] = &[
     "employee_id",
 ];
 
-fn identity_candidate(p: &Property) -> bool {
-    matches!(
-        p.value_type,
-        ValueType::Person
-            | ValueType::Project
-            | ValueType::Organization
-            | ValueType::Id
-            | ValueType::Text
-            | ValueType::Enum
-    ) && !p.multi
+/// A column can name the instance when its values are names or codes of the rows themselves: not a list, and not a
+/// relation to the records of another class (an `employee` column of an expense table points at the people table).
+fn identity_candidate(p: &Property, class_key: &str) -> bool {
+    p.relation
+        .as_ref()
+        .is_none_or(|r| r.target_kind != "class" || r.target == class_key)
+        && matches!(
+            p.value_type,
+            ValueType::Person
+                | ValueType::Project
+                | ValueType::Organization
+                | ValueType::Id
+                | ValueType::Text
+                | ValueType::Enum
+        )
+        && !p.multi
 }
 
 /// Share of the rows whose identity cell is distinct for a column to name the instance (a surrogate name is made otherwise).
@@ -158,21 +164,27 @@ const UNIQUE_SHARE: f64 = 0.9;
 
 /// The column that names the instance: a key that says so, else the leftmost column that can name a thing, among the
 /// columns whose values tell the rows apart (`distinct[i]` is the share of distinct non-empty cells of column `i`).
-fn identity_column(cols: &[Option<Column<'_>>], distinct: &[f64]) -> Option<usize> {
+fn identity_column(
+    cols: &[Option<Column<'_>>],
+    distinct: &[f64],
+    class_key: &str,
+) -> Option<usize> {
     let unique = |i: usize| distinct.get(i).is_some_and(|d| *d >= UNIQUE_SHARE);
     for k in IDENTITY_KEYS {
         if let Some(i) = cols.iter().enumerate().position(|(i, c)| {
             unique(i)
                 && c.as_ref().is_some_and(|c| {
-                    identity_candidate(c.prop) && c.prop.keys.iter().any(|x| x == k)
+                    identity_candidate(c.prop, class_key) && c.prop.keys.iter().any(|x| x == k)
                 })
         }) {
             return Some(i);
         }
     }
-    cols.iter()
-        .enumerate()
-        .position(|(i, c)| unique(i) && c.as_ref().is_some_and(|c| identity_candidate(c.prop)))
+    cols.iter().enumerate().position(|(i, c)| {
+        unique(i)
+            && c.as_ref()
+                .is_some_and(|c| identity_candidate(c.prop, class_key))
+    })
 }
 
 /// The label of the `Thing` an instance of this class is (`[A-Za-z0-9 CJK]`, at most 20 characters).
@@ -427,7 +439,7 @@ pub fn apply(
                 set.len() as f64 / rows.len().max(1) as f64
             })
             .collect();
-        let ident = identity_column(&cols, &distinct);
+        let ident = identity_column(&cols, &distinct, &class.class_key);
         let sty = match ident.and_then(|i| cols[i].as_ref()) {
             Some(c) => subject_type(class, c.prop, &c.header),
             None => EntityType::Thing,

@@ -592,6 +592,24 @@ fn decimals_are_exact_and_bounded() {
 }
 
 #[test]
+fn a_date_is_a_date_in_some_context() {
+    for s in [
+        "下周二",
+        "tomorrow",
+        "3月16日",
+        "March sixteenth",
+        "next Friday",
+        "2027-03-16",
+        "三天后",
+    ] {
+        assert!(date::is_date_text(s), "{s}");
+    }
+    for s in ["周二", "soon", "TBD", "下周", "next week", "第一", "一些"] {
+        assert!(!date::is_date_text(s), "{s}");
+    }
+}
+
+#[test]
 fn the_number_of_cases_is_at_least_150() {
     // The tables above are the cases; this guards against deleting them.
     let n = 36 + 23 + 29 + 21 + 17 + 24 + 35 + 25 + 20 + 35 + 20;

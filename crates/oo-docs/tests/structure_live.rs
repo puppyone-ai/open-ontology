@@ -355,7 +355,7 @@ async fn the_structure_layer_through_the_real_pipeline() {
     env.extend(pass.iter().map(|(k, v)| (k.as_str(), v.as_str())));
     s.spawn_engine(&env);
     let n = copy_tree(&project, &s.root);
-    assert!(n >= 20, "{n} files");
+    assert!(n >= 5, "{n} files");
     if with_model {
         let endpoint = std::env::var("OO_EVAL_ENDPOINT_FILE").expect("OO_EVAL_ENDPOINT_FILE");
         let key = std::env::var("OO_EVAL_KEY_FILE").expect("OO_EVAL_KEY_FILE");

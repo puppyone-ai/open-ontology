@@ -707,6 +707,16 @@ async fn structure_cmd(d: &Daemon, p: &Parsed, sub: &str) -> Result<(), CliError
                 c["status"].as_str().unwrap_or(""),
                 c["files"].as_u64().unwrap_or(0)
             ));
+            if let Some(f) = c.get("filled") {
+                lines.push(format!(
+                    "  filled: {} instance(s) of {} row(s), {} value(s), {} relation(s), {} not read",
+                    f["instances"].as_u64().unwrap_or(0),
+                    f["rows_total"].as_u64().unwrap_or(0),
+                    f["cells"].as_u64().unwrap_or(0),
+                    f["relations"].as_u64().unwrap_or(0),
+                    f["rejected"].as_u64().unwrap_or(0)
+                ));
+            }
             for pr in c["properties"].as_array().into_iter().flatten() {
                 lines.push(format!(
                     "  {:<20} {:<13} {:>4.0}%  {}",

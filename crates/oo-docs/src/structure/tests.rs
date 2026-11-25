@@ -104,6 +104,67 @@ fn values_decide_the_type() {
 }
 
 #[test]
+fn values_written_in_words_decide_the_type_too() {
+    let lex = Lexicon::new();
+    let t = |k: &str, v: &[&str]| infer(k, &vs(v), &lex, true).value_type;
+    assert_eq!(
+        t("x", &["六百八十五万元", "142万", "3.5亿", "¥2,480,000"]),
+        ValueType::Amount
+    );
+    assert_eq!(
+        t(
+            "x",
+            &[
+                "six point eight five million",
+                "$3.5m",
+                "USD 2.5 million",
+                "two hundred thousand dollars"
+            ]
+        ),
+        ValueType::Amount
+    );
+    assert_eq!(
+        t("x", &["百分之八十八", "71%", "三成五", "12 percent"]),
+        ValueType::Percent
+    );
+    assert_eq!(
+        t(
+            "x",
+            &[
+                "二〇二七年三月十六日",
+                "March 16, 2027",
+                "2027-03-05",
+                "2027年3月1日"
+            ]
+        ),
+        ValueType::Date
+    );
+    assert_eq!(
+        t("x", &["3月16日", "下周二", "明天", "二月十日"]),
+        ValueType::Date
+    );
+    assert_eq!(
+        t(
+            "x",
+            &[
+                "March sixteenth",
+                "next Tuesday",
+                "tomorrow",
+                "16th of March"
+            ]
+        ),
+        ValueType::Date
+    );
+    assert_eq!(t("x", &["三十", "二十五", "12", "一百"]), ValueType::Number);
+    // Words that are not numbers stay what they were.
+    assert_eq!(
+        t("x", &["Daniel Kim", "Karen Wu", "Ralph Evans"]),
+        ValueType::Text
+    );
+    assert_ne!(t("x", &["一些", "十分", "第一"]), ValueType::Number);
+}
+
+#[test]
 fn a_value_that_names_an_entity_makes_a_relation_type() {
     let mut lex = Lexicon::new();
     lex.add("Project", "星河");

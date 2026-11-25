@@ -111,8 +111,8 @@ fn is_date(s: &str) -> bool {
     if parse_exact(t).is_some() {
         return true;
     }
-    // A date written in words with its year (`二〇二七年三月十六日`, `March 16, 2027`); a relative date needs a document.
-    if crate::values::date::parse(t, &crate::values::DateCtx::NONE).is_some() {
+    // A date written in words (`二〇二七年三月十六日`, `March 16, 2027`, `3月16日`, `下周二`, `tomorrow`): read against a document later.
+    if crate::values::date::is_date_text(t) {
         return true;
     }
     // A date with a time of day (`2026-03-04 10:00`, `2026-03-04T10:00:00`).

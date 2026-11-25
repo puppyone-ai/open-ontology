@@ -774,3 +774,13 @@ pub fn parse(s: &str, ctx: &DateCtx) -> Option<NormDate> {
     let (n, e) = at(&cs, 0, ctx)?;
     (e == cs.len()).then_some(n)
 }
+
+/// Whether `s` is a date in some document context: an absolute date, or a relative one or one without a year that a
+/// document would resolve (`下周二`, `tomorrow`, `3月16日`). Used to type a column of dates before any document is read.
+/// Two probe days half a year apart (both Sundays) cover every month and every weekday word.
+pub fn is_date_text(s: &str) -> bool {
+    parse(s, &DateCtx::NONE).is_some()
+        || ["2027-01-03", "2027-07-04"]
+            .iter()
+            .any(|d| parse(s, &DateCtx::on(d)).is_some())
+}
