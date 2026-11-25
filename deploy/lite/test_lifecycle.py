@@ -26,9 +26,9 @@ class Tests(unittest.TestCase):
         def stack(*n):return {'sources':[{'scope':{'include':[f't{i}' for i in range(k)]}} for k in n]}
         with patch.dict(os.environ,{},clear=False):
             os.environ.pop('OO_LITE_MODEL_CALL_LIMIT',None)
-            self.assertEqual(lifecycle.model_call_limit(stack(2)),6)
-            self.assertEqual(lifecycle.model_call_limit(stack(4)),14)
-            self.assertEqual(lifecycle.model_call_limit({'sources':[{}]}),6+4*30)
+            self.assertEqual(lifecycle.model_call_limit(stack(2)),12)
+            self.assertEqual(lifecycle.model_call_limit(stack(4)),28)
+            self.assertEqual(lifecycle.model_call_limit({'sources':[{}]}),12+8*30)
             self.assertEqual(lifecycle.model_call_limit(stack(5000)),4096)
         with patch.dict(os.environ,{'OO_LITE_MODEL_CALL_LIMIT':'20'}):
             self.assertEqual(lifecycle.model_call_limit(stack(2)),20)

@@ -35,12 +35,17 @@ def parse_ledger(text):
     return rows
 
 
-def check(ledger_text, plans_on_ref, frontend_plans=None):
+def check(ledger_text, plans_on_ref, frontend_plans=None, new_plans=None):
     """plans_on_ref: set of Plan values found on the OO integration ref.
 
     frontend_plans: Plan values found on the Puppyone integration ref, or None
     when that repository is not given. SO-F-* cards live in Puppyone (50 §2.2),
     so without it their merged/signed rows are not checked (and say so).
+
+    new_plans: Plan values introduced in <base>..<ref> (None: all of plans_on_ref).
+    plans_on_ref is the backing set for merged/signed rows and always comes
+    from the whole ref history; only the "every Plan needs a row" direction is
+    limited to new_plans.
     """
     bad = []
     seen = set()
@@ -67,7 +72,7 @@ def check(ledger_text, plans_on_ref, frontend_plans=None):
             continue
         if status in ("merged", "signed") and card not in plans_on_ref:
             bad.append((n, f"{card}: status {status} but no commit with this Plan: on the integration ref"))
-    for p in sorted(plans_on_ref):
+    for p in sorted(plans_on_ref if new_plans is None else new_plans):
         if p not in cards:
             bad.append((0, f"{p}: Plan: on the integration ref has no ledger row"))
     return bad
@@ -88,7 +93,7 @@ def main(argv=None):
     ap.add_argument("--repo", default=".")
     ap.add_argument("--ledger", default="execution/super-ontology/ledger.md")
     ap.add_argument("--ref", default="HEAD", help="integration branch ref")
-    ap.add_argument("--base", help="only consider commits in <base>..<ref> (default: whole history)")
+    ap.add_argument("--base", help="limit the \"every Plan needs a row\" direction to commits in <base>..<ref> (default: whole history); merged/signed rows are always backed by the whole ref history")
     ap.add_argument("--puppyone-repo", help="Puppyone checkout holding codex/super-drive (checks SO-F-* rows)")
     ap.add_argument("--puppyone-ref", default="codex/super-drive")
     ap.add_argument("--puppyone-base", help="Puppyone base (e.g. main) for <base>..<ref>")
@@ -98,7 +103,8 @@ def main(argv=None):
         path = a.ledger if os.path.isabs(a.ledger) else os.path.join(a.repo, a.ledger)
         text = open(path, encoding="utf-8").read()
         frontend = plans_on(a.puppyone_repo, a.puppyone_ref, a.puppyone_base) if a.puppyone_repo else None
-        bad = check(text, plans_on(a.repo, a.ref, a.base), frontend)
+        new = plans_on(a.repo, a.ref, a.base) if a.base else None
+        bad = check(text, plans_on(a.repo, a.ref), frontend, new)
         if frontend is None:
             print("ledger: SO-F-* rows not checked (no --puppyone-repo)")
     except (RuntimeError, OSError) as e:

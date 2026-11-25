@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime, timezone
 
 def model_call_limit(stack):
-    """Builder model-call budget: 6 covers two tables; each further table adds 4 (batch + repairs).
+    """Builder model-call budget: 12 covers two tables; each further table adds 8 (batch, repairs and transient retries).
     A wildcard scope is sized as 32 tables. OO_LITE_MODEL_CALL_LIMIT (1..4096) overrides."""
     raw=os.environ.get('OO_LITE_MODEL_CALL_LIMIT')
     if raw is not None:
@@ -28,7 +28,7 @@ def model_call_limit(stack):
     for source in stack.get('sources',[]):
         include=(source.get('scope') or {}).get('include') or ['*']
         tables+=32 if any('*' in i for i in include) else len(include)
-    return min(4096,6+4*max(0,tables-2))
+    return min(4096,12+8*max(0,tables-2))
 
 def publication_health(history, services_up, now=None):
     published=history.get('data_published_at')
