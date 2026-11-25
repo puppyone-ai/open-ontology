@@ -927,8 +927,8 @@ Generated from CLI, npm wrapper, Gateway, SDK, stack, loader, retained publisher
 | `SOURCE_CATALOG_UNSUPPORTED` | [configuration-and-source](#configuration-and-source) | [`build_retained.rs:42`](../../crates/oo-cli/src/admin/build_retained.rs#L42) |
 | `SOURCE_SIGN_IN_FAILED` | [configuration-and-source](#configuration-and-source) | [`main.rs:138`](../../deploy/lite/mysql-doctor/src/main.rs#L138) |
 | `SOURCE_TLS_CA_REQUIRED` | [connectivity](#connectivity) | [`doctor.rs:381`](../../crates/oo-cli/src/admin/doctor.rs#L381) |
-| `SO_MODEL_SECRET_EXISTS` | [model](#model) | [`docs_cmd.rs:1389`](../../crates/oo-cli/src/docs/docs_cmd.rs#L1389) |
-| `SO_MODEL_SECRET_WRITE` | [model](#model) | [`docs_cmd.rs:1397`](../../crates/oo-cli/src/docs/docs_cmd.rs#L1397) |
+| `SO_MODEL_SECRET_EXISTS` | [model](#model) | [`docs_cmd.rs:1399`](../../crates/oo-cli/src/docs/docs_cmd.rs#L1399) |
+| `SO_MODEL_SECRET_WRITE` | [model](#model) | [`docs_cmd.rs:1407`](../../crates/oo-cli/src/docs/docs_cmd.rs#L1407) |
 | `SO_SOURCE_BAD_CONFIG` | [configuration-and-source](#configuration-and-source) | [`upload.rs:596`](../../crates/oo-cli/src/docs/upload.rs#L596) |
 | `SO_SOURCE_BAD_CREDENTIAL` | [credentials](#credentials) | [`source.rs:178`](../../crates/oo-cli/src/docs/source.rs#L178) |
 | `SO_SOURCE_BAD_STACK` | [configuration-and-source](#configuration-and-source) | [`source_db.rs:135`](../../crates/oo-cli/src/docs/source_db.rs#L135) |
