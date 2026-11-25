@@ -183,6 +183,46 @@ async fn snapshot(
     )
     .unwrap();
     let n = facts(s, out, tag).await;
+    // D93: the instances a confirmed table class filled (one per row), with their typed values and the cell range.
+    let mut instances = serde_json::Map::new();
+    for c in doc["classes"].as_array().into_iter().flatten() {
+        if c.get("filled").is_none() {
+            continue;
+        }
+        let key = c["class_key"].as_str().unwrap();
+        let mut items: Vec<Value> = Vec::new();
+        let mut cursor: Option<String> = None;
+        loop {
+            let q = cursor
+                .as_ref()
+                .map_or(String::new(), |c| format!("&cursor={c}"));
+            let r = s
+                .call(
+                    "GET",
+                    &format!(
+                        "/v1/docs/drives/{drive_id}/structure/classes/{key}/instances?limit=200{q}"
+                    ),
+                    None,
+                )
+                .await;
+            assert_eq!(r.status, 200, "{}", String::from_utf8_lossy(&r.body));
+            let page = r.json();
+            items.extend(page["items"].as_array().cloned().unwrap_or_default());
+            cursor = page["next_cursor"].as_str().map(str::to_owned);
+            if cursor.is_none() {
+                break;
+            }
+        }
+        instances.insert(
+            key.to_owned(),
+            json!({"filled": c["filled"], "label": c["label"], "kind": c["kind"], "items": items}),
+        );
+    }
+    std::fs::write(
+        out.join(format!("instances-{tag}.json")),
+        serde_json::to_string_pretty(&instances).unwrap(),
+    )
+    .unwrap();
     let files: serde_json::Map<String, Value> = st
         .iter()
         .map(|(p, (state, code))| {

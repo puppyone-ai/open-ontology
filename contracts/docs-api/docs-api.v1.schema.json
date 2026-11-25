@@ -1365,7 +1365,8 @@
           "type": [
             "object",
             "null"
-          ]
+          ],
+          "description": "An attribute value: exactly one typed key with a non-empty string, `text`, `date` (ISO), `enum`, and from 1.17 `amount` (`6850000 CNY`, whole currency units and the code when the text names one), `number` and `ratio` (a fraction: `0.12` is 12 percent); with an optional `original` string, the text as written when the value was normalised from words (`六百八十五万元`, `March sixteenth`, `百分之十二`)."
         },
         "valid_from": {
           "type": [
@@ -6584,7 +6585,7 @@
         "sample_paths",
         "signature"
       ],
-      "description": "One class of record files with its structure (1.16, D93). `kind` is `meeting_minutes`, `decision_log`, `weekly_report`, `people_table`, `project_table`, `contract` or `other`. A class is `proposed` until a person confirms it; the extraction reads only a confirmed class.",
+      "description": "One class of record files with its structure (1.16, D93). `kind` is `meeting_minutes`, `decision_log`, `weekly_report`, `people_table`, `project_table`, `contract` or `other`. A class is `proposed` until a person confirms it; the extraction reads only a confirmed class. A confirmed table class also carries `filled` (1.17): what its rows filled.",
       "properties": {
         "class_key": {
           "type": "string",
@@ -6640,6 +6641,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "filled": {
+          "$ref": "#/$defs/StructureFilled"
         }
       },
       "examples": [
@@ -6947,6 +6951,332 @@
           ],
           "agent_db": "unbound",
           "text": "protocol: oo.docs.structure/v1\nstructure_version: 2\nsources: [documents]\ntypes: []\nrelations: []\n"
+        }
+      ]
+    },
+    "StructureFilled": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "files",
+        "rows_total",
+        "instances",
+        "cells",
+        "relations",
+        "rejected"
+      ],
+      "description": "What the extraction of a confirmed table class filled (1.17, D93), summed over the current version of its files: every data row is an instance of the class, every mapped column a typed value (`cells`) or a relation to an entity of another class (`relations`). `rows_total` counts the data rows seen, `instances` those that became an instance, `rows_unnamed` those without a name, `rejected` the cells that were not a value of the type of their property (not written as another type). A file is read up to 5,000 rows per extraction; `truncated_files` counts the files that have more.",
+      "properties": {
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rows_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "instances": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rows_unnamed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cells": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "relations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rejected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "truncated_files": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "examples": [
+        {
+          "files": 2,
+          "rows_total": 16,
+          "instances": 16,
+          "rows_unnamed": 0,
+          "cells": 80,
+          "relations": 16,
+          "rejected": 1,
+          "truncated_files": 0
+        }
+      ]
+    },
+    "StructureInstance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "entity",
+        "file",
+        "anchor",
+        "row",
+        "cells",
+        "relations"
+      ],
+      "description": "One instance of a table class (1.17, D93): a row. `entity` is the instance, `file` the sheet it is in, `anchor` the cell range of the row (`{\"kind\":\"cells\",\"sheet\":\"Sheet1\",\"range\":\"A5:D5\"}`: the app jumps to it), `cells` the typed values with the property they fill, `relations` the entities of other classes the row names. A value normalised from words carries the text as written in `value.original`.",
+      "properties": {
+        "entity": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "key",
+            "type",
+            "name"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "file": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "id",
+            "path"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "anchor": {
+          "type": "object"
+        },
+        "row": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "fact_id",
+              "slug",
+              "value"
+            ],
+            "properties": {
+              "fact_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "fact_id",
+              "predicate",
+              "object"
+            ],
+            "properties": {
+              "fact_id": {
+                "$ref": "#/$defs/Uuid"
+              },
+              "predicate": {
+                "type": "string"
+              },
+              "object": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "key": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "examples": [
+        {
+          "entity": {
+            "key": "thing:0123456789abcdef01234567",
+            "type": "Thing",
+            "name": "星河",
+            "label": "budgets"
+          },
+          "file": {
+            "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+            "path": "finance/budget.csv"
+          },
+          "anchor": {
+            "kind": "cells",
+            "sheet": null,
+            "range": "A2:F2"
+          },
+          "row": 2,
+          "cells": [
+            {
+              "fact_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "slug": "budget",
+              "name": "Budget",
+              "type": "amount",
+              "value": {
+                "amount": "6850000 CNY",
+                "original": "六百八十五万元"
+              }
+            }
+          ],
+          "relations": [
+            {
+              "fact_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+              "predicate": "about",
+              "object": {
+                "key": "person:0123456789abcdef01234567",
+                "type": "Person",
+                "name": "周若溪"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "StructureInstances": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "class_key",
+        "total",
+        "items"
+      ],
+      "description": "One page of the instances of a table class (1.17), in file and row order. `total` is the number of instances; `next_cursor` continues the list.",
+      "properties": {
+        "class_key": {
+          "type": "string"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StructureInstance"
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "class_key": "budgets",
+          "total": 1,
+          "items": [
+            {
+              "entity": {
+                "key": "thing:0123456789abcdef01234567",
+                "type": "Thing",
+                "name": "星河",
+                "label": "budgets"
+              },
+              "file": {
+                "id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+                "path": "finance/budget.csv"
+              },
+              "anchor": {
+                "kind": "cells",
+                "sheet": null,
+                "range": "A2:F2"
+              },
+              "row": 2,
+              "cells": [
+                {
+                  "fact_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+                  "slug": "budget",
+                  "name": "Budget",
+                  "type": "amount",
+                  "value": {
+                    "amount": "6850000 CNY",
+                    "original": "六百八十五万元"
+                  }
+                }
+              ],
+              "relations": [
+                {
+                  "fact_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+                  "predicate": "about",
+                  "object": {
+                    "key": "person:0123456789abcdef01234567",
+                    "type": "Person",
+                    "name": "周若溪"
+                  }
+                }
+              ]
+            }
+          ],
+          "next_cursor": null
         }
       ]
     }
@@ -7709,6 +8039,15 @@
       "idempotency_key": false,
       "if_match": false,
       "since": "1.16"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/docs/drives/{id}/structure/classes/{class_key}/instances",
+      "request": null,
+      "response": "StructureInstances",
+      "idempotency_key": false,
+      "if_match": false,
+      "since": "1.17"
     }
   ]
 }

@@ -130,7 +130,12 @@ fn attr_cn(name: &str) -> &str {
 }
 
 fn value_text(v: &Value) -> String {
-    for k in ["text", "date", "enum"] {
+    if let Some(r) = v.get("ratio").and_then(Value::as_str)
+        && let Some(d) = crate::values::Dec::parse_ascii(r).and_then(|d| d.pow10(2))
+    {
+        return format!("{}%", d.to_plain());
+    }
+    for k in ["text", "date", "enum", "amount", "number"] {
         if let Some(s) = v.get(k).and_then(Value::as_str) {
             return s.to_owned();
         }

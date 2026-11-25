@@ -15,7 +15,7 @@ use sqlx::{Connection, Executor, Row};
 #[test]
 fn compiled_files_have_stable_shape() {
     let list = migrations();
-    assert_eq!(list.len(), 18);
+    assert_eq!(list.len(), 19);
     let mut seen = std::collections::HashSet::new();
     for (m, min) in list.iter().zip(SCHEMA_MIN) {
         assert_eq!(m.version, min);
@@ -108,7 +108,7 @@ async fn empty_db_install_then_readiness() {
     .await
     .unwrap();
     let extra = usize::from(has_vector(&mut admin).await);
-    assert_eq!(rows.len(), 18 + extra);
+    assert_eq!(rows.len(), 19 + extra);
     for (row, m) in rows.iter().zip(migrations()) {
         assert_eq!(row.0, m.version);
         assert_eq!(row.1, m.sha256());
@@ -641,9 +641,45 @@ async fn a_database_at_0159_upgrades_to_0160_with_the_structure_layer() {
     .fetch_one(&mut admin)
     .await
     .unwrap();
-    assert_eq!(tables, 5);
+    assert_eq!(tables, 6, "five structure tables and the fill counts");
     let bad = admin
         .execute("INSERT INTO _oo_docs.structure_version (drive_id, n, reason, actor, doc) VALUES (gen_random_uuid(), 1, 'whatever', 'engine', '{}')")
         .await;
     assert!(bad.is_err(), "the version reason is a closed list");
+}
+
+/// A database at 0160 upgrades to 0161 in place: the table of what each file's extraction filled (D93) exists, empty, one
+/// row per file.
+#[tokio::test]
+#[ignore = "needs OO_DOCS_TEST_PG_PORT (labelled postgres container)"]
+async fn a_database_at_0160_upgrades_to_0161_with_the_fill_counts() {
+    let _g = CLUSTER_LOCK.lock().await;
+    let db = "oo_docs_it_upgrade_0161";
+    installed_db(db).await;
+    let mut admin = connect(db).await;
+    admin
+        .execute("DROP TABLE _oo_docs.structure_fill")
+        .await
+        .unwrap();
+    tamper(
+        &mut admin,
+        "DELETE FROM _oo_docs.schema_migrations WHERE version = 'docs-structure-fill/1'",
+    )
+    .await;
+    match install(&mut admin).await.expect("upgrade") {
+        InstallOutcome::Applied(versions) => {
+            assert_eq!(versions, vec!["docs-structure-fill/1"])
+        }
+        other => panic!("{other:?}"),
+    }
+    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM _oo_docs.structure_fill")
+        .fetch_one(&mut admin)
+        .await
+        .unwrap();
+    assert_eq!(n, 0);
+    let bad = admin
+        .execute("INSERT INTO _oo_docs.structure_fill (drive_id, file_id, version_id, class_key, rows_total, rows_filled, rows_unnamed, cells, relations, rejected) VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'x', -1, 0, 0, 0, 0, 0)")
+        .await;
+    assert!(bad.is_err(), "counts are never negative");
+    drop_db(db).await;
 }

@@ -872,6 +872,19 @@ async fn dispatch(app: &Arc<AppState>, req: &Req) -> Result<Response<Body>, ApiE
             method_allowed(req, &["POST"])?;
             structure::decide(app, id, req).await
         }
+        [
+            "v1",
+            "docs",
+            "drives",
+            id,
+            "structure",
+            "classes",
+            class_key,
+            "instances",
+        ] => {
+            method_allowed(req, &["GET"])?;
+            structure::instances(app, id, class_key, req).await
+        }
         ["v1", "docs", "drives", id, "structure", "yaml"] => {
             method_allowed(req, &["GET"])?;
             structure::yaml(app, id, req).await

@@ -6,8 +6,8 @@
 //! * G1 checks per fact: the predicate is one of the eight core relations or
 //!   `attr.*`; a relation has an object and no value, an attribute a value and
 //!   no object; subject and object types fit the domain / range table below;
-//!   the value is `{"text"|"date"|"enum": non-empty string}` of at most 2,000
-//!   characters. Entity types are the nine of D15 by construction. Per alias:
+//!   the value is `{"text"|"date"|"enum"|"amount"|"number"|"ratio": non-empty string}` of at most 2,000
+//!   characters, with an optional `"original"` string (the text as written, when the value was normalised from words). Entity types are the nine of D15 by construction. Per alias:
 //!   1 to 256 characters, no control characters.
 //! * G2 checks per fact and alias: at least one non-withdrawn evidence; every
 //!   evidence names a block that exists in the IR of its blob, with the
@@ -173,6 +173,7 @@ fn domain_range(p: &Predicate) -> Option<(&'static [T], &'static [T])> {
             &[T::Term, T::Topic, T::Decision, T::Project, T::Thing],
         ),
         Predicate::Mentions => (&[T::Document], &T::ALL),
+        // D93: the row of a table class is a Thing, an Organization, a Person or a Project that is about what its columns name.
         Predicate::About => (
             &[
                 T::Document,
@@ -181,6 +182,8 @@ fn domain_range(p: &Predicate) -> Option<(&'static [T], &'static [T])> {
                 T::Project,
                 T::Event,
                 T::Topic,
+                T::Thing,
+                T::Organization,
             ],
             &[
                 T::Project,
@@ -201,6 +204,22 @@ fn domain_range(p: &Predicate) -> Option<(&'static [T], &'static [T])> {
     })
 }
 
+/// The value keys of an `attr.*` fact (one of them, typed) and the optional spelling the value was read from.
+pub const VALUE_KEYS: [&str; 6] = ["text", "date", "enum", "amount", "number", "ratio"];
+
+/// An attribute value: exactly one typed key with a non-empty string, and at most an `original` string besides.
+pub fn valid_attr_value(o: &serde_json::Map<String, Value>) -> bool {
+    let string_ok = |v: &Value| {
+        v.as_str()
+            .is_some_and(|s| !s.trim().is_empty() && s.chars().count() <= MAX_VALUE_CHARS)
+    };
+    let typed = o.iter().filter(|(k, _)| k.as_str() != "original").count();
+    typed == 1
+        && o.len() <= 2
+        && o.iter()
+            .all(|(k, v)| (k == "original" || VALUE_KEYS.contains(&k.as_str())) && string_ok(v))
+}
+
 /// DOC-G1 for one fact. `Err` carries the reason code.
 pub fn g1_fact(f: &FactRow) -> Result<(), &'static str> {
     let Some(pred) = Predicate::parse(&f.predicate) else {
@@ -211,15 +230,7 @@ pub fn g1_fact(f: &FactRow) -> Result<(), &'static str> {
     };
     match (&pred, &f.object_type, &f.value) {
         (Predicate::Attr(_), None, Some(v)) => {
-            let ok = v.as_object().is_some_and(|o| {
-                o.len() == 1
-                    && o.iter().all(|(k, v)| {
-                        matches!(k.as_str(), "text" | "date" | "enum")
-                            && v.as_str().is_some_and(|s| {
-                                !s.trim().is_empty() && s.chars().count() <= MAX_VALUE_CHARS
-                            })
-                    })
-            });
+            let ok = v.as_object().is_some_and(valid_attr_value);
             if ok { Ok(()) } else { Err("schema_value") }
         }
         (Predicate::Attr(_), _, _) => Err("schema_shape"),

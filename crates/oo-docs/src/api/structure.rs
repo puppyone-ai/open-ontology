@@ -5,6 +5,8 @@
 //! * `POST /v1/docs/drives/{id}/structure:induce`: induce the structure now (it also runs after every publish).
 //! * `POST /v1/docs/drives/{id}/structure:decide`: a person's decision (accept, reject, rename, merge) on a class or a
 //!   property; a new schema version. Only a confirmed class is read by the extraction (template-driven extraction).
+//! * `GET /v1/docs/drives/{id}/structure/classes/{class_key}/instances`: the instances a confirmed table class filled
+//!   (one per row): the entity, its typed values, its relations and the cell range of the row in the sheet.
 //! * `GET /v1/docs/drives/{id}/structure/yaml[?database=0]`: the ontology YAML, with the database side and the
 //!   cross-links when an Agent DB is bound.
 
@@ -39,6 +41,17 @@ async fn schema(app: &AppState, id: &str) -> Result<Value, ApiError> {
     let mut conn = app.pool.acquire().await?;
     let (version, classes) = store::load(&mut conn, id).await?;
     let cov = store::coverage(&mut conn, id).await?;
+    let fill = store::fill_totals(&mut conn, id).await?;
+    let mut classes = serde_json::to_value(&classes).unwrap_or(Value::Null);
+    if let Some(list) = classes.as_array_mut() {
+        for c in list {
+            // Only a table class that was read row by row has filled counts; the others show none.
+            let key = c.get("class_key").and_then(Value::as_str).unwrap_or("");
+            if let Some(f) = fill.get(key) {
+                c["filled"] = json!(f);
+            }
+        }
+    }
     Ok(json!({
         "protocol": structure::PROTOCOL,
         "version": version,
@@ -213,5 +226,113 @@ pub async fn yaml(app: &Arc<AppState>, id: &str, req: &Req) -> Result<Response<B
             "protocol": structure::PROTOCOL, "version": version, "sources": if db.is_some() { json!(["documents", "database"]) } else { json!(["documents"]) },
             "agent_db": agent_db, "text": text,
         }),
+    ))
+}
+
+/// One page of the instances of a table class.
+pub async fn instances(
+    app: &AppState,
+    id: &str,
+    class_key: &str,
+    req: &Req,
+) -> Result<Response<Body>, ApiError> {
+    if req.method != Method::GET {
+        return Err(ApiError::not_found("route"));
+    }
+    ensure(app, id).await?;
+    let limit: i64 = match req.query.get("limit") {
+        None => 50,
+        Some(v) => v
+            .parse::<i64>()
+            .ok()
+            .filter(|n| (1..=200).contains(n))
+            .ok_or_else(|| ApiError::bad("/limit", "limit must be 1 to 200"))?,
+    };
+    let offset: i64 = match req.query.get("cursor") {
+        None => 0,
+        Some(v) => v
+            .parse::<i64>()
+            .ok()
+            .filter(|n| *n >= 0)
+            .ok_or_else(|| ApiError::bad("/cursor", "not a cursor of this list"))?,
+    };
+    let mut conn = app.pool.acquire().await?;
+    let (_, classes): (u32, Vec<ClassStructure>) = store::load(&mut conn, id).await?;
+    let class = classes
+        .iter()
+        .find(|c| c.class_key == class_key)
+        .ok_or_else(|| ApiError::not_found("class"))?;
+    let totals = store::fill_totals(&mut conn, id).await?;
+    let rows = sqlx::query(
+        "WITH page AS ( \
+           SELECT f.subject_id, ev.block_id, fv.path_at_version AS path, fv.file_id, ev.anchor, \
+                  COALESCE(NULLIF(substring(ev.anchor->>'range' from '[0-9]+'), '')::int, 0) AS rownum \
+             FROM _oo_docs.fact f \
+             JOIN _oo_docs.evidence ev ON ev.target_kind = 'fact' AND ev.target_id = f.id AND ev.withdrawn_at IS NULL \
+             JOIN _oo_docs.file_version fv ON fv.id = ev.version_id \
+             JOIN _oo_docs.structure_fill s ON s.drive_id = $1::uuid AND s.file_id = fv.file_id AND s.version_id = fv.id AND s.class_key = $2 \
+            WHERE f.rule_id = 'structure.row' AND f.status IN ('draft', 'published') AND f.retracted_at IS NULL \
+            GROUP BY f.subject_id, ev.block_id, fv.path_at_version, fv.file_id, ev.anchor \
+            ORDER BY fv.path_at_version, ev.anchor->>'sheet' NULLS FIRST, 6, f.subject_id LIMIT $3 OFFSET $4) \
+         SELECT p.block_id, p.path, p.file_id::text AS file_id, p.anchor::text AS anchor, p.rownum, \
+                es.key AS skey, es.type AS stype, es.canonical_name AS sname, es.thing_label, \
+                f.id::text AS fact_id, f.predicate, f.value::text AS value, eo.key AS okey, eo.type AS otype, eo.canonical_name AS oname \
+           FROM page p \
+           JOIN _oo_docs.entity es ON es.id = p.subject_id \
+           JOIN _oo_docs.fact f ON f.subject_id = p.subject_id AND f.rule_id = 'structure.row' AND f.status IN ('draft', 'published') AND f.retracted_at IS NULL \
+           JOIN _oo_docs.evidence ev2 ON ev2.target_kind = 'fact' AND ev2.target_id = f.id AND ev2.withdrawn_at IS NULL AND ev2.block_id = p.block_id \
+           LEFT JOIN _oo_docs.entity eo ON eo.id = f.object_id \
+          ORDER BY p.path, p.anchor->>'sheet' NULLS FIRST, p.rownum, es.key, f.predicate, f.id",
+    )
+    .bind(id)
+    .bind(class_key)
+    .bind(limit)
+    .bind(offset)
+    .fetch_all(&mut *conn)
+    .await?;
+    use sqlx::Row;
+    let mut items: Vec<Value> = Vec::new();
+    let mut last: Option<(String, String)> = None;
+    for r in &rows {
+        let key = (r.get::<String, _>("skey"), r.get::<String, _>("block_id"));
+        if last.as_ref() != Some(&key) {
+            let anchor: Value =
+                serde_json::from_str(&r.get::<String, _>("anchor")).unwrap_or(Value::Null);
+            items.push(json!({
+                "entity": {"key": key.0, "type": r.get::<String, _>("stype"), "name": r.get::<String, _>("sname"),
+                           "label": r.get::<Option<String>, _>("thing_label")},
+                "file": {"id": r.get::<String, _>("file_id"), "path": r.get::<String, _>("path")},
+                "anchor": anchor,
+                "row": r.get::<i32, _>("rownum"),
+                "cells": [], "relations": [],
+            }));
+            last = Some(key);
+        }
+        let item = items.last_mut().expect("an item was pushed");
+        let predicate: String = r.get("predicate");
+        match r.get::<Option<String>, _>("oname") {
+            Some(oname) => item["relations"].as_array_mut().expect("array").push(json!({
+                "fact_id": r.get::<String, _>("fact_id"), "predicate": predicate,
+                "object": {"key": r.get::<Option<String>, _>("okey"), "type": r.get::<Option<String>, _>("otype"), "name": oname},
+            })),
+            None => {
+                let slug = predicate.strip_prefix("attr.").unwrap_or(&predicate).to_owned();
+                let prop = class.property(&slug);
+                let value: Value = r
+                    .get::<Option<String>, _>("value")
+                    .and_then(|v| serde_json::from_str(&v).ok())
+                    .unwrap_or(Value::Null);
+                item["cells"].as_array_mut().expect("array").push(json!({
+                    "fact_id": r.get::<String, _>("fact_id"), "slug": slug,
+                    "name": prop.map(|p| p.name.clone()), "type": prop.map(|p| p.value_type.as_str()), "value": value,
+                }));
+            }
+        }
+    }
+    let total = totals.get(class_key).map_or(0, |t| i64::from(t.instances));
+    let next = (offset + limit < total).then(|| (offset + limit).to_string());
+    Ok(http::json(
+        200,
+        &json!({"class_key": class_key, "total": total, "items": items, "next_cursor": next}),
     ))
 }

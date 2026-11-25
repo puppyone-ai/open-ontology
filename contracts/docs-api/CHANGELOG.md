@@ -241,3 +241,12 @@ fields, endpoints, or enum values; clients ignore unknown fields and show unknow
 - `GET /v1/docs/drives/{id}/structure/yaml[?database=0]` (`StructureYaml`): the ontology YAML of both sides. With an Agent DB bound it holds the tables, columns, keys and foreign keys of the database and the cross-links where a
   document property names rows of a table through a link rule. Migration 0160 (`docs-structure/1`). No new error code. Additive.
 - Structure properties: `value_type` `version` (`v1.2.3`, `2.0`) and `aliases` (the other labels a property is written with: another language or spelling; the field labels of zh and en files of one kind of record align into one class, by the built-in dictionary and, for unknown labels, a cached model alignment, `structure_alignment` in 0160). Additive.
+
+## 1.17 (lane AT, table slot filling and values in words, D93)
+
+- `StructureClass.filled` (`StructureFilled`, optional): what the extraction of a confirmed table class filled. Every data row is an instance of the class (a Person, a Project, an Organization, or a `Thing` labelled with the class),
+  every column mapped to a confirmed property a typed value, every relation column a relation to an entity of another class. Provenance of each fact is the row's block, whose anchor is the cell range (`Sheet1!A5:D5`).
+- `GET /v1/docs/drives/{id}/structure/classes/{class_key}/instances[?limit&cursor]` (`StructureInstances`, `StructureInstance`): the instances of a table class with their typed values, relations and the cell range of the row.
+- `Fact.value` of an `attr.*` fact: new typed keys `amount` (`6850000 CNY`), `number` and `ratio` (a fraction) next to `text`, `date` and `enum`, and an optional `original` (the text as written when the value was read from words). Values written in
+  words are normalised (`六百八十五万`, `six point eight five million`, `三月十六号`, `March sixteenth`, `下周二`, `百分之十二`) and tie documents through the open `Amount`, `Date` and `Ratio` things. The relation `about` also takes a `Thing` or an `Organization` as subject.
+  Migration 0161 (`docs-structure-fill/1`). No new error code. Additive.
