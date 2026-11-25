@@ -569,10 +569,110 @@ pub async fn on_extract(
         return Ok(extraction);
     };
     let classes = load_confirmed(conn, &drive).await?;
+    if obs.shape == super::Shape::Table {
+        // A table of a confirmed class is read row by row: columns are the properties, rows are the instances.
+        let align = super::align::load(conn).await?;
+        let mut aligned = obs.clone();
+        super::align::apply_obs(&mut aligned, &align);
+        match class_for(&aligned, &classes) {
+            Some(c) if c.shape == super::Shape::Table => {
+                let f = super::tablefill::apply(path, ir, &mut extraction, c, &align);
+                record_fill(conn, &drive, version_id, &c.class_key, &f).await?;
+            }
+            _ => clear_fill(conn, version_id).await?,
+        }
+        return Ok(extraction);
+    }
     if let Some(c) = class_for(&obs, &classes) {
         super::template::apply(path, ir, &mut extraction, c, &classes);
     }
     Ok(extraction)
+}
+
+/// What the extraction of one file filled (the Structure tab shows it per class).
+pub async fn record_fill(
+    conn: &mut PgConnection,
+    drive_id: &str,
+    version_id: &str,
+    class_key: &str,
+    f: &super::tablefill::Filled,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO _oo_docs.structure_fill (drive_id, file_id, version_id, class_key, rows_total, rows_filled, rows_unnamed, cells, relations, rejected, truncated) \
+         SELECT $1::uuid, fv.file_id, fv.id, $3, $4, $5, $6, $7, $8, $9, $10 FROM _oo_docs.file_version fv WHERE fv.id = $2::uuid \
+         ON CONFLICT (drive_id, file_id) DO UPDATE SET version_id = EXCLUDED.version_id, class_key = EXCLUDED.class_key, rows_total = EXCLUDED.rows_total, \
+           rows_filled = EXCLUDED.rows_filled, rows_unnamed = EXCLUDED.rows_unnamed, cells = EXCLUDED.cells, relations = EXCLUDED.relations, \
+           rejected = EXCLUDED.rejected, truncated = EXCLUDED.truncated, filled_at = clock_timestamp()",
+    )
+    .bind(drive_id)
+    .bind(version_id)
+    .bind(class_key)
+    .bind(f.rows_total as i32)
+    .bind(f.rows_filled as i32)
+    .bind(f.rows_unnamed as i32)
+    .bind(f.cells as i32)
+    .bind(f.relations as i32)
+    .bind(f.rejected as i32)
+    .bind(f.truncated)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
+/// A file that is not read as a confirmed table class (any more) fills nothing.
+pub async fn clear_fill(conn: &mut PgConnection, version_id: &str) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM _oo_docs.structure_fill WHERE file_id = (SELECT file_id FROM _oo_docs.file_version WHERE id = $1::uuid)")
+        .bind(version_id)
+        .execute(&mut *conn)
+        .await?;
+    Ok(())
+}
+
+/// The filled instances of a class, summed over the current version of its files.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+pub struct FillTotals {
+    pub files: u32,
+    pub rows_total: u32,
+    pub instances: u32,
+    pub rows_unnamed: u32,
+    pub cells: u32,
+    pub relations: u32,
+    pub rejected: u32,
+    pub truncated_files: u32,
+}
+
+pub async fn fill_totals(
+    conn: &mut PgConnection,
+    drive_id: &str,
+) -> Result<BTreeMap<String, FillTotals>, sqlx::Error> {
+    let rows = sqlx::query(
+        "SELECT s.class_key, count(*) AS files, sum(s.rows_total) AS rows_total, sum(s.rows_filled) AS rows_filled, sum(s.rows_unnamed) AS rows_unnamed, \
+                sum(s.cells) AS cells, sum(s.relations) AS relations, sum(s.rejected) AS rejected, count(*) FILTER (WHERE s.truncated) AS truncated \
+           FROM _oo_docs.structure_fill s JOIN _oo_docs.file f ON f.id = s.file_id AND f.current_version_id = s.version_id AND f.deleted_at IS NULL \
+          WHERE s.drive_id = $1::uuid GROUP BY s.class_key",
+    )
+    .bind(drive_id)
+    .fetch_all(&mut *conn)
+    .await?;
+    let n = |r: &sqlx::postgres::PgRow, c: &str| r.try_get::<i64, _>(c).unwrap_or(0) as u32;
+    Ok(rows
+        .iter()
+        .map(|r| {
+            (
+                r.get::<String, _>("class_key"),
+                FillTotals {
+                    files: n(r, "files"),
+                    rows_total: n(r, "rows_total"),
+                    instances: n(r, "rows_filled"),
+                    rows_unnamed: n(r, "rows_unnamed"),
+                    cells: n(r, "cells"),
+                    relations: n(r, "relations"),
+                    rejected: n(r, "rejected"),
+                    truncated_files: n(r, "truncated"),
+                },
+            )
+        })
+        .collect())
 }
 
 /// The template section for the model's prompt of a file, when its class has a confirmed structure.
@@ -609,7 +709,7 @@ pub async fn explain_diff(
     }
     if !diff.added.is_empty() {
         let slot: Vec<String> = sqlx::query_scalar(
-            "SELECT DISTINCT fact_key FROM _oo_docs.fact WHERE fact_key = ANY($1::text[]) AND rule_id = 'structure.slot'",
+            "SELECT DISTINCT fact_key FROM _oo_docs.fact WHERE fact_key = ANY($1::text[]) AND rule_id IN ('structure.slot', 'structure.row')",
         )
         .bind(&diff.added)
         .fetch_all(&mut *conn)

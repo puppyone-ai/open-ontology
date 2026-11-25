@@ -48,6 +48,7 @@ pub mod store;
 pub mod structure;
 pub mod suggest;
 pub mod temporal;
+pub mod values;
 pub mod vector;
 
 #[cfg(feature = "failpoints")]

@@ -4,6 +4,7 @@ import { CLOUD_PROXY_PATH_PREFIX, CLOUD_ROUTE_NAMES } from "./cloud-proxy.mjs";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const KEY = /^[A-Za-z0-9._:~-]{1,200}$/u;
 const PATH = /^[^\0\\]{1,1024}$/u;
+const CLASS_KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 const BINARY_LIMIT_BYTES = 64 * 1024 * 1024;
 const RESPONSE_LIMIT_BYTES = 8 * 1024 * 1024;
 const RATE_LIMIT_MAX_WAIT_MS = 10_000;
@@ -62,6 +63,9 @@ const rawRoutes = {
   structureInduce: route("POST", "/v1/docs/drives/{id}/structure:induce", { params: { id: UUID }, idempotent: true }),
   structureDecide: route("POST", "/v1/docs/drives/{id}/structure:decide", { params: { id: UUID }, idempotent: true }),
   structureYaml: route("GET", "/v1/docs/drives/{id}/structure/yaml", { params: { id: UUID } }),
+  // docs-api 1.17: the instances of a confirmed table class (one per data row) with typed values, relations and the cell range of the row.
+  // The engine's template names the segment `{class_key}`; path templates here take lower-case letters only.
+  structureInstances: route("GET", "/v1/docs/drives/{id}/structure/classes/{classkey}/instances", { params: { id: UUID, classkey: CLASS_KEY } }),
   factCorrect: route("POST", "/v1/docs/facts/{id}:correct", { params: { id: UUID }, idempotent: true, ifMatch: true }),
   entitiesMerge: route("POST", "/v1/docs/entities:merge", { idempotent: true, ifMatch: true }),
   entitySplit: route("POST", "/v1/docs/entities/{eid}:split", { params: { eid: KEY }, idempotent: true, ifMatch: true }),

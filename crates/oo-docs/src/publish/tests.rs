@@ -130,6 +130,57 @@ fn g1_rejects_each_kind_of_violation() {
 }
 
 #[test]
+fn g1_takes_typed_values_and_rows_that_are_about_something() {
+    // D93: an attribute value is one typed key (text, date, enum, amount, number, ratio), with the text as written beside it.
+    for v in [
+        json!({"amount": "6850000 CNY"}),
+        json!({"amount": "6850000 CNY", "original": "六百八十五万元"}),
+        json!({"ratio": "0.88", "original": "百分之八十八"}),
+        json!({"number": "30"}),
+        json!({"date": "2027-03-16", "original": "三月十六号"}),
+    ] {
+        assert_eq!(
+            g1_fact(&fact("attr.budget", "Thing", None, Some(v.clone()))),
+            Ok(()),
+            "{v}"
+        );
+    }
+    for v in [
+        json!({"original": "x"}),
+        json!({"amount": "1", "ratio": "0.1"}),
+        json!({"amount": "1", "original": ""}),
+        json!({"amount": "1", "note": "x"}),
+        json!({"amount": 1}),
+    ] {
+        assert_eq!(
+            g1_fact(&fact("attr.budget", "Thing", None, Some(v.clone()))),
+            Err("schema_value"),
+            "{v}"
+        );
+    }
+    // A row that is a Thing or an Organization is about the person, project or organization its column names.
+    for s in ["Thing", "Organization", "Project", "Person"] {
+        assert_eq!(
+            g1_fact(&fact("about", s, Some("Person"), None)),
+            Ok(()),
+            "{s}"
+        );
+    }
+    assert_eq!(
+        g1_fact(&fact("about", "Thing", Some("Organization"), None)),
+        Ok(())
+    );
+    assert_eq!(
+        g1_fact(&fact("about", "Thing", Some("Thing"), None)),
+        Err("schema_range")
+    );
+    assert_eq!(
+        g1_fact(&fact("about", "Recording", Some("Person"), None)),
+        Err("schema_domain")
+    );
+}
+
+#[test]
 fn g1_alias_rules() {
     let a = |alias: &str, t: &str| AliasRow {
         id: "x".into(),

@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::observe::{CONCEPTS, FieldObs, FileObs, dir_levels, slug_of};
-use super::vtype::{Lexicon, infer, items_of};
+use super::vtype::{Lexicon, infer_labeled, items_of};
 use super::{
     ClassStructure, FieldSource, MIN_COVERAGE, MIN_FIELD_FILES, MIN_FILES, MIN_ROWS, Property,
     REQUIRED_COVERAGE, Relation, Shape, Status, ValueType,
@@ -293,7 +293,14 @@ fn build_property(
             .max_by_key(|(_, n)| *n)
             .map_or(FieldSource::Line, |(s, _)| s)
     };
-    let inf = infer(key, &a.values, lexicon, source_of != FieldSource::Section);
+    let label = most_common(a.labels.iter().copied()).unwrap_or_else(|| key.to_owned());
+    let inf = infer_labeled(
+        key,
+        &label,
+        &a.values,
+        lexicon,
+        source_of != FieldSource::Section,
+    );
     let vt = force.unwrap_or(inf.value_type);
     let source = source_of;
     let coverage = a.files_with as f64 / nfiles as f64;
@@ -307,7 +314,6 @@ fn build_property(
             break;
         }
     }
-    let label = most_common(a.labels.iter().copied()).unwrap_or_else(|| key.to_owned());
     let name = label.trim().to_owned();
     let multi = inf.multi
         || (a.max_per_file > 1 && matches!(source, FieldSource::Section | FieldSource::Line));

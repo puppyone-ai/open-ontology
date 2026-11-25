@@ -245,6 +245,12 @@ export function createOntologyHandlers({ client, grants, revealPath = () => {}, 
       return ensure(value, (v) => isObject(v) && typeof v.text === "string");
     },
 
+    /** One page of the instances of a confirmed table class (docs-api 1.17): a row each, with its typed values, relations and cell range. */
+    "structure-instances": async ({ driveId, classKey, limit, cursor }) => {
+      const { value } = await call("structureInstances", { params: { id: driveId, classkey: classKey }, query: { limit, cursor } });
+      return ensure(value, (v) => isObject(v) && typeof v.class_key === "string" && Number.isInteger(v.total) && Array.isArray(v.items));
+    },
+
     "ontology-versions": async ({ limit, cursor }) => {
       const { value } = await call("ontologyVersions", { query: { limit, cursor } });
       return ensure(value, isPage);

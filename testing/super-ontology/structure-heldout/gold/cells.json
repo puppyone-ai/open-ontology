@@ -1,0 +1,1178 @@
+{
+ "note": "Frozen before the first run on these corpora. Generated from the corpus generators' own source data (not read from the rendered files). Properties are matched by any of their labels; text, enum, id, email and version values are one kind (`text`).",
+ "tables": [
+  {
+   "file": "finance/expenses-1.csv",
+   "identity": [
+    "票据号",
+    "Receipt"
+   ],
+   "properties": {
+    "amount": [
+     "金额",
+     "Amount"
+    ],
+    "approved": [
+     "已审批",
+     "Approved"
+    ],
+    "category": [
+     "类别",
+     "Category"
+    ],
+    "date": [
+     "日期",
+     "Date"
+    ],
+    "employee": [
+     "员工",
+     "Employee"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "120 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-01"
+      }
+     },
+     "name": "RC1000",
+     "relations": [
+      "Mara Lindqvist"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "157 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "meals"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-06"
+      }
+     },
+     "name": "RC1001",
+     "relations": [
+      "陆承宇"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "194 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "software"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-11"
+      }
+     },
+     "name": "RC1002",
+     "relations": [
+      "Tobias Wren"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "231 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-16"
+      }
+     },
+     "name": "RC1003",
+     "relations": [
+      "闵思远"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "268 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "office"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-21"
+      }
+     },
+     "name": "RC1004",
+     "relations": [
+      "Ines Okafor"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "305 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-26"
+      }
+     },
+     "name": "RC1005",
+     "relations": [
+      "康婉宁"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "342 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "meals"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-04"
+      }
+     },
+     "name": "RC1006",
+     "relations": [
+      "Pavel Duric"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "379 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "software"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-09"
+      }
+     },
+     "name": "RC1007",
+     "relations": [
+      "洪嘉树"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/expenses-2.csv",
+   "identity": [
+    "票据号",
+    "Receipt"
+   ],
+   "properties": {
+    "amount": [
+     "金额",
+     "Amount"
+    ],
+    "approved": [
+     "已审批",
+     "Approved"
+    ],
+    "category": [
+     "类别",
+     "Category"
+    ],
+    "date": [
+     "日期",
+     "Date"
+    ],
+    "employee": [
+     "员工",
+     "Employee"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "416 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-14"
+      }
+     },
+     "name": "RC1008",
+     "relations": [
+      "Mara Lindqvist"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "453 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "office"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-19"
+      }
+     },
+     "name": "RC1009",
+     "relations": [
+      "陆承宇"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "490 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-24"
+      }
+     },
+     "name": "RC1010",
+     "relations": [
+      "Tobias Wren"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "527 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "meals"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-04-02"
+      }
+     },
+     "name": "RC1011",
+     "relations": [
+      "闵思远"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "564 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "software"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-07"
+      }
+     },
+     "name": "RC1012",
+     "relations": [
+      "Ines Okafor"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "601 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-12"
+      }
+     },
+     "name": "RC1013",
+     "relations": [
+      "康婉宁"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "638 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "office"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-17"
+      }
+     },
+     "name": "RC1014",
+     "relations": [
+      "Pavel Duric"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "675 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-22"
+      }
+     },
+     "name": "RC1015",
+     "relations": [
+      "洪嘉树"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/expenses-3.csv",
+   "identity": [
+    "票据号",
+    "Receipt"
+   ],
+   "properties": {
+    "amount": [
+     "金额",
+     "Amount"
+    ],
+    "approved": [
+     "已审批",
+     "Approved"
+    ],
+    "category": [
+     "类别",
+     "Category"
+    ],
+    "date": [
+     "日期",
+     "Date"
+    ],
+    "employee": [
+     "员工",
+     "Employee"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "712 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "meals"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-27"
+      }
+     },
+     "name": "RC1016",
+     "relations": [
+      "Mara Lindqvist"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "749 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "software"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-05"
+      }
+     },
+     "name": "RC1017",
+     "relations": [
+      "陆承宇"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "786 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-10"
+      }
+     },
+     "name": "RC1018",
+     "relations": [
+      "Tobias Wren"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "823 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "office"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-15"
+      }
+     },
+     "name": "RC1019",
+     "relations": [
+      "闵思远"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "860 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-20"
+      }
+     },
+     "name": "RC1020",
+     "relations": [
+      "Ines Okafor"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "897 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "meals"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-25"
+      }
+     },
+     "name": "RC1021",
+     "relations": [
+      "康婉宁"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "934 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "software"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-03"
+      }
+     },
+     "name": "RC1022",
+     "relations": [
+      "Pavel Duric"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "971 CNY"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-05-08"
+      }
+     },
+     "name": "RC1023",
+     "relations": [
+      "洪嘉树"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/expenses-4.csv",
+   "identity": [
+    "票据号",
+    "Receipt"
+   ],
+   "properties": {
+    "amount": [
+     "金额",
+     "Amount"
+    ],
+    "approved": [
+     "已审批",
+     "Approved"
+    ],
+    "category": [
+     "类别",
+     "Category"
+    ],
+    "date": [
+     "日期",
+     "Date"
+    ],
+    "employee": [
+     "员工",
+     "Employee"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1008 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "office"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-13"
+      }
+     },
+     "name": "RC1024",
+     "relations": [
+      "Mara Lindqvist"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1045 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-18"
+      }
+     },
+     "name": "RC1025",
+     "relations": [
+      "陆承宇"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1082 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "meals"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-23"
+      }
+     },
+     "name": "RC1026",
+     "relations": [
+      "Tobias Wren"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1119 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "software"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-01"
+      }
+     },
+     "name": "RC1027",
+     "relations": [
+      "闵思远"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1156 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-06"
+      }
+     },
+     "name": "RC1028",
+     "relations": [
+      "Ines Okafor"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1193 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "no"
+      },
+      "category": {
+       "kind": "text",
+       "value": "office"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-11"
+      }
+     },
+     "name": "RC1029",
+     "relations": [
+      "康婉宁"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1230 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "travel"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-16"
+      }
+     },
+     "name": "RC1030",
+     "relations": [
+      "Pavel Duric"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "amount": {
+       "kind": "amount",
+       "value": "1267 USD"
+      },
+      "approved": {
+       "kind": "text",
+       "value": "yes"
+      },
+      "category": {
+       "kind": "text",
+       "value": "meals"
+      },
+      "date": {
+       "kind": "date",
+       "value": "2026-06-21"
+      }
+     },
+     "name": "RC1031",
+     "relations": [
+      "洪嘉树"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "people/staff.csv",
+   "identity": [
+    "姓名",
+    "Name"
+   ],
+   "properties": {
+    "email": [
+     "邮箱",
+     "Email"
+    ],
+    "position": [
+     "职位",
+     "Position"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "mara@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "SRE"
+      }
+     },
+     "name": "Mara Lindqvist",
+     "relations": [],
+     "row": 2
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "luchengyu@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "后端工程师"
+      }
+     },
+     "name": "陆承宇",
+     "relations": [],
+     "row": 3
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "tobias@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "Support Lead"
+      }
+     },
+     "name": "Tobias Wren",
+     "relations": [],
+     "row": 4
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "minsiyuan@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "产品经理"
+      }
+     },
+     "name": "闵思远",
+     "relations": [],
+     "row": 5
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "ines@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "QA"
+      }
+     },
+     "name": "Ines Okafor",
+     "relations": [],
+     "row": 6
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "kangwanning@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "运维"
+      }
+     },
+     "name": "康婉宁",
+     "relations": [],
+     "row": 7
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "pavel@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "Engineer"
+      }
+     },
+     "name": "Pavel Duric",
+     "relations": [],
+     "row": 8
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "hongjiashu@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "设计师"
+      }
+     },
+     "name": "洪嘉树",
+     "relations": [],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "people/员工.csv",
+   "identity": [
+    "姓名",
+    "Name"
+   ],
+   "properties": {
+    "email": [
+     "邮箱",
+     "Email"
+    ],
+    "position": [
+     "职位",
+     "Position"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "mara@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "SRE"
+      }
+     },
+     "name": "Mara Lindqvist",
+     "relations": [],
+     "row": 2
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "luchengyu@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "后端工程师"
+      }
+     },
+     "name": "陆承宇",
+     "relations": [],
+     "row": 3
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "tobias@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "Support Lead"
+      }
+     },
+     "name": "Tobias Wren",
+     "relations": [],
+     "row": 4
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "minsiyuan@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "产品经理"
+      }
+     },
+     "name": "闵思远",
+     "relations": [],
+     "row": 5
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "ines@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "QA"
+      }
+     },
+     "name": "Ines Okafor",
+     "relations": [],
+     "row": 6
+    },
+    {
+     "cells": {
+      "email": {
+       "kind": "text",
+       "value": "kangwanning@example.org"
+      },
+      "position": {
+       "kind": "text",
+       "value": "运维"
+      }
+     },
+     "name": "康婉宁",
+     "relations": [],
+     "row": 7
+    }
+   ]
+  }
+ ],
+ "version": "structure-cells-gold/1"
+}

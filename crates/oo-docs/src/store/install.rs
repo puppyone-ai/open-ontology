@@ -75,8 +75,10 @@ pub const VERSION_MEDIA_PROFILE: &str = "docs-media-profile/1";
 pub const VERSION_FILE_PROFILE: &str = "docs-file-profile/1";
 /// `docs-structure/1`: the structure layer of the ontology (D93), induced classes, properties and versions.
 pub const VERSION_STRUCTURE: &str = "docs-structure/1";
+/// `docs-structure-fill/1`: what the extraction of a confirmed table class filled, per file (D93).
+pub const VERSION_STRUCTURE_FILL: &str = "docs-structure-fill/1";
 
-const MIGRATIONS: [Migration; 18] = [
+const MIGRATIONS: [Migration; 19] = [
     Migration {
         version: VERSION_BOOTSTRAP,
         file: "0137_docs_bootstrap.sql",
@@ -167,6 +169,11 @@ const MIGRATIONS: [Migration; 18] = [
         file: "0160_docs_structure.sql",
         sql: include_str!("../../../oo-pipeline/migrations/0160_docs_structure.sql"),
     },
+    Migration {
+        version: VERSION_STRUCTURE_FILL,
+        file: "0161_docs_structure_fill.sql",
+        sql: include_str!("../../../oo-pipeline/migrations/0161_docs_structure_fill.sql"),
+    },
 ];
 
 /// `docs-vectors/1`, the optional pgvector table (10 11.3).
@@ -181,7 +188,7 @@ pub const VECTORS: Migration = Migration {
 };
 
 /// Versions that must all exist (`SCHEMA_MIN`, 3.1 rule 4).
-pub const SCHEMA_MIN: [&str; 18] = [
+pub const SCHEMA_MIN: [&str; 19] = [
     VERSION_BOOTSTRAP,
     VERSION_SOURCES_JOBS,
     VERSION_INDEX,
@@ -200,6 +207,7 @@ pub const SCHEMA_MIN: [&str; 18] = [
     VERSION_MEDIA_PROFILE,
     VERSION_FILE_PROFILE,
     VERSION_STRUCTURE,
+    VERSION_STRUCTURE_FILL,
 ];
 
 /// Migrations compiled into this binary, in install order.

@@ -1,0 +1,1392 @@
+{
+ "note": "Frozen before the first run on these corpora. Generated from the corpus generators' own source data (not read from the rendered files). Properties are matched by any of their labels; text, enum, id, email and version values are one kind (`text`).",
+ "tables": [
+  {
+   "file": "finance/budget-zh-1-2027-01-12.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "completion": [
+     "完成率",
+     "Completion"
+    ],
+    "due": [
+     "截止日期",
+     "Due"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "6850000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.88"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-16"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "星河",
+     "relations": [
+      "陈子墨"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1420000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.71"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-05"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "北辰",
+     "relations": [
+      "周若溪"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2480000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.85"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "青云",
+     "relations": [
+      "吴启明"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "350000000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.125"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-19"
+      },
+      "status": {
+       "kind": "text",
+       "value": "暂停"
+      }
+     },
+     "name": "远山",
+     "relations": [
+      "孙晓棠"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "980000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.35"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-18"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "云帆",
+     "relations": [
+      "林嘉禾"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "3500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.6"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-04-01"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "海岚",
+     "relations": [
+      "郑一鸣"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.45"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-26"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "天枢",
+     "relations": [
+      "宋雨桐"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "200000 EUR"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.95"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-19"
+      },
+      "status": {
+       "kind": "text",
+       "value": "暂停"
+      }
+     },
+     "name": "玉衡",
+     "relations": [
+      "韩知远"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/budget-zh-2-2027-01-12.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "completion": [
+     "完成率",
+     "Completion"
+    ],
+    "due": [
+     "截止日期",
+     "Due"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "350000000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.125"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "暂停"
+      }
+     },
+     "name": "远山2",
+     "relations": [
+      "孙晓棠"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "980000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.35"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-18"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "云帆2",
+     "relations": [
+      "林嘉禾"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "3500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.6"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-04-01"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "海岚2",
+     "relations": [
+      "郑一鸣"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.45"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-13"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "天枢2",
+     "relations": [
+      "宋雨桐"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "200000 EUR"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.95"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-20"
+      },
+      "status": {
+       "kind": "text",
+       "value": "暂停"
+      }
+     },
+     "name": "玉衡2",
+     "relations": [
+      "韩知远"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "6850000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.88"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-16"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "星河2",
+     "relations": [
+      "陈子墨"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1420000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.71"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-05"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "北辰2",
+     "relations": [
+      "周若溪"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2480000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.85"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-13"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "青云2",
+     "relations": [
+      "吴启明"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/budget-zh-3-2027-01-12.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "completion": [
+     "完成率",
+     "Completion"
+    ],
+    "due": [
+     "截止日期",
+     "Due"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.45"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-26"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "天枢3",
+     "relations": [
+      "宋雨桐"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "200000 EUR"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.95"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-20"
+      },
+      "status": {
+       "kind": "text",
+       "value": "暂停"
+      }
+     },
+     "name": "玉衡3",
+     "relations": [
+      "韩知远"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "6850000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.88"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-16"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "星河3",
+     "relations": [
+      "陈子墨"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1420000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.71"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-14"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "北辰3",
+     "relations": [
+      "周若溪"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2480000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.85"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "青云3",
+     "relations": [
+      "吴启明"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "350000000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.125"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "暂停"
+      }
+     },
+     "name": "远山3",
+     "relations": [
+      "孙晓棠"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "980000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.35"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-18"
+      },
+      "status": {
+       "kind": "text",
+       "value": "进行中"
+      }
+     },
+     "name": "云帆3",
+     "relations": [
+      "林嘉禾"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "3500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.6"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-14"
+      },
+      "status": {
+       "kind": "text",
+       "value": "已完成"
+      }
+     },
+     "name": "海岚3",
+     "relations": [
+      "郑一鸣"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/budget-en-1-2027-01-12.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "completion": [
+     "完成率",
+     "Completion"
+    ],
+    "due": [
+     "截止日期",
+     "Due"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "6850000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.88"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-16"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Beacon",
+     "relations": [
+      "Daniel Kim"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1420000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.71"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-05"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Atlas",
+     "relations": [
+      "Karen Wu"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2480000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.85"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Harbor",
+     "relations": [
+      "Ralph Evans"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "350000000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.125"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-19"
+      },
+      "status": {
+       "kind": "text",
+       "value": "On hold"
+      }
+     },
+     "name": "Summit",
+     "relations": [
+      "Sandy Cho"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "980000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.35"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-18"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Lantern",
+     "relations": [
+      "Fred Lang"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "3500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.6"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-04-01"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Meridian",
+     "relations": [
+      "Kathy Moss"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.45"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-26"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Compass",
+     "relations": [
+      "Albert Shaw"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "200000 EUR"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.95"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-19"
+      },
+      "status": {
+       "kind": "text",
+       "value": "On hold"
+      }
+     },
+     "name": "Anchor",
+     "relations": [
+      "Junior Park"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/budget-en-2-2027-01-12.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "completion": [
+     "完成率",
+     "Completion"
+    ],
+    "due": [
+     "截止日期",
+     "Due"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "350000000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.125"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "On hold"
+      }
+     },
+     "name": "Summit 2",
+     "relations": [
+      "Sandy Cho"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "980000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.35"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-18"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Lantern 2",
+     "relations": [
+      "Fred Lang"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "3500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.6"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-04-01"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Meridian 2",
+     "relations": [
+      "Kathy Moss"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.45"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-13"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Compass 2",
+     "relations": [
+      "Albert Shaw"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "200000 EUR"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.95"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-20"
+      },
+      "status": {
+       "kind": "text",
+       "value": "On hold"
+      }
+     },
+     "name": "Anchor 2",
+     "relations": [
+      "Junior Park"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "6850000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.88"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-16"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Beacon 2",
+     "relations": [
+      "Daniel Kim"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1420000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.71"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-05"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Atlas 2",
+     "relations": [
+      "Karen Wu"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2480000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.85"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-13"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Harbor 2",
+     "relations": [
+      "Ralph Evans"
+     ],
+     "row": 9
+    }
+   ]
+  },
+  {
+   "file": "finance/budget-en-3-2027-01-12.csv",
+   "identity": [
+    "项目",
+    "Project"
+   ],
+   "properties": {
+    "budget": [
+     "预算",
+     "Budget"
+    ],
+    "completion": [
+     "完成率",
+     "Completion"
+    ],
+    "due": [
+     "截止日期",
+     "Due"
+    ],
+    "owner": [
+     "负责人",
+     "Owner"
+    ],
+    "status": [
+     "状态",
+     "Status"
+    ]
+   },
+   "rows": [
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.45"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-26"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Compass 3",
+     "relations": [
+      "Albert Shaw"
+     ],
+     "row": 2
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "200000 EUR"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.95"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-20"
+      },
+      "status": {
+       "kind": "text",
+       "value": "On hold"
+      }
+     },
+     "name": "Anchor 3",
+     "relations": [
+      "Junior Park"
+     ],
+     "row": 3
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "6850000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.88"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-16"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Beacon 3",
+     "relations": [
+      "Daniel Kim"
+     ],
+     "row": 4
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "1420000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.71"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-23"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Atlas 3",
+     "relations": [
+      "Karen Wu"
+     ],
+     "row": 5
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "2480000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.85"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-02-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Harbor 3",
+     "relations": [
+      "Ralph Evans"
+     ],
+     "row": 6
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "350000000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.125"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-10"
+      },
+      "status": {
+       "kind": "text",
+       "value": "On hold"
+      }
+     },
+     "name": "Summit 3",
+     "relations": [
+      "Sandy Cho"
+     ],
+     "row": 7
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "980000 CNY"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.35"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-03-18"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Active"
+      }
+     },
+     "name": "Lantern 3",
+     "relations": [
+      "Fred Lang"
+     ],
+     "row": 8
+    },
+    {
+     "cells": {
+      "budget": {
+       "kind": "amount",
+       "value": "3500000 USD"
+      },
+      "completion": {
+       "kind": "ratio",
+       "value": "0.6"
+      },
+      "due": {
+       "kind": "date",
+       "value": "2027-01-23"
+      },
+      "status": {
+       "kind": "text",
+       "value": "Done"
+      }
+     },
+     "name": "Meridian 3",
+     "relations": [
+      "Kathy Moss"
+     ],
+     "row": 9
+    }
+   ]
+  }
+ ],
+ "version": "structure-cells-gold/1"
+}

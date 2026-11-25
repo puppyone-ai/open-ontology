@@ -441,6 +441,42 @@
   .so-struct-atlas { display: grid; gap: var(--so-space-2); padding: var(--so-space-3) var(--so-space-4); }
   .so-struct-atlas-row { display: flex; align-items: center; gap: var(--so-space-3); min-height: 28px; }
   .so-struct-atlas-links { display: flex; flex-wrap: wrap; gap: var(--so-space-1) var(--so-space-2); color: var(--so-accent); font-size: var(--so-text-xs); }
+  /* A filled table class (docs-api 1.17): what its rows filled, and its instances. */
+  .so-struct-fill { display: grid; border-top: 1px solid var(--so-line); }
+  .so-struct-fill-head { display: flex; align-items: center; gap: var(--so-space-3); min-height: 48px; padding: var(--so-space-2) var(--so-space-4); }
+  .so-struct-filled { display: grid; flex: 1 1 auto; gap: 2px; min-width: 0; }
+  .so-struct-filled-figures { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--so-space-2); color: var(--so-text-2); font-size: var(--so-text-xs); font-variant-numeric: tabular-nums; }
+  .so-struct-filled-main { color: var(--so-text); font-weight: var(--so-weight-medium); }
+  .so-struct-filled-rejected { color: var(--so-warning); }
+  .so-struct-instances { display: grid; border-top: 1px solid var(--so-line); }
+  .so-struct-instances-empty { padding: var(--so-space-3) var(--so-space-4); font-size: var(--so-text-xs); }
+  .so-struct-instances-foot { display: flex; align-items: center; gap: var(--so-space-3); min-height: 44px; padding: var(--so-space-2) var(--so-space-4); border-top: 1px solid var(--so-line); }
+  .so-struct-instances-foot > .so-metric-hint { flex: 1 1 auto; font-variant-numeric: tabular-nums; }
+  .so-inst-scroll { overflow-x: auto; }
+  .so-inst-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--so-text-sm); }
+  .so-inst-table th, .so-inst-table td { padding: var(--so-space-2) var(--so-space-3); border-top: 1px solid var(--so-line); text-align: start; vertical-align: middle; overflow: hidden; }
+  .so-inst-table th:first-child, .so-inst-table td:first-child { padding-inline-start: var(--so-space-4); }
+  .so-inst-table th:last-child, .so-inst-table td:last-child { padding-inline-end: var(--so-space-4); }
+  .so-inst-table thead th { height: 32px; padding-block: 0; border-top: 0; color: var(--so-text-muted); font-size: var(--so-text-xs); font-weight: var(--so-weight-regular); background: color-mix(in srgb, var(--so-inset) 55%, var(--so-panel)); }
+  .so-inst-table thead th > .so-truncate { display: block; }
+  .so-inst-table tbody tr { height: 48px; }
+  .so-inst-table tbody tr:first-child > * { border-top: 0; }
+  .so-inst-table [data-numeric] { text-align: end; }
+  .so-inst-name { font-weight: var(--so-weight-regular); }
+  .so-inst-name > .so-entity-link { display: block; max-width: 100%; }
+  .so-inst-value { display: grid; min-width: 0; font-variant-numeric: tabular-nums; }
+  .so-inst-original { color: var(--so-text-muted); font-size: var(--so-text-xs); line-height: var(--so-leading-xs); }
+  .so-inst-chips { display: flex; flex-wrap: wrap; gap: var(--so-space-1); min-width: 0; }
+  .so-inst-chip { max-width: 100%; min-width: 0; }
+  button.so-inst-chip { cursor: pointer; transition: border-color var(--so-duration-fast) var(--so-ease), color var(--so-duration-fast) var(--so-ease); }
+  button.so-inst-chip:hover { border-color: var(--so-line-strong); color: var(--so-text); }
+  .so-inst-source { display: inline-flex; align-items: center; gap: var(--so-space-2); max-width: 100%; min-width: 0; padding: 2px var(--so-space-2); margin-inline-start: calc(-1 * var(--so-space-2)); border: 0; border-radius: var(--so-radius-control); background: transparent; color: var(--so-text); text-align: start; cursor: pointer; transition: background-color var(--so-duration-fast) var(--so-ease); }
+  .so-inst-source:hover { background: var(--so-inset); }
+  .so-inst-source:active { background: var(--so-press); }
+  .so-inst-source-text { display: grid; min-width: 0; line-height: var(--so-leading-xs); }
+  .so-inst-source-file { color: var(--so-text-muted); font-size: var(--so-text-xs); }
+  /* A normalised value on the entity page: the value, then the text as written. */
+  .so-fact-original { color: var(--so-text-muted); font-size: var(--so-text-xs); }
   @media (max-width: 900px) {
     .so-struct-summary { grid-template-columns: minmax(0, 1fr); }
     .so-struct-row { grid-template-columns: minmax(0, 1fr) auto; }

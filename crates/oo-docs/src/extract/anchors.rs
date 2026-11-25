@@ -7,6 +7,13 @@
 //! resolvable, shown under "other related", never promoted by themselves). A document `mentions` each of them with the
 //! block that states it as the evidence.
 //!
+//! Values written in words are read by [`crate::values`] (`六百八十五万`, `six point eight five million`, `March
+//! sixteenth`, `三月十六号`, `下周二`, `百分之八十八`) and land on the same canonical name, so the same value written
+//! differently in two files is one entity. A relative date is read against the document date, a missing year from it
+//! only when that is unambiguous; a table cell under a header that says what it holds (`Budget CNY`, `预算（万元）`)
+//! is an amount whatever the cell looks like. Percentages become `Thing{label: Ratio}`; a percentage that is a
+//! multiple of ten is too common to tie documents and is left out.
+//!
 //! Only a value that two or more documents state becomes an entity (the pass that calls [`anchor_links`] counts them): a
 //! number in one file ties nothing and would only be noise. The canonical name is the value itself (`6,850,000`,
 //! `2027-03-16`), so every way of writing it in the text lands on one entity. Pure.
@@ -20,6 +27,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use oo_core::docir::{Block, BlockKind, DocIr};
 
+use crate::values::{self, DateCtx, Value};
+
 use super::model::{
     Collector, EntityRef, EntityType, EvidenceRef, Extraction, FactMention, Predicate,
 };
@@ -27,6 +36,7 @@ use super::model::{
 /// `Thing` labels of the anchors.
 pub const AMOUNT: &str = "Amount";
 pub const DATE: &str = "Date";
+pub const RATIO: &str = "Ratio";
 /// Confidence of a `mentions` link of an anchor (the text states the value).
 pub const ANCHOR_BP: u16 = 9000;
 /// Smallest amount that is an anchor.
@@ -42,6 +52,11 @@ pub struct Found {
     pub name: String,
     /// First block that states it.
     pub block: usize,
+    /// The text as written (`六百八十五万`), when it is not the canonical name.
+    pub original: String,
+    /// The reading does not depend on the document (an alias of the entity is safe): not a relative date, not a year
+    /// taken from the document.
+    pub absolute: bool,
 }
 
 fn is_text_block(b: &Block) -> bool {
@@ -260,9 +275,60 @@ fn dates(text: &str) -> Vec<String> {
     out
 }
 
-/// Every amount and date a document states, once each, with the first block that states it.
+/// The context a text is read in: the date of the document (or of the meeting it records).
+pub fn doc_ctx(path: &str, ir: &DocIr) -> DateCtx {
+    match crate::extract::rules::file_default_valid_from(path, ir) {
+        Some((iso, _)) => DateCtx::on(&iso),
+        None => DateCtx::NONE,
+    }
+}
+
+/// `Header: value` lines of a table row (`kv` block): the amounts the header says are amounts.
+fn row_amounts(text: &str) -> Vec<(u64, String)> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let Some((header, value)) = line.split_once(": ") else {
+            continue;
+        };
+        let Some((currency, scale)) = values::money::header_hint(header) else {
+            continue;
+        };
+        let value = value.trim();
+        let Some(m) = values::money::parse(value, true) else {
+            continue;
+        };
+        let amount = if m.scale.is_none() && m.currency.is_none() {
+            m.amount.times_u128(scale)
+        } else {
+            Some(m.amount)
+        };
+        let _ = currency;
+        if let Some(n) = amount.and_then(|a| a.to_u64()).filter(|n| *n >= MIN_AMOUNT)
+            && amount.is_some_and(|a| a.is_integer())
+        {
+            out.push((n, value.to_owned()));
+        }
+    }
+    out
+}
+
+fn ratio_is_distinctive(r: &values::Ratio) -> bool {
+    let p = r.percent();
+    !(p.is_integer() && p.to_u64().is_some_and(|n| n % 10 == 0 || n > 1000))
+}
+
+/// Every amount, date and ratio a document states, once each, with the first block that states it.
 pub fn scan(ir: &DocIr) -> Vec<Found> {
-    let mut seen: BTreeMap<(&'static str, String), usize> = BTreeMap::new();
+    scan_with(ir, &DateCtx::NONE)
+}
+
+/// [`scan`] for a file: relative dates and years left out are read against the date of the file.
+pub fn scan_for(path: &str, ir: &DocIr) -> Vec<Found> {
+    scan_with(ir, &doc_ctx(path, ir))
+}
+
+pub fn scan_with(ir: &DocIr, ctx: &DateCtx) -> Vec<Found> {
+    let mut seen: BTreeMap<(&'static str, String), (usize, String, bool)> = BTreeMap::new();
     for (i, b) in ir
         .blocks
         .iter()
@@ -275,14 +341,53 @@ pub fn scan(ir: &DocIr) -> Vec<Found> {
             .map(|c| if c == '\u{a0}' { ' ' } else { c })
             .collect();
         for n in amounts(&text) {
-            seen.entry((AMOUNT, group(n))).or_insert(i);
+            seen.entry((AMOUNT, group(n)))
+                .or_insert((i, String::new(), true));
         }
         for d in dates(&text) {
-            seen.entry((DATE, d)).or_insert(i);
+            seen.entry((DATE, d)).or_insert((i, String::new(), true));
+        }
+        // Values written in words, relative dates, percentages.
+        for f in values::scan::scan(&text, ctx) {
+            match &f.value {
+                Value::Amount(m) => {
+                    if let Some(n) = m
+                        .amount
+                        .to_u64()
+                        .filter(|n| *n >= MIN_AMOUNT && m.amount.is_integer())
+                    {
+                        seen.entry((AMOUNT, group(n)))
+                            .or_insert((i, f.text.clone(), true));
+                    }
+                }
+                Value::Date(d) if !d.trivial => {
+                    let absolute = d.how == values::How::Explicit;
+                    seen.entry((DATE, d.iso()))
+                        .or_insert((i, f.text.clone(), absolute));
+                }
+                Value::Ratio(r) if ratio_is_distinctive(r) => {
+                    seen.entry((RATIO, r.name()))
+                        .or_insert((i, f.text.clone(), true));
+                }
+                _ => {}
+            }
+        }
+        // A cell under a header that says it is money.
+        if b.kind == BlockKind::Kv {
+            for (n, original) in row_amounts(&text) {
+                seen.entry((AMOUNT, group(n)))
+                    .or_insert((i, original, true));
+            }
         }
     }
     seen.into_iter()
-        .map(|((label, name), block)| Found { label, name, block })
+        .map(|((label, name), (block, original, absolute))| Found {
+            label,
+            name,
+            block,
+            original,
+            absolute,
+        })
         .collect()
 }
 
@@ -322,6 +427,15 @@ pub fn anchor_links(
             subkind: None,
             name: f.name.clone(),
         };
+        // The spelling in the text is another name of the value when it does not depend on the document.
+        if f.absolute
+            && !f.original.is_empty()
+            && f.original.chars().count() <= 40
+            && f.label != DATE
+            && f.original != f.name
+        {
+            col.alias(&thing, &f.original, ANCHOR_BP, "doc.anchor", &ev);
+        }
         col.fact(FactMention {
             subject: doc.clone(),
             predicate: Predicate::Mentions,
@@ -341,7 +455,9 @@ pub fn anchor_links(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parse::csv::parse_csv;
     use crate::parse::markdown::parse_markdown;
+    use crate::values::DateCtx;
 
     fn found(md: &str) -> Vec<(String, String)> {
         let ir = parse_markdown(md.as_bytes()).unwrap().ir;
@@ -414,6 +530,87 @@ mod tests {
         assert_eq!(
             x.facts[0].object.as_ref().unwrap().thing_label.as_deref(),
             Some("Amount")
+        );
+    }
+
+    #[test]
+    fn values_written_in_words_land_on_the_same_names() {
+        let a = found("总预算六百八十五万元，发布会三月十六日举行，良率百分之八十八。");
+        let b = found(
+            "Budget: six point eight five million. Embargo lifts March sixteenth, 2027. Yield 88%.",
+        );
+        for want in [
+            ("Amount", "6,850,000"),
+            ("Date", "2027-03-16"),
+            ("Ratio", "88%"),
+        ] {
+            let (l, n) = (want.0.to_owned(), want.1.to_owned());
+            assert!(b.contains(&(l.clone(), n.clone())), "{want:?} {b:?}");
+            if want.0 != "Date" {
+                assert!(a.contains(&(l, n)), "{want:?} {a:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_relative_date_is_read_against_the_document_date() {
+        let ir = parse_markdown("Review next Tuesday, ship tomorrow. Today we meet.".as_bytes())
+            .unwrap()
+            .ir;
+        let v: Vec<String> = scan_with(&ir, &DateCtx::on("2027-01-12"))
+            .into_iter()
+            .map(|f| format!("{}:{}", f.label, f.name))
+            .collect();
+        assert!(v.contains(&"Date:2027-01-19".to_owned()), "{v:?}");
+        assert!(v.contains(&"Date:2027-01-13".to_owned()), "{v:?}");
+        assert!(
+            !v.contains(&"Date:2027-01-12".to_owned()),
+            "today ties nothing: {v:?}"
+        );
+        assert!(
+            scan_with(&ir, &DateCtx::NONE).is_empty(),
+            "no document date, no resolution"
+        );
+    }
+
+    #[test]
+    fn a_table_cell_under_a_money_header_is_an_amount() {
+        let ir = parse_csv(
+            "Category,Budget CNY,Owner\nMarketing,1420000,Priya\nHardware,3100000,Daniel\n"
+                .as_bytes(),
+        )
+        .unwrap()
+        .ir;
+        let v: Vec<String> = scan(&ir).into_iter().map(|f| f.name).collect();
+        assert!(v.contains(&"1,420,000".to_owned()), "{v:?}");
+        assert!(v.contains(&"3,100,000".to_owned()), "{v:?}");
+        let ir = parse_csv("项目,预算（万元）\n北辰,685\n".as_bytes())
+            .unwrap()
+            .ir;
+        assert!(scan(&ir).iter().any(|f| f.name == "6,850,000"));
+    }
+
+    #[test]
+    fn the_original_spelling_becomes_an_alias_of_an_amount() {
+        let ir = parse_markdown("总预算六百八十五万元。".as_bytes())
+            .unwrap()
+            .ir;
+        let f = scan(&ir);
+        let s = shared([f.as_slice(), f.as_slice()]);
+        let x = anchor_links("a.md", &ir, &f, &s);
+        assert!(
+            x.aliases
+                .iter()
+                .any(|a| a.alias == "六百八十五万元" && a.entity.name == "6,850,000")
+        );
+    }
+
+    #[test]
+    fn round_percentages_and_counts_are_not_anchors() {
+        let v = found("Share 50%, 30 percent, 100%, 一万人参加，200 thousand users.");
+        assert!(
+            v.iter().all(|(l, _)| l != "Ratio" && l != "Amount"),
+            "{v:?}"
         );
     }
 }

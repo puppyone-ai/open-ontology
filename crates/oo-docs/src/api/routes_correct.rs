@@ -76,15 +76,10 @@ async fn fact_json(conn: &mut PgConnection, id: &str) -> Result<Value, ApiError>
     Ok(f)
 }
 
-/// An `attr.*` value: exactly one of `text`, `date`, `enum`, a non-empty string.
+/// An `attr.*` value: exactly one typed key (`text`, `date`, `enum`, `amount`, `number`, `ratio`), a non-empty string.
 fn valid_value(v: &Value) -> bool {
-    let Some(o) = v.as_object() else { return false };
-    o.len() == 1
-        && o.iter().all(|(k, x)| {
-            ["text", "date", "enum"].contains(&k.as_str())
-                && x.as_str()
-                    .is_some_and(|s| !s.trim().is_empty() && s.chars().count() <= 2000)
-        })
+    v.as_object()
+        .is_some_and(crate::publish::gates::valid_attr_value)
 }
 
 /// Replay or run `work`, storing the response (the common envelope of the

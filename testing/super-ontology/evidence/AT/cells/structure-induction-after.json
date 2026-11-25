@@ -1,0 +1,23 @@
+{
+ "classes_found": 6,
+ "classes_gold": 6,
+ "properties": [],
+ "wrong": [],
+ "missing": [],
+ "extra": [],
+ "relations": {
+  "tp": 8,
+  "fn": 0,
+  "fp": 0
+ },
+ "type_accuracy": 1.0,
+ "property_recall": 1.0,
+ "property_precision": 1.0,
+ "relation_recall": 1.0,
+ "relation_precision": 1.0,
+ "file_recall": 1.0,
+ "coverage_confirmed": 0.9394,
+ "coverage_induced": 0.9394,
+ "unclustered_ok": true,
+ "pass": true
+}

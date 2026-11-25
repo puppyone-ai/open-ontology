@@ -1,0 +1,78 @@
+{
+ "corpus": "/Users/redux/puppy-one/oo-v02/so-AT/testing/super-ontology/structure-heldout/gold/cells.json",
+ "properties": {
+  "amount": {
+   "gold": 32,
+   "written": 32,
+   "right": 32,
+   "typed": 32,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "approved": {
+   "gold": 32,
+   "written": 32,
+   "right": 32,
+   "typed": 32,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "category": {
+   "gold": 32,
+   "written": 32,
+   "right": 32,
+   "typed": 32,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "date": {
+   "gold": 32,
+   "written": 32,
+   "right": 32,
+   "typed": 32,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "email": {
+   "gold": 14,
+   "written": 14,
+   "right": 14,
+   "typed": 14,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  },
+  "position": {
+   "gold": 14,
+   "written": 14,
+   "right": 14,
+   "typed": 14,
+   "precision": 1.0,
+   "recall": 1.0,
+   "type_accuracy": 1.0
+  }
+ },
+ "cells": {
+  "gold": 156,
+  "written": 156,
+  "right": 156,
+  "precision": 1.0,
+  "recall": 1.0
+ },
+ "instances": {
+  "gold_rows": 46,
+  "found": 46,
+  "named_right": 46,
+  "recall": 1.0
+ },
+ "relations": {
+  "gold": 32,
+  "found": 32,
+  "recall": 1.0
+ },
+ "wrong_cells": []
+}

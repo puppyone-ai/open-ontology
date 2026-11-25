@@ -2,7 +2,7 @@ use super::induce::{induce, reconcile};
 use super::observe::{canon_key, observe, slug_of};
 use super::store::{Decision, apply};
 use super::template;
-use super::vtype::{Lexicon, infer};
+use super::vtype::{Lexicon, infer, infer_labeled};
 use super::yaml::{DbColumn, DbLinkRule, DbSide, DbTable, render};
 use super::{FieldSource, Status, ValueType};
 use crate::extract::rules::extract;
@@ -101,6 +101,88 @@ fn values_decide_the_type() {
         infer("x", &vs(&["是", "否", "是", "是", "否", "是"]), &lex, false).value_type,
         ValueType::Text
     );
+}
+
+#[test]
+fn values_written_in_words_decide_the_type_too() {
+    let lex = Lexicon::new();
+    let t = |k: &str, v: &[&str]| infer(k, &vs(v), &lex, true).value_type;
+    assert_eq!(
+        t("x", &["六百八十五万元", "142万", "3.5亿", "¥2,480,000"]),
+        ValueType::Amount
+    );
+    assert_eq!(
+        t(
+            "x",
+            &[
+                "six point eight five million",
+                "$3.5m",
+                "USD 2.5 million",
+                "two hundred thousand dollars"
+            ]
+        ),
+        ValueType::Amount
+    );
+    assert_eq!(
+        t("x", &["百分之八十八", "71%", "三成五", "12 percent"]),
+        ValueType::Percent
+    );
+    assert_eq!(
+        t(
+            "x",
+            &[
+                "二〇二七年三月十六日",
+                "March 16, 2027",
+                "2027-03-05",
+                "2027年3月1日"
+            ]
+        ),
+        ValueType::Date
+    );
+    assert_eq!(
+        t("x", &["3月16日", "下周二", "明天", "二月十日"]),
+        ValueType::Date
+    );
+    assert_eq!(
+        t(
+            "x",
+            &[
+                "March sixteenth",
+                "next Tuesday",
+                "tomorrow",
+                "16th of March"
+            ]
+        ),
+        ValueType::Date
+    );
+    assert_eq!(t("x", &["三十", "二十五", "12", "一百"]), ValueType::Number);
+    // A header that names money and a currency makes plain numbers an amount; a bare `total` stays a number.
+    assert_eq!(
+        t("amount_cny", &["744000", "210000", "330000"]),
+        ValueType::Amount
+    );
+    assert_eq!(
+        t("budget cny", &["3100000", "1420000", "980000"]),
+        ValueType::Amount
+    );
+    assert_eq!(
+        infer_labeled(
+            "预算",
+            "预算（万元）",
+            &vs(&["685", "142", "248"]),
+            &lex,
+            true
+        )
+        .value_type,
+        ValueType::Amount
+    );
+    assert_eq!(t("total", &["12", "7", "30"]), ValueType::Number);
+    // Words that are not numbers stay what they were.
+    assert_eq!(
+        t("x", &["Daniel Kim", "Karen Wu", "Ralph Evans"]),
+        ValueType::Text
+    );
+    assert_ne!(t("x", &["一些", "十分", "第一"]), ValueType::Number);
 }
 
 #[test]

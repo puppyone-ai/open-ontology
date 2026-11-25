@@ -13,13 +13,19 @@ import { groupEvidence, type EvidenceGroup } from "../../model/evidenceChips";
 import { MediaPreviewDialog } from "../../features/media/MediaPreviewDialog";
 import { anchorSeconds, mediaKindOf } from "../../model/details/mediaModel";
 import type { EntityDetail } from "../../model/superDriveOntologyTypes";
+import { isKnownKind, shownValue, VALUE_THING_TYPES, valueThingLabel, valueThingName } from "../../model/structureModel";
 
-function factObject(fact: Fact, shown: (name: string) => string): string {
-  if (fact.object) return shown(fact.object.name);
-  const value = fact.value;
-  if (!value) return "";
-  const first = Object.values(value).find((entry) => typeof entry === "string" || typeof entry === "number");
-  return first === undefined ? JSON.stringify(value) : String(first);
+/** An attribute value: the normalised value formatted for the locale (`6,850,000 CNY`, `88%`), then the text as written when it was read from words. */
+function FactValue({ fact }: { fact: Fact }) {
+  const { t, formatNumber, formatDate } = useLocalization();
+  const shown = shownValue(fact.value, { formatNumber, formatDate });
+  if (!shown) return null;
+  return (
+    <>
+      <span className="so-fact-value" data-key={shown.key ?? "other"} data-testid="fact-value">{shown.text}</span>
+      {shown.original && <span className="so-fact-original" data-testid="fact-value-original">· {t("app.ontology.value.writtenAs", { original: shown.original })}</span>}
+    </>
+  );
 }
 
 /** A source the fact came from: the file name, then where in it (several anchors of one file share the chip). One click opens the file in its source. */
@@ -42,14 +48,16 @@ function SourceChip({ group }: { group: EvidenceGroup }) {
   );
 }
 
-function EntityLink({ entity, onOpen }: { entity: { key: string; name: string }; onOpen: (key: string) => void }) {
+function EntityLink({ entity, onOpen }: { entity: { key: string; name: string; type?: string; label?: string | null }; onOpen: (key: string) => void }) {
   const shown = useDisplayName();
-  return <button type="button" className="so-entity-link" onClick={() => onOpen(entity.key)}>{shown(entity.name)}</button>;
+  const { formatNumber, formatDate } = useLocalization();
+  const valueLabel = entity.type ? valueThingLabel({ type: entity.type, label: entity.label }) : null;
+  return <button type="button" className="so-entity-link" onClick={() => onOpen(entity.key)}>{valueLabel ? valueThingName(valueLabel, entity.name, { formatNumber, formatDate }) : shown(entity.name)}</button>;
 }
 
 /** One entity: what is known about it as a timeline of facts, every one with the sentence it came from. */
 export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; onBack: () => void; onOpen: (key: string) => void }) {
-  const { t, formatDate } = useLocalization();
+  const { t, formatDate, formatNumber } = useLocalization();
   const shown = useDisplayName();
   const actions = useSuperDriveActions();
   const relative = useRelativeTime();
@@ -71,6 +79,9 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
   const ordered = [...facts].sort((a, b) => (a.valid_from ?? a.recorded_at ?? "").localeCompare(b.valid_from ?? b.recorded_at ?? ""));
   const sourceCount = new Set(ordered.flatMap((fact) => (fact.evidence ?? []).map((evidence) => evidence.file_id))).size;
   const aliases = (entity?.aliases ?? []).map((a) => a.alias).filter((a): a is string => Boolean(a));
+  // An open value thing (`Thing` labelled Amount, Date or Ratio) is named by its value; its aliases are the ways the files wrote it.
+  const valueLabel = entity ? valueThingLabel(entity) : null;
+  const title = entity ? (valueLabel ? valueThingName(valueLabel, entity.name, { formatNumber, formatDate }) : shown(entity.name)) : "";
 
   return (
     <div className="so-page" data-testid="screen-entity" data-name={entity?.name}>
@@ -81,10 +92,10 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
         <div className="so-stack" aria-busy="true"><Skeleton width={220} height={28} /><Skeleton width={320} height={14} /><Skeleton height={96} radius={8} /></div>
       ) : (
         <>
-          <PageHeader title={shown(entity.name)} titleAdornment={<Badge>{t(`super-drive.entity.type.${entity.type}`)}</Badge>}
-            description={[entity.label && entity.label !== entity.name ? entity.label : null, t("app.ontology.summary", { facts: ordered.length, sources: sourceCount, aliases: aliases.length })].filter(Boolean).join(" · ")}
+          <PageHeader title={title} titleAdornment={<Badge>{valueLabel ? t(`app.structure.type.${VALUE_THING_TYPES[valueLabel]}`) : t(`super-drive.entity.type.${entity.type}`)}</Badge>}
+            description={[entity.label && entity.label !== entity.name && !valueLabel ? (isKnownKind(entity.label) ? t(`app.structure.kind.${entity.label}`) : entity.label) : null, t("app.ontology.summary", { facts: ordered.length, sources: sourceCount, aliases: aliases.length })].filter(Boolean).join(" · ")}
             actions={entity.status === "merged" ? <Badge>{t("app.ontology.merged")}</Badge> : undefined} />
-          {aliases.length > 0 && <div className="so-row" style={{ marginBottom: "var(--so-space-5)" }} data-wrap><span className="so-weak">{t("app.ontology.aliases")}</span><span className="so-pill-row" role="list">{aliases.map((alias) => <span key={alias} role="listitem" className="so-chip">{alias}</span>)}</span></div>}
+          {aliases.length > 0 && <div className="so-row" style={{ marginBottom: "var(--so-space-5)" }} data-wrap><span className="so-weak">{valueLabel ? t("app.ontology.value.aliases") : t("app.ontology.aliases")}</span><span className="so-pill-row" role="list">{aliases.map((alias) => <span key={alias} role="listitem" className="so-chip">{alias}</span>)}</span></div>}
           <h2 className="so-section-title" style={{ marginBottom: "var(--so-space-3)" }}>{t("app.ontology.timeline")}</h2>
           {ordered.length === 0 ? (
             <Card><EmptyState icon={ListTree} title={t("app.ontology.nofacts.title")} description={t("app.ontology.nofacts.body")} compact /></Card>
@@ -94,8 +105,8 @@ export function EntityPage({ entityKey, onBack, onOpen }: { entityKey: string; o
                 <article key={fact.id} className="so-fact" data-testid="fact-row" data-predicate={fact.predicate} data-state={fact.status}>
                   <p className="so-fact-line">
                     {fact.subject.key === entity.key ? <span className="so-fact-self">{shown(fact.subject.name)}</span> : <EntityLink entity={fact.subject} onOpen={onOpen} />}
-                    <span className="so-fact-predicate">{fact.predicate.replace(/_/g, " ")}</span>
-                    {fact.object ? <EntityLink entity={fact.object} onOpen={onOpen} /> : <span>{factObject(fact, shown)}</span>}
+                    <span className="so-fact-predicate">{fact.predicate.replace(/^attr\./u, "").replace(/_/g, " ")}</span>
+                    {fact.object ? <EntityLink entity={fact.object} onOpen={onOpen} /> : <FactValue fact={fact} />}
                     {fact.status === "retracted" && <Badge>{t("app.ontology.retracted")}</Badge>}
                     {fact.status === "draft" && <Badge tone="warning">{t("app.ontology.draft")}</Badge>}
                   </p>

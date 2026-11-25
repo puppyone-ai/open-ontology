@@ -126,6 +126,7 @@ pub async fn propose(conn: &mut PgConnection) -> Result<u32, StoreError> {
         if [
             crate::extract::anchors::AMOUNT,
             crate::extract::anchors::DATE,
+            crate::extract::anchors::RATIO,
         ]
         .contains(&c.label.as_str())
             // D89: the labels of the profile extractors are registered, not candidates.

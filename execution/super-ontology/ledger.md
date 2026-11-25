@@ -529,3 +529,11 @@
 | L5 | SO-SIGN-L5（OO 侧） | 见标签 | Desktop 阶段二 | testing/super-ontology/evidence/L5/ | 2026-11-18 |
 | L2 | SO-SIGN-L2（OO 侧） | 见标签 | Desktop 阶段二 | testing/super-ontology/evidence/L2/ | 2026-11-17 |
 | L1 | SO-SIGN-L1 | 92011a799141 | 530ed9b7f8a9 | testing/super-ontology/evidence/L1/ | 2026-11-17 |
+| SO-B-S24-10 | D93 | review | feat/table-fill-value-normalise | 95cb41742 → 95cb41742 | — | testing/super-ontology/evidence/AT/ | Add a deterministic normaliser for values written in words |
+| SO-B-S24-11 | D93 | review | feat/table-fill-value-normalise | 2e7fc930c → 2e7fc930c | — | testing/super-ontology/evidence/AT/ | Tie documents through values written in words, percentages and relative dates |
+| SO-B-S24-12 | D93 | review | feat/table-fill-value-normalise | ac1fcd7ae → 1fcb5c1f1 | — | testing/super-ontology/evidence/AT/ | Fill the rows of a confirmed table class cell by cell (and two follow-ups) |
+| SO-B-S24-13 | D93 | review | feat/table-fill-value-normalise | c9f68dad7 → 473a2175c | — | testing/super-ontology/evidence/AT/ | Store, serve and gate what a table class fills (migration 0161, docs-api 1.17) |
+| SO-B-S24-14 | D93 | review | feat/table-fill-value-normalise | ef72048cf → ef72048cf | — | testing/super-ontology/evidence/AT/ | Freeze the cell-value gold of the table corpora before the first scoring |
+| SO-B-S24-15 | D93 | review | feat/table-fill-value-normalise | d10f38f3e → d10f38f3e | — | testing/super-ontology/evidence/AT/ | Score the cells a table class filled against the frozen cell gold |
+| SO-B-S24-16 | D93 | review | feat/table-fill-value-normalise | 3c23659ac → 3c23659ac | — | testing/super-ontology/evidence/AT/ | Record the lane AT evidence, the install counts and a live test of values in words |
+| SO-F-S24-10 | D93 | review | feat/table-fill-value-normalise | 568c4b009 → 568c4b009 | — | testing/super-ontology/evidence/AT/ | Show the instances a table class filled and the normalised values |

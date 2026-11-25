@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { stubBridgeSource } from "./stub-bridge.mjs";
 
 const app = "http://127.0.0.1:5276/";
-type Scenario = { engine: "healthy" | "starting" | "crashed"; firstRun?: boolean };
+type Scenario = { engine: "healthy" | "starting" | "crashed"; firstRun?: boolean; filled?: boolean; language?: string };
 
 async function open(page: Page, scenario: Scenario) {
   await page.clock.install({ time: new Date("2026-11-12T10:00:00Z") });
@@ -31,6 +31,30 @@ test.describe("screens", () => {
     await page.locator("[data-testid=nav-ontology]").click();
     await page.locator("[data-testid=entity-list]").waitFor();
     await expect(page).toHaveScreenshot("entities.png");
+  });
+  for (const language of ["en", "zh-Hans"] as const) {
+    test(`entity page: normalised values with the text as written (${language})`, async ({ page }) => {
+      await open(page, { engine: "healthy", filled: true, language });
+      await page.locator("[data-testid=nav-ontology]").click();
+      await page.locator("[data-testid=entity-row][data-name=Atlas]").click();
+      await page.locator("[data-testid=screen-entity][data-name=Atlas]").waitFor();
+      const budget = page.locator("[data-testid=fact-row][data-predicate='attr.budget']");
+      await expect(budget.locator("[data-testid=fact-value]")).toHaveText("6,850,000 CNY");
+      await expect(budget.locator("[data-testid=fact-value-original]")).toContainText("六百八十五万元");
+      await expect(page.locator("[data-testid=fact-row][data-predicate='attr.yield'] [data-testid=fact-value]")).toHaveText("88%");
+      // A value key this app does not know still shows its text.
+      await expect(page.locator("[data-testid=fact-row][data-predicate='attr.review_window'] [data-testid=fact-value]")).toHaveText("P2W");
+      await expect(page).toHaveScreenshot(`entity-values-${language}.png`);
+    });
+  }
+  test("entity page: an open Ratio thing is named by its percentage and lists how files wrote it", async ({ page }) => {
+    await open(page, { engine: "healthy", filled: true });
+    await page.locator("[data-testid=nav-ontology]").click();
+    await page.locator("[data-testid=entity-row][data-name='88%']").click();
+    await page.locator("[data-testid=screen-entity]").waitFor();
+    await expect(page.locator("h1")).toHaveText("88%");
+    await expect(page.locator(".so-chip", { hasText: "百分之八十八" })).toBeVisible();
+    await expect(page).toHaveScreenshot("entity-ratio.png");
   });
   test("first run: engine starting keeps Get started disabled, ready enables it", async ({ page }) => {
     await open(page, { engine: "starting", firstRun: true });

@@ -7,13 +7,14 @@ import { invalidRequest } from "./errors.mjs";
  */
 const KEY = /^[A-Za-z0-9._:~-]{1,200}$/u;
 const MAX_JSON_BYTES = 16 * 1024;
+const CLASS_KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 
 export const ONTOLOGY_CHANNELS = Object.freeze([
   "entities-search", "entity-detail", "resolve", "review-list", "review-decide", "pack-compile", "pack-read",
   "shares-list", "share-get", "share-mount", "share-refresh", "share-revoke", "share-reveal", "share-updates", "share-group-refresh",
   "usage-read", "ontology-versions", "model-config-read", "model-config-save",
   "fact-correct", "entity-merge", "entity-split", "constraints-list", "media-decode", "media-decode-cancel",
-  "atlas-links", "ontology-schema", "profile-overrides-list", "profile-override-set", "structure-read", "structure-induce", "structure-decide", "structure-yaml",
+  "atlas-links", "ontology-schema", "profile-overrides-list", "profile-override-set", "structure-read", "structure-induce", "structure-decide", "structure-yaml", "structure-instances",
 ]);
 
 /** Channels of this module whose request must carry an `operationId`. */
@@ -155,6 +156,7 @@ export function createOntologyRequestFields(field) {
       property: field.optional(field.nullable(field.string(64))), name: field.optional(field.string(80)), into: field.optional(field.string(64)),
     }),
     "structure-yaml": Object.freeze({ driveId: field.uuid, database: field.optional(field.boolean) }),
+    "structure-instances": Object.freeze({ driveId: field.uuid, classKey: field.pattern(CLASS_KEY), limit: field.optional(field.int(1, 200)), cursor: field.optional(field.cursor) }),
     "media-decode": Object.freeze({ fileId: field.uuid }),
     "media-decode-cancel": Object.freeze({ fileId: field.uuid }),
   });

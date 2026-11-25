@@ -111,6 +111,10 @@ fn is_date(s: &str) -> bool {
     if parse_exact(t).is_some() {
         return true;
     }
+    // A date written in words (`二〇二七年三月十六日`, `March 16, 2027`, `3月16日`, `下周二`, `tomorrow`): read against a document later.
+    if crate::values::date::is_date_text(t) {
+        return true;
+    }
     // A date with a time of day (`2026-03-04 10:00`, `2026-03-04T10:00:00`).
     let head: String = t
         .chars()
@@ -143,6 +147,21 @@ const CURRENCY: &[&str] = &[
     "k",
     "m",
 ];
+
+/// A number or an amount written in words (`六百八十五万元`, `six point eight five million`): `c:` marks an amount.
+fn number_words(s: &str) -> Option<String> {
+    let t = s.trim();
+    if let Some(m) = crate::values::money::parse(t, false) {
+        return Some(format!("c:{}", m.amount.to_plain()));
+    }
+    let has_word = t
+        .chars()
+        .any(|c| crate::values::zh::is_numeral_char(c) || c.is_ascii_alphabetic());
+    if !has_word {
+        return None;
+    }
+    crate::values::money::number(t, false).map(|(d, _)| d.to_plain())
+}
 
 fn number_core(s: &str) -> Option<String> {
     let t: String = s
@@ -214,6 +233,7 @@ fn is_percent(s: &str) -> bool {
     t.trim()
         .strip_suffix('%')
         .is_some_and(|n| n.trim().parse::<f64>().is_ok())
+        || crate::values::ratio::parse(s).is_some()
 }
 
 fn looks_like_id(s: &str) -> bool {
@@ -291,6 +311,17 @@ fn share(items: &[String], f: impl Fn(&str) -> bool) -> f64 {
 /// Infer the type of a property from the values of every record that carries it. `hint` is the entity type the
 /// property's name suggests; `key` is its canonical key.
 pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) -> Inferred {
+    infer_labeled(key, key, values, lexicon, allow_enum)
+}
+
+/// [`infer`] with the label the field is written with (`预算（万元）`): the folded key loses a unit in brackets, the label keeps it.
+pub fn infer_labeled(
+    key: &str,
+    label: &str,
+    values: &[String],
+    lexicon: &Lexicon,
+    allow_enum: bool,
+) -> Inferred {
     let raw: Vec<&str> = values
         .iter()
         .map(|v| v.trim())
@@ -326,7 +357,10 @@ pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) 
     {
         return single(ValueType::Version);
     }
-    let cores: Vec<Option<String>> = whole.iter().map(|s| number_core(s)).collect();
+    let cores: Vec<Option<String>> = whole
+        .iter()
+        .map(|s| number_core(s).or_else(|| number_words(s)))
+        .collect();
     let numeric = cores.iter().filter(|c| c.is_some()).count() as f64 / cores.len() as f64;
     if numeric >= AGREE {
         let currency = cores
@@ -334,7 +368,9 @@ pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) 
             .filter(|c| c.as_deref().is_some_and(|c| c.starts_with("c:")))
             .count() as f64
             / cores.len() as f64;
-        let money_key = matches!(key, "amount" | "budget" | "price");
+        // A header that names money and its currency or unit (`Budget CNY`, `amount_cny`, `预算（万元）`) is an amount column.
+        let money_key = matches!(key, "amount" | "budget" | "price")
+            || crate::values::money::header_hint(label).is_some_and(|(cur, _)| cur.is_some());
         return single(if currency >= 0.5 || money_key {
             ValueType::Amount
         } else {

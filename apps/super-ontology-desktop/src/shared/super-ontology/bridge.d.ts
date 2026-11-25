@@ -341,6 +341,8 @@ export type SuperOntologyChannelMap = {
   "structure-induce": { request: { driveId: string; operationId?: string }; value: import("./docs-api.generated").StructureSchema };
   "structure-decide": { request: { driveId: string; op: "accept" | "reject" | "rename" | "merge"; classKey: string; property?: string | null; name?: string; into?: string; operationId?: string }; value: import("./docs-api.generated").StructureSchema };
   "structure-yaml": { request: { driveId: string; database?: boolean; operationId?: string }; value: import("./docs-api.generated").StructureYaml };
+  /** The instances of a confirmed table class (docs-api 1.17), one page: a row each with its typed values, relations and cell range. */
+  "structure-instances": { request: { driveId: string; classKey: string; limit?: number; cursor?: string; operationId?: string }; value: import("./docs-api.generated").StructureInstances };
   "constraints-list": { request: { limit?: number; cursor?: string; operationId?: string }; value: EnginePage<EngineDocument> };
   /** Ontology › Ask: a question answered from the data by a bounded read-only tool loop; steps arrive on `ask-progress`. */
   "ask-run": { request: { askId: string; question: string; history?: { question: string; answer: string }[]; operationId?: string }; value: AskOutcome };
