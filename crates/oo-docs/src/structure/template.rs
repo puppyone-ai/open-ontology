@@ -63,7 +63,7 @@ fn entity_type_of(p: &Property, classes: &[ClassStructure]) -> Option<EntityType
     named.and_then(EntityType::parse)
 }
 
-fn sort_extraction(x: &mut Extraction) {
+pub(super) fn sort_extraction(x: &mut Extraction) {
     x.entities.sort_by(|a, b| a.entity.cmp(&b.entity));
     let key = |f: &FactMention| {
         (
@@ -77,7 +77,7 @@ fn sort_extraction(x: &mut Extraction) {
     x.facts.sort_by_key(key);
 }
 
-fn add_entity(x: &mut Extraction, e: &EntityRef, ev: &EvidenceRef) {
+pub(super) fn add_entity(x: &mut Extraction, e: &EntityRef, ev: &EvidenceRef) {
     match x.entities.iter_mut().find(|m| &m.entity == e) {
         Some(m) => {
             if !m.evidence.contains(ev) {

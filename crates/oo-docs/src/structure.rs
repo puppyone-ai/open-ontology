@@ -21,6 +21,7 @@ pub mod dbside;
 pub mod induce;
 pub mod observe;
 pub mod store;
+pub mod tablefill;
 pub mod template;
 pub mod vtype;
 pub mod yaml;

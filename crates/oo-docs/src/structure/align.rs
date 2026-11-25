@@ -50,6 +50,15 @@ pub fn apply(files: &mut [(String, String, FileObs)], map: &BTreeMap<String, Str
     }
 }
 
+/// Read the fields of one file under their aligned keys.
+pub fn apply_obs(o: &mut FileObs, map: &BTreeMap<String, String>) {
+    for f in &mut o.fields {
+        if let Some(t) = map.get(&f.key) {
+            f.key = t.clone();
+        }
+    }
+}
+
 /// Keys the dictionary does not know, in at least two files, with their labels and a few values: what the model is asked about.
 pub fn unknown(
     files: &[(String, String, FileObs)],

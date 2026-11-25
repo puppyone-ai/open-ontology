@@ -111,6 +111,10 @@ fn is_date(s: &str) -> bool {
     if parse_exact(t).is_some() {
         return true;
     }
+    // A date written in words with its year (`二〇二七年三月十六日`, `March 16, 2027`); a relative date needs a document.
+    if crate::values::date::parse(t, &crate::values::DateCtx::NONE).is_some() {
+        return true;
+    }
     // A date with a time of day (`2026-03-04 10:00`, `2026-03-04T10:00:00`).
     let head: String = t
         .chars()
@@ -143,6 +147,21 @@ const CURRENCY: &[&str] = &[
     "k",
     "m",
 ];
+
+/// A number or an amount written in words (`六百八十五万元`, `six point eight five million`): `c:` marks an amount.
+fn number_words(s: &str) -> Option<String> {
+    let t = s.trim();
+    if let Some(m) = crate::values::money::parse(t, false) {
+        return Some(format!("c:{}", m.amount.to_plain()));
+    }
+    let has_word = t
+        .chars()
+        .any(|c| crate::values::zh::is_numeral_char(c) || c.is_ascii_alphabetic());
+    if !has_word {
+        return None;
+    }
+    crate::values::money::number(t, false).map(|(d, _)| d.to_plain())
+}
 
 fn number_core(s: &str) -> Option<String> {
     let t: String = s
@@ -214,6 +233,7 @@ fn is_percent(s: &str) -> bool {
     t.trim()
         .strip_suffix('%')
         .is_some_and(|n| n.trim().parse::<f64>().is_ok())
+        || crate::values::ratio::parse(s).is_some()
 }
 
 fn looks_like_id(s: &str) -> bool {
@@ -326,7 +346,10 @@ pub fn infer(key: &str, values: &[String], lexicon: &Lexicon, allow_enum: bool) 
     {
         return single(ValueType::Version);
     }
-    let cores: Vec<Option<String>> = whole.iter().map(|s| number_core(s)).collect();
+    let cores: Vec<Option<String>> = whole
+        .iter()
+        .map(|s| number_core(s).or_else(|| number_words(s)))
+        .collect();
     let numeric = cores.iter().filter(|c| c.is_some()).count() as f64 / cores.len() as f64;
     if numeric >= AGREE {
         let currency = cores

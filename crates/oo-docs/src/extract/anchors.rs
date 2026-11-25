@@ -283,43 +283,6 @@ pub fn doc_ctx(path: &str, ir: &DocIr) -> DateCtx {
     }
 }
 
-/// Header words that say a column holds money, and the scale and currency its header gives (`预算（万元）`).
-fn header_money(header: &str) -> Option<(Option<&'static str>, u128)> {
-    let h = header.to_lowercase();
-    const WORDS: &[&str] = &[
-        "budget", "amount", "price", "cost", "contract", "fee", "salary", "revenue", "total",
-        "subtotal", "spend", "预算", "金额", "价格", "单价", "费用", "合同", "总价", "报价",
-        "成本", "收入", "工资", "薪资", "总额", "支出",
-    ];
-    if !WORDS.iter().any(|w| h.contains(w)) {
-        return None;
-    }
-    let currency = if ["cny", "rmb", "人民币", "元", "¥", "￥"]
-        .iter()
-        .any(|w| h.contains(w))
-    {
-        Some("CNY")
-    } else if ["usd", "美元", "$"].iter().any(|w| h.contains(w)) {
-        Some("USD")
-    } else if ["eur", "欧元", "€"].iter().any(|w| h.contains(w)) {
-        Some("EUR")
-    } else {
-        None
-    };
-    let scale = if h.contains('亿') {
-        100_000_000
-    } else if h.contains('万') {
-        10_000
-    } else if h.contains("million") || h.contains("(m)") || h.contains("百万") {
-        1_000_000
-    } else if h.contains("(k)") || h.contains("千元") || h.contains("thousand") {
-        1_000
-    } else {
-        1
-    };
-    Some((currency, scale))
-}
-
 /// `Header: value` lines of a table row (`kv` block): the amounts the header says are amounts.
 fn row_amounts(text: &str) -> Vec<(u64, String)> {
     let mut out = Vec::new();
@@ -327,7 +290,7 @@ fn row_amounts(text: &str) -> Vec<(u64, String)> {
         let Some((header, value)) = line.split_once(": ") else {
             continue;
         };
-        let Some((currency, scale)) = header_money(header) else {
+        let Some((currency, scale)) = values::money::header_hint(header) else {
             continue;
         };
         let value = value.trim();
